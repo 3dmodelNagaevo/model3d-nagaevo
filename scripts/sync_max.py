@@ -31,6 +31,7 @@ import photos as photolib
 
 CATALOG = ROOT / "catalog.json"
 STATE = ROOT / "state.json"
+OVERRIDES = ROOT / "overrides.json"   # /скрыть и /цена из бота (правят и GitHub, и Yandex Cloud)
 PHOTOS = ROOT / "photos"
 CHANNEL_FILE = ROOT / "channel_id.txt"
 SITE_URL = (os.environ.get("SITE_URL") or "https://3dmodelnagaevo.github.io/model3d-nagaevo/").rstrip("/") + "/"
@@ -273,7 +274,7 @@ def fetch_photos(item_or_review, old=None):
 
 # ---------------------------------------------------------------- синхронизация
 
-def sync(messages, old_items, old_reviews, state, whole_history):
+def sync(messages, old_items, old_reviews, state, whole_history, ov=None):
     """Возвращает (items, reviews, events)."""
     events = {"added": [], "removed": [], "warn": []}
     manual = [i for i in old_items if i.get("source") != "max"]
@@ -323,8 +324,9 @@ def sync(messages, old_items, old_reviews, state, whole_history):
         log(f"  + новый товар №{d['no']}: {d['title']}")
 
     # ручные правки из бота: скрыть / цена
-    hidden = set(state.get("hidden", []))
-    prices = state.get("price", {})
+    ov = ov or {}
+    hidden = set(ov.get("hidden", []))
+    prices = ov.get("price", {})
     for it in list(fresh.values()) + manual:
         it.pop("hidden", None)
         if it.get("no") in hidden:
@@ -387,6 +389,11 @@ def main():
         return 1
 
     state = load_json(STATE, {})
+    ov = load_json(OVERRIDES, {})
+    for k in ("hidden", "price"):            # перенос из старого формата
+        if k in state:
+            ov.setdefault(k, state.pop(k))
+    ov_before = json.dumps(ov, sort_keys=True)
     old_items, old_reviews = load_catalog()
     notifier = bot.Notifier(token)
     try:
@@ -397,8 +404,10 @@ def main():
         log(f"Канал {chat_id}, владельцев: {len(owners)}")
 
         # 1) команды от владельца (до синхронизации, чтобы /скрыть и /пост сработали сразу)
-        deferred = bot.process_commands(token, chat_id, owners, state, notifier)
+        deferred = bot.process_commands(token, chat_id, owners, state, notifier, ov)
         dump_json(STATE, state)   # сохраняем сразу: команды не выполнятся повторно
+        if json.dumps(ov, sort_keys=True) != ov_before or not OVERRIDES.exists():
+            dump_json(OVERRIDES, ov)
 
         # 2) посты канала → каталог
         messages, whole = fetch_posts(token, chat_id)
@@ -408,7 +417,7 @@ def main():
         dump_json(STATE, state)
         return 1
 
-    items, reviews, events = sync(messages, old_items, old_reviews, state, whole)
+    items, reviews, events = sync(messages, old_items, old_reviews, state, whole, ov)
     update_views(items, old_items, state)
 
     # 3) страницы товаров, QR

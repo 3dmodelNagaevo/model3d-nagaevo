@@ -167,8 +167,21 @@ def build_post(text, att_images):
     return "\n".join(lines), atts
 
 
-def process_commands(token, chat_id, owners, state, notifier):
+def webhook_active(token):
+    """Если бот подписан на webhook (Yandex Cloud), команды обрабатывает он, а не GitHub."""
+    try:
+        subs = maxapi.get("/subscriptions", {}, token).get("subscriptions") or []
+        return bool(subs)
+    except Exception as e:
+        log(f"  ! не удалось проверить webhook: {e}")
+        return False
+
+
+def process_commands(token, chat_id, owners, state, notifier, ov):
     """Читает личку бота. Возвращает список отложенных ответов fn(items) — им нужен свежий каталог."""
+    if webhook_active(token):
+        log("  команды бота обрабатывает Yandex Cloud (webhook) — пропускаю")
+        return []
     params = {"limit": 100, "timeout": 0}
     if state.get("marker"):
         params["marker"] = state["marker"]
@@ -215,9 +228,9 @@ def process_commands(token, chat_id, owners, state, notifier):
                 reply(f"Напишите номер товара, например: {cmd} 12\n"
                       "Номер есть на сайте в карточке товара и в /статус.")
                 continue
-            hidden = set(state.get("hidden", []))
+            hidden = set(ov.get("hidden", []))
             (hidden.add if cmd == "/скрыть" else hidden.discard)(no)
-            state["hidden"] = sorted(hidden)
+            ov["hidden"] = sorted(hidden)
             deferred.append(lambda items, no=no, cmd=cmd, reply=reply: reply(
                 (f"🙈 Скрыл с сайта №{no}" if cmd == "/скрыть" else f"👁 Вернул на сайт №{no}")
                 + (f": {_find(items, no)['title']}" if _find(items, no) else " (такого номера сейчас нет)")
@@ -228,7 +241,7 @@ def process_commands(token, chat_id, owners, state, notifier):
             if not no or len(parts) < 3:
                 reply("Напишите номер товара и новую цену, например:\n/цена 12 300\n\nВернуть цену из поста: /цена 12 сброс")
                 continue
-            prices = state.setdefault("price", {})
+            prices = ov.setdefault("price", {})
             if parts[2].lower() in ("сброс", "reset", "-"):
                 prices.pop(str(no), None)
                 deferred.append(lambda items, no=no, reply=reply: reply(f"↩️ Цена №{no} снова берётся из поста."))
@@ -253,7 +266,7 @@ def process_commands(token, chat_id, owners, state, notifier):
                 reply("❌ MAX не дал опубликовать. Проверьте, что у бота в канале есть право "
                       f"«Публиковать посты».\n\n{e}")
         elif cmd == "/статус":
-            deferred.append(lambda items, reply=reply: reply(status_text(items, state)))
+            deferred.append(lambda items, reply=reply: reply(status_text(items, ov)))
         elif cmd == "/топ":
             deferred.append(lambda items, reply=reply: reply(top_text(items, "views_week", "за неделю")))
         elif cmd in ("/стата", "/статистика"):
@@ -267,7 +280,7 @@ def process_commands(token, chat_id, owners, state, notifier):
 
 # ---------------------------------------------------------------- тексты
 
-def status_text(items, state):
+def status_text(items, ov):
     vis = [i for i in items if not i.get("hidden")]
     hid = [i for i in items if i.get("hidden")]
     last = max((i.get("ts", 0) for i in items if i.get("source") == "max"), default=0)
@@ -275,8 +288,8 @@ def status_text(items, state):
     lines = [f"📊 На сайте: {len(vis)} товаров", f"🕐 Последний пост с товаром: {last_s}"]
     if hid:
         lines.append("🙈 Скрыты: " + ", ".join(f"№{i['no']}" for i in hid))
-    if state.get("price"):
-        lines.append("💰 Цены изменены вручную: " + ", ".join(f"№{k}" for k in state["price"]))
+    if ov.get("price"):
+        lines.append("💰 Цены изменены вручную: " + ", ".join(f"№{k}" for k in ov["price"]))
     return "\n".join(lines)
 
 

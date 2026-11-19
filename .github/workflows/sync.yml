@@ -51,7 +51,7 @@ jobs:
         run: |
           git config user.name "catalog-bot"
           git config user.email "catalog-bot@users.noreply.github.com"
-          for p in catalog.json state.json channel_id.txt photos m qr; do if [ -e "$p" ]; then git add -A "$p"; fi; done
+          for p in catalog.json state.json overrides.json channel_id.txt photos m qr; do if [ -e "$p" ]; then git add -A "$p"; fi; done
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
@@ -62,7 +62,8 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
           git commit -q -m "Каталог: обновление из канала MAX"
-          git push
+          # пока шёл запуск, бот в Yandex мог изменить overrides.json — подтягиваем и пушим
+          git push || (git pull --rebase -q origin main && git push)
 
   deploy:
     needs: sync
