@@ -71,6 +71,10 @@ def post(path, params, token, body):
     return _request("POST", path, params, token, body)
 
 
+def patch(path, params, token, body):
+    return _request("PATCH", path, params, token, body)
+
+
 def download(url):
     req = urllib.request.Request(url, headers=UA)
     with urllib.request.urlopen(req, timeout=60, context=CTX) as r:

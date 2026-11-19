@@ -357,7 +357,7 @@ def update_views(items, old_items, state):
         state["views_ts"] = int(now)
     else:
         for it in items:
-            if it.get("mid") in old_views and old_views[it["mid"]] is not None:
+            if it.get("mid") and old_views.get(it["mid"]) is not None:
                 it["views"] = old_views[it["mid"]]
 
     msk = dt.datetime.now(MSK)
@@ -393,6 +393,7 @@ def main():
         chat_id = find_channel(token)
         owners = bot.get_owners(token, chat_id, state)
         notifier.owners = owners
+        bot.ensure_commands(token, state)
         log(f"Канал {chat_id}, владельцев: {len(owners)}")
 
         # 1) команды от владельца (до синхронизации, чтобы /скрыть и /пост сработали сразу)

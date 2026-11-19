@@ -16,8 +16,9 @@ import maxapi
 from maxapi import ApiError, log
 
 MSK = dt.timezone(dt.timedelta(hours=3))
-HELP = """🤖 Команды бота сайта:
+HELP = """🤖 Бот сайта. Кнопки меню — под этим сообщением, или пишите команды:
 
+/меню — показать кнопки
 /статус — сколько товаров на сайте, когда обновлялся
 /топ — популярное за неделю (по просмотрам постов)
 /стата — статистика за неделю
@@ -35,6 +36,53 @@ HELP = """🤖 Команды бота сайта:
 
 Номер товара (№) виден на сайте в карточке и в тексте заказа.
 Бот отвечает в течение 15–30 минут."""
+
+
+# ---------------------------------------------------------------- меню
+
+SITE_URL = (os.environ.get("SITE_URL") or "https://3dmodelnagaevo.github.io/model3d-nagaevo/").rstrip("/") + "/"
+
+# Кнопки типа "message": нажатие отправляет боту текст кнопки, как будто его написали вручную.
+MENU_BUTTONS = {
+    "📊 Статус": "/статус",
+    "🔥 Топ недели": "/топ",
+    "📈 Статистика": "/стата",
+    "🙈 Скрыть товар": "/скрыть",
+    "👁 Вернуть товар": "/показать",
+    "💰 Изменить цену": "/цена",
+    "📸 Новый пост": "/пост",
+    "❓ Помощь": "/помощь",
+}
+MENU_ROWS = [
+    ["📊 Статус", "🔥 Топ недели", "📈 Статистика"],
+    ["🙈 Скрыть товар", "👁 Вернуть товар"],
+    ["💰 Изменить цену", "📸 Новый пост"],
+    ["❓ Помощь"],
+]
+BOT_COMMANDS = [
+    ("menu", "Меню"), ("status", "Статус сайта"), ("top", "Популярное за неделю"),
+    ("stats", "Статистика за неделю"), ("help", "Все команды"),
+]
+EN_ALIASES = {"/menu": "/меню", "/status": "/статус", "/top": "/топ", "/stats": "/стата", "/help": "/помощь"}
+
+
+def menu_keyboard():
+    rows = [[{"type": "message", "text": t} for t in row] for row in MENU_ROWS]
+    rows.append([{"type": "link", "text": "🌐 Открыть сайт", "url": SITE_URL}])
+    return {"type": "inline_keyboard", "payload": {"buttons": rows}}
+
+
+def ensure_commands(token, state):
+    """Список команд бота (кнопка «/» в чате). Ставим один раз."""
+    version = 1
+    if state.get("commands_v") == version:
+        return
+    try:
+        maxapi.patch("/me", {}, token, {"commands": [{"name": n, "description": d} for n, d in BOT_COMMANDS]})
+        log("  список команд бота обновлён")
+    except Exception as e:
+        log(f"  ! не удалось задать список команд: {e}")
+    state["commands_v"] = version
 
 
 # ---------------------------------------------------------------- владельцы
@@ -63,12 +111,14 @@ class Notifier:
     def __init__(self, token):
         self.token, self.owners = token, []
 
-    def send(self, text, user_id=None):
+    def send(self, text, user_id=None, menu=False):
         targets = [user_id] if user_id else self.owners
+        body = {"text": text[:3900]}
+        if menu:
+            body["attachments"] = [menu_keyboard()]
         for uid in targets:
             try:
-                maxapi.post("/messages", {"user_id": uid, "disable_link_preview": "true"}, self.token,
-                            {"text": text[:3900]})
+                maxapi.post("/messages", {"user_id": uid, "disable_link_preview": "true"}, self.token, body)
             except Exception as e:
                 log(f"  ! не удалось написать {uid}: {e}")
 
@@ -139,25 +189,31 @@ def process_commands(token, chat_id, owners, state, notifier):
         sender = (msg.get("sender") or u.get("user") or {}).get("user_id")
         if u.get("update_type") == "bot_started":
             if sender in owners:
-                notifier.send(HELP, sender)
+                notifier.send(HELP, sender, menu=True)
             continue
         if rec.get("chat_type") != "dialog" or sender not in owners:
             continue                        # не владелец — игнорируем (покупателей пока не обслуживаем)
         body = msg.get("body") or {}
         text = (body.get("text") or "").strip()
         images = [a for a in body.get("attachments") or [] if a.get("type") == "image"]
+        if text in MENU_BUTTONS:                       # нажата кнопка меню
+            text = MENU_BUTTONS[text]
         cmd = text.split()[0].lower() if text else ""
+        cmd = EN_ALIASES.get(cmd, cmd)
         log(f"  команда от владельца: {cmd or '(без текста)'}")
 
         def reply(t, uid=sender):
-            notifier.send(t, uid)
+            notifier.send(t, uid, menu=True)      # меню прикрепляем к каждому ответу
 
         if cmd in ("/start", "/help", "/помощь", "помощь"):
             reply(HELP)
+        elif cmd in ("/меню", "меню", "/menu"):
+            reply("Меню 👇")
         elif cmd in ("/скрыть", "/показать"):
             no = _num(text)
             if not no:
-                reply("Укажите номер товара: /скрыть 12")
+                reply(f"Напишите номер товара, например: {cmd} 12\n"
+                      "Номер есть на сайте в карточке товара и в /статус.")
                 continue
             hidden = set(state.get("hidden", []))
             (hidden.add if cmd == "/скрыть" else hidden.discard)(no)
@@ -170,7 +226,7 @@ def process_commands(token, chat_id, owners, state, notifier):
             parts = text.split()
             no = _num(parts[1]) if len(parts) > 1 else None
             if not no or len(parts) < 3:
-                reply("Формат: /цена 12 300  или  /цена 12 сброс")
+                reply("Напишите номер товара и новую цену, например:\n/цена 12 300\n\nВернуть цену из поста: /цена 12 сброс")
                 continue
             prices = state.setdefault("price", {})
             if parts[2].lower() in ("сброс", "reset", "-"):
@@ -181,6 +237,9 @@ def process_commands(token, chat_id, owners, state, notifier):
                 prices[str(no)] = p
                 deferred.append(lambda items, no=no, p=p, reply=reply: reply(
                     f"💰 Цена №{no}" + (f" ({_find(items, no)['title']})" if _find(items, no) else "") + f" → {p} ₽"))
+        elif cmd in ("/пост", "/post", "/новый") and not images and text.strip().lower() in ("/пост", "/post", "/новый"):
+            reply("📸 Пришлите фото товара и в подписи к нему:\n\n/пост Название\nЦена: 200\n#категория\n\n"
+                  "Можно добавить строки «Размер: …», «Цвет: …» и описание.")
         elif cmd in ("/пост", "/post", "/новый"):
             try:
                 post_text, atts = build_post(text, images)
@@ -223,6 +282,8 @@ def status_text(items, state):
 
 def top_text(items, key, label, n=5):
     rows = sorted([i for i in items if i.get(key) and not i.get("hidden")], key=lambda i: -i[key])[:n]
+    if not rows and key != "views":       # за неделю ещё пусто — показываем за всё время
+        return top_text(items, "views", "за всё время", n)
     if not rows:
         return f"🔥 Популярное {label}: пока нет данных о просмотрах."
     return f"🔥 Популярное {label}:\n" + "\n".join(
@@ -288,7 +349,7 @@ def maybe_weekly_report(notifier, items, state, site_url):
         return
     if not notifier.owners:
         return
-    notifier.send("📅 Отчёт за неделю\n\n" + stats_text(items, state) + f"\n\n{site_url}")
+    notifier.send("📅 Отчёт за неделю\n\n" + stats_text(items, state) + f"\n\n{site_url}", menu=True)
     state["last_report"] = int(time.time())
     state["snap_week"] = {"ts": int(time.time()),
                           "views": {i["mid"]: i.get("views", 0) for i in items if i.get("source") == "max"}}
