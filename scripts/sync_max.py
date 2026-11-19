@@ -32,6 +32,7 @@ import photos as photolib
 CATALOG = ROOT / "catalog.json"
 STATE = ROOT / "state.json"
 OVERRIDES = ROOT / "overrides.json"   # /скрыть и /цена из бота (правят и GitHub, и Yandex Cloud)
+SALES = ROOT / "sales.json"           # отметки «/продано» из бота
 PHOTOS = ROOT / "photos"
 CHANNEL_FILE = ROOT / "channel_id.txt"
 SITE_URL = (os.environ.get("SITE_URL") or "https://3dmodelnagaevo.github.io/model3d-nagaevo/").rstrip("/") + "/"
@@ -384,6 +385,32 @@ def update_views(items, old_items, state):
         it["views_month"] = max(0, v - state["snap_month"]["views"].get(it["mid"], 0))
 
 
+# ---------------------------------------------------------------- продажи
+
+def apply_sales(items, sales):
+    """sold / sold_week / sold_month у каждого товара — из отметок «/продано»."""
+    now = time.time() * 1000
+    week, month = 7 * 86400 * 1000, 30 * 86400 * 1000
+    tot, wk, mo = {}, {}, {}
+    for r in sales:
+        no, q, ts = r.get("no"), int(r.get("qty") or 1), int(r.get("ts") or 0)
+        tot[no] = tot.get(no, 0) + q
+        if now - ts < week:
+            wk[no] = wk.get(no, 0) + q
+        if now - ts < month:
+            mo[no] = mo.get(no, 0) + q
+    for it in items:
+        for key in ("sold", "sold_week", "sold_month"):
+            it.pop(key, None)
+        no = it.get("no")
+        if tot.get(no):
+            it["sold"] = tot[no]
+            if wk.get(no):
+                it["sold_week"] = wk[no]
+            if mo.get(no):
+                it["sold_month"] = mo[no]
+
+
 # ---------------------------------------------------------------- main
 
 def main():
@@ -411,7 +438,11 @@ def main():
         log(f"Канал {chat_id}, владельцев: {len(owners)}")
 
         # 1) команды от владельца (до синхронизации, чтобы /скрыть и /пост сработали сразу)
-        deferred = bot.process_commands(token, chat_id, owners, state, notifier, ov)
+        sales_doc = load_json(SALES, {"sales": []})
+        sales_before = json.dumps(sales_doc, sort_keys=True)
+        deferred = bot.process_commands(token, chat_id, owners, state, notifier, ov, sales_doc)
+        if json.dumps(sales_doc, sort_keys=True) != sales_before:
+            dump_json(SALES, sales_doc)
         dump_json(STATE, state)   # сохраняем сразу: команды не выполнятся повторно
         if json.dumps(ov, sort_keys=True) != ov_before or not OVERRIDES.exists():
             dump_json(OVERRIDES, ov)
@@ -426,6 +457,7 @@ def main():
 
     items, reviews, events = sync(messages, old_items, old_reviews, state, whole, ov)
     update_views(items, old_items, state)
+    apply_sales(items, sales_doc.get("sales", []))
 
     # 3) страницы товаров, QR
     pages.generate(items, SITE_URL)
@@ -444,7 +476,7 @@ def main():
         except Exception as e:
             log(f"  ! ответ на команду: {e}")
     bot.notify_events(notifier, events, SITE_URL)
-    bot.maybe_weekly_report(notifier, items, state, SITE_URL)
+    bot.maybe_weekly_report(notifier, items, state, SITE_URL, sales_doc.get("sales", []))
 
     dump_json(STATE, state)
     visible = [i for i in items if not i.get("hidden")]

@@ -22,6 +22,9 @@ HELP = """🤖 Бот сайта. Кнопки меню — под этим со
 /статус — сколько товаров на сайте, когда обновлялся
 /топ — популярное за неделю (по просмотрам постов)
 /стата — статистика за неделю
+/продано 12 — отметить продажу товара №12 (/продано 12 3 — три штуки)
+/отменить — удалить последнюю отметку о продаже
+/продажи — продажи за неделю и месяц
 /скрыть 12 — убрать товар №12 с сайта (пост в канале остаётся)
 /показать 12 — вернуть товар на сайт
 /цена 12 300 — поменять цену на сайте
@@ -47,13 +50,14 @@ SITE_URL = (os.environ.get("SITE_URL") or "https://3dmodelnagaevo.github.io/mode
 MENU_BUTTONS = {
     "📊 Статус": "/статус", "🔥 Топ": "/топ", "📈 Статистика": "/стата", "🔄 Обновить": "/обновить",
     "🙈 Скрыть": "/скрыть", "👁 Вернуть": "/показать", "💰 Цена": "/цена", "🖼 Обложка": "/обложка",
-    "📸 Новый пост": "/пост", "❓ Помощь": "/помощь",
+    "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
     # старые подписи кнопок (из прошлых сообщений)
     "🔥 Топ недели": "/топ", "🙈 Скрыть товар": "/скрыть", "👁 Вернуть товар": "/показать",
     "💰 Изменить цену": "/цена", "🔄 Обновить сайт": "/обновить",
 }
 MENU_ROWS = [
     ["📊 Статус", "📈 Статистика"],
+    ["✅ Продано", "🧾 Продажи"],
     ["🔥 Топ", "🔄 Обновить"],
     ["🙈 Скрыть", "👁 Вернуть"],
     ["💰 Цена", "🖼 Обложка"],
@@ -177,7 +181,7 @@ def webhook_active(token):
         return False
 
 
-def process_commands(token, chat_id, owners, state, notifier, ov):
+def process_commands(token, chat_id, owners, state, notifier, ov, sales_doc=None):
     """Читает личку бота. Возвращает список отложенных ответов fn(items) — им нужен свежий каталог."""
     if webhook_active(token):
         log("  команды бота обрабатывает Yandex Cloud (webhook) — пропускаю")
@@ -265,6 +269,28 @@ def process_commands(token, chat_id, owners, state, notifier, ov):
             except ApiError as e:
                 reply("❌ MAX не дал опубликовать. Проверьте, что у бота в канале есть право "
                       f"«Публиковать посты».\n\n{e}")
+        elif cmd == "/продано":
+            parts = text.split()
+            no = _num(parts[1]) if len(parts) > 1 else None
+            qty = _num(parts[2]) if len(parts) > 2 else 1
+            if not no:
+                reply("Напишите номер проданного товара:\n/продано 12 — продана 1 шт.\n/продано 12 3 — продано 3 шт.\n\n"
+                      "Номер есть в карточке товара на сайте и в тексте заказа от покупателя.")
+                continue
+            if sales_doc is None:
+                continue
+            sales_doc.setdefault("sales", []).append({"no": no, "qty": max(1, min(qty or 1, 100)), "ts": int(time.time() * 1000)})
+            total = sum(int(r.get("qty") or 1) for r in sales_doc["sales"] if r.get("no") == no)
+            deferred.append(lambda items, no=no, qty=qty, total=total, reply=reply: reply(sold_reply(items, total, no, qty)))
+        elif cmd == "/отменить":
+            if sales_doc and sales_doc.get("sales"):
+                last = sales_doc["sales"].pop()
+                deferred.append(lambda items, last=last, reply=reply: reply(
+                    f"↩️ Удалил последнюю отметку: №{last['no']} × {last.get('qty', 1)}"))
+            else:
+                reply("Отметок о продажах пока нет.")
+        elif cmd == "/продажи":
+            deferred.append(lambda items, reply=reply: reply(sales_text(items, (sales_doc or {}).get("sales", []))))
         elif cmd == "/обновить":
             reply("🔄 Сайт обновляется при каждой проверке канала — уже в процессе.")
         elif cmd == "/обложка":
@@ -298,6 +324,45 @@ def process_commands(token, chat_id, owners, state, notifier, ov):
 
 # ---------------------------------------------------------------- тексты
 
+def times(n):
+    return "раза" if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14) else "раз"
+
+
+def _sum(sales, since_ms):
+    out = {}
+    for r in sales:
+        if r.get("ts", 0) >= since_ms:
+            out[r["no"]] = out.get(r["no"], 0) + int(r.get("qty") or 1)
+    return out
+
+
+def sold_reply(items, total, no, qty):
+    it = _find(items, no)
+    name = f"№{no} {it['title']}" if it else f"№{no} (такого номера сейчас нет на сайте — проверьте номер)"
+    return (f"✅ Записал продажу: {name} × {qty or 1}\nВсего продано: {total} шт.\n"
+            "Ошиблись — /отменить. На сайте обновится «Популярное».")
+
+
+def sales_text(items, sales, days_list=(7, 30)):
+    if not sales:
+        return "🧾 Продаж пока не отмечено. После продажи нажмите «✅ Продано» и напишите номер товара."
+    now = time.time() * 1000
+    parts = []
+    for days in days_list:
+        agg = _sum(sales, now - days * 86400 * 1000)
+        if not agg:
+            parts.append(f"🧾 За {days} дн.: продаж не было")
+            continue
+        qty = sum(agg.values())
+        money = sum(((_find(items, no) or {}).get("price") or 0) * q for no, q in agg.items())
+        top = sorted(agg.items(), key=lambda x: -x[1])[:5]
+        money_s = f"{money:,}".replace(",", " ")
+        lines = [f"🧾 За {days} дн.: продано {qty} шт., примерно на {money_s} ₽ (по ценам с сайта)"]
+        lines += [f"   • №{no} {(_find(items, no) or {}).get('title', '?')} — {q} шт." for no, q in top]
+        parts.append("\n".join(lines))
+    return "\n\n".join(parts)
+
+
 def status_text(items, ov):
     vis = [i for i in items if not i.get("hidden")]
     hid = [i for i in items if i.get("hidden")]
@@ -312,6 +377,12 @@ def status_text(items, ov):
 
 
 def top_text(items, key, label, n=5):
+    if key == "views_week" and any(i.get("sold_week") for i in items):
+        rows = sorted([i for i in items if not i.get("hidden") and (i.get("sold_week") or i.get("views_week"))],
+                      key=lambda i: (-(i.get("sold_week") or 0), -(i.get("views_week") or 0)))[:n]
+        return "🔥 Хиты недели (продажи, потом просмотры):\n" + "\n".join(
+            f"{k}. №{i['no']} {i['title']} — продано {i.get('sold_week', 0)}, {i.get('views_week', 0)} просм."
+            for k, i in enumerate(rows, 1))
     rows = sorted([i for i in items if i.get(key) and not i.get("hidden")], key=lambda i: -i[key])[:n]
     if not rows and key != "views":       # за неделю ещё пусто — показываем за всё время
         return top_text(items, "views", "за всё время", n)
@@ -407,7 +478,7 @@ def notify_events(notifier, events, site_url):
                       "Если это товар — допишите цену. Если нет — всё в порядке.")
 
 
-def maybe_weekly_report(notifier, items, state, site_url):
+def maybe_weekly_report(notifier, items, state, site_url, sales=None):
     """Отчёт по понедельникам после 10:00 МСК, раз в неделю."""
     now = dt.datetime.now(MSK)
     last = state.get("last_report", 0)
@@ -415,7 +486,8 @@ def maybe_weekly_report(notifier, items, state, site_url):
         return
     if not notifier.owners:
         return
-    notifier.send("📅 Отчёт за неделю\n\n" + stats_text(items, state) + f"\n\n{site_url}", menu=True)
+    notifier.send("📅 Отчёт за неделю\n\n" + sales_text(items, sales or [], (7,)) + "\n\n"
+                  + stats_text(items, state) + f"\n\n{site_url}", menu=True)
     state["last_report"] = int(time.time())
     state["snap_week"] = {"ts": int(time.time()),
                           "views": {i["mid"]: i.get("views", 0) for i in items if i.get("source") == "max"}}

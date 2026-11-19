@@ -112,20 +112,24 @@ def gh_put(name, data, sha, message):
     gh("PUT", f"/repos/{REPO}/contents/{name}", body)
 
 
-def update_overrides(fn, message):
-    """Правка overrides.json с повтором при конфликте."""
+def update_json(name, fn, message, default=None):
+    """Правка JSON-файла в репозитории с повтором при конфликте. Возвращает новые данные."""
     for _ in range(3):
-        ov, sha = gh_file("overrides.json")
-        ov = ov or {}
-        fn(ov)
+        data, sha = gh_file(name)
+        data = data if data is not None else (default if default is not None else {})
+        fn(data)
         try:
-            gh_put("overrides.json", ov, sha, message)
-            return
+            gh_put(name, data, sha, message)
+            return data
         except urllib.error.HTTPError as e:
             if e.code != 409:
                 raise
             time.sleep(1)
     raise RuntimeError("не удалось сохранить изменения (конфликт)")
+
+
+def update_overrides(fn, message):
+    return update_json("overrides.json", fn, message)
 
 
 def run_sync():
@@ -138,7 +142,7 @@ def run_sync():
 MENU_BUTTONS = {
     "📊 Статус": "/статус", "🔥 Топ": "/топ", "📈 Статистика": "/стата", "🔄 Обновить": "/обновить",
     "🙈 Скрыть": "/скрыть", "👁 Вернуть": "/показать", "💰 Цена": "/цена", "🖼 Обложка": "/обложка",
-    "📸 Новый пост": "/пост", "❓ Помощь": "/помощь",
+    "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
     # старые подписи кнопок (из прошлых сообщений)
     "🔥 Топ недели": "/топ", "🙈 Скрыть товар": "/скрыть", "👁 Вернуть товар": "/показать",
     "💰 Изменить цену": "/цена", "🔄 Обновить сайт": "/обновить",
@@ -146,6 +150,7 @@ MENU_BUTTONS = {
 # по 2 кнопки в ряд — иначе MAX обрезает подписи
 MENU_ROWS = [
     ["📊 Статус", "📈 Статистика"],
+    ["✅ Продано", "🧾 Продажи"],
     ["🔥 Топ", "🔄 Обновить"],
     ["🙈 Скрыть", "👁 Вернуть"],
     ["💰 Цена", "🖼 Обложка"],
@@ -158,6 +163,9 @@ HELP = """🤖 Бот сайта. Кнопки — под этим сообще�
 /статус — сколько товаров на сайте
 /топ — популярное за неделю
 /стата — статистика за неделю
+/продано 12 — отметить продажу товара №12 (/продано 12 3 — три штуки)
+/отменить — удалить последнюю отметку о продаже
+/продажи — продажи за неделю и месяц
 /скрыть 12 — убрать товар №12 с сайта (пост в канале остаётся)
 /показать 12 — вернуть товар на сайт
 /цена 12 300 — поменять цену на сайте
@@ -202,12 +210,45 @@ def fmt_price(p):
 
 
 def top_text(items, key="views_week", label="за неделю", n=5):
+    if key == "views_week" and any(i.get("sold_week") for i in items):
+        rows = sorted([i for i in items if not i.get("hidden") and (i.get("sold_week") or i.get("views_week"))],
+                      key=lambda i: (-(i.get("sold_week") or 0), -(i.get("views_week") or 0)))[:n]
+        return "🔥 Хиты недели (продажи, потом просмотры):\n" + "\n".join(
+            f"{k}. №{i['no']} {i['title']} — продано {i.get('sold_week', 0)}, {i.get('views_week', 0)} просм."
+            for k, i in enumerate(rows, 1))
     rows = sorted([i for i in items if i.get(key) and not i.get("hidden")], key=lambda i: -i[key])[:n]
     if not rows and key != "views":
         return top_text(items, "views", "за всё время", n)
     if not rows:
         return "🔥 Пока нет данных о просмотрах."
     return f"🔥 Популярное {label}:\n" + "\n".join(f"{k}. №{i['no']} {i['title']} — {i[key]} просм." for k, i in enumerate(rows, 1))
+
+
+def _find(items, no):
+    return next((i for i in items if i.get("no") == no), None)
+
+
+def sales_text(items, sales, days_list=(7, 30)):
+    if not sales:
+        return "🧾 Продаж пока не отмечено. После продажи нажмите «✅ Продано» и напишите номер товара."
+    now = time.time() * 1000
+    parts = []
+    for days in days_list:
+        agg = {}
+        for r in sales:
+            if r.get("ts", 0) >= now - days * 86400 * 1000:
+                agg[r["no"]] = agg.get(r["no"], 0) + int(r.get("qty") or 1)
+        if not agg:
+            parts.append(f"🧾 За {days} дн.: продаж не было")
+            continue
+        qty = sum(agg.values())
+        money = sum(((_find(items, no) or {}).get("price") or 0) * q for no, q in agg.items())
+        top = sorted(agg.items(), key=lambda x: -x[1])[:5]
+        money_s = f"{money:,}".replace(",", " ")
+        lines = [f"🧾 За {days} дн.: продано {qty} шт., примерно на {money_s} ₽ (по ценам с сайта)"]
+        lines += [f"   • №{no} {(_find(items, no) or {}).get('title', '?')} — {q} шт." for no, q in top]
+        parts.append("\n".join(lines))
+    return "\n\n".join(parts)
 
 
 def status_text(items, ov):
@@ -276,12 +317,13 @@ def metrika_text(days=7):
     return "\n".join(lines)
 
 
-def stats_text(items):
+def stats_text(items, sales=None):
     week = 7 * 86400 * 1000
     now = time.time() * 1000
     new = [i for i in items if i.get("source") == "max" and now - i.get("ts", 0) < week]
     views = sum(i.get("views_week", 0) for i in items)
-    return (f"🆕 Новых товаров за неделю: {len(new)}\n👁 Просмотров постов-товаров за неделю: {views}\n"
+    head = (sales_text(items, sales, (7,)) + "\n\n") if sales is not None else ""
+    return head + (f"🆕 Новых товаров за неделю: {len(new)}\n👁 Просмотров постов-товаров за неделю: {views}\n"
             f"📦 Всего на сайте: {len([i for i in items if not i.get('hidden')])}\n"
             + (metrika_text() + "\n" if os.environ.get("METRIKA_TOKEN") else "") + "\n" + top_text(items))
 
@@ -365,7 +407,38 @@ def handle_owner(uid, text, images):
     if cmd == "/топ":
         return send(uid, top_text(catalog_items()))
     if cmd in ("/стата", "/статистика"):
-        return send(uid, stats_text(catalog_items()))
+        sd, _ = gh_file("sales.json")
+        return send(uid, stats_text(catalog_items(), (sd or {}).get("sales", [])))
+    if cmd == "/продано":
+        parts = text.split()
+        no = num(parts[1]) if len(parts) > 1 else None
+        qty = max(1, min(num(parts[2]) or 1, 100)) if len(parts) > 2 else 1
+        if not no:
+            return send(uid, "Напишите номер проданного товара:\n/продано 12 — продана 1 шт.\n/продано 12 3 — продано 3 шт.\n\n"
+                             "Номер есть в карточке товара на сайте и в тексте заказа от покупателя.")
+        items = catalog_items()
+        it = _find(items, no)
+        if not it:
+            return send(uid, f"Товара №{no} нет на сайте — проверьте номер. Он есть в карточке товара и в тексте заказа.")
+        data = update_json("sales.json", lambda d: d.setdefault("sales", []).append(
+            {"no": no, "qty": qty, "ts": int(time.time() * 1000)}), f"Бот: продано №{no} × {qty}", {"sales": []})
+        total = sum(int(r.get("qty") or 1) for r in data["sales"] if r.get("no") == no)
+        name = f"№{no} {it['title']}"
+        return send(uid, f"✅ Записал продажу: {name} × {qty}\nВсего продано: {total} шт.\n"
+                         "Ошиблись — /отменить. «Популярное» на сайте обновится через 1–2 минуты.")
+    if cmd == "/отменить":
+        removed = []
+        def f(d):
+            if d.get("sales"):
+                removed.append(d["sales"].pop())
+        update_json("sales.json", f, "Бот: отмена последней продажи", {"sales": []})
+        if not removed:
+            return send(uid, "Отметок о продажах пока нет.")
+        r = removed[0]
+        return send(uid, f"↩️ Удалил последнюю отметку: №{r['no']} × {r.get('qty', 1)}")
+    if cmd == "/продажи":
+        sd, _ = gh_file("sales.json")
+        return send(uid, sales_text(catalog_items(), (sd or {}).get("sales", [])))
     if cmd == "/обновить":
         run_sync()
         return send(uid, "🔄 Запустил обновление. Сайт обновится через 1–2 минуты.")

@@ -142,6 +142,8 @@
   .card .body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px;flex:1;border-top:4px solid var(--c,#94a3b8)}
   .card h3{margin:0;font-size:15px;font-weight:600;line-height:1.3}
   .card .cat{font-size:13px;color:var(--muted)}
+  .sold{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;color:#C2410C}
+  .sold::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--orange)}
   .card .price{margin-top:auto;padding-top:6px}
   .badge-new{position:absolute;left:10px;top:10px;background:var(--orange);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px}
   .heart{position:absolute;right:8px;top:8px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.92);display:grid;place-items:center;cursor:pointer;color:#8a90a8;z-index:2}
@@ -336,7 +338,7 @@
 
   <section id="popular" class="band" hidden>
     <div class="wrap">
-      <div class="head-row"><div><h2 id="popTitle">Популярное</h2><p class="sub">По просмотрам в канале</p></div></div>
+      <div class="head-row"><div><h2 id="popTitle">Популярное</h2><p class="sub" id="popSub">По просмотрам в канале</p></div></div>
       <div class="strip" id="popStrip"></div>
     </div>
   </section>
@@ -516,6 +518,7 @@
       <span class="no" id="mNo"></span>
       <h3 id="mTitle"></h3>
       <div class="price" id="mPrice"></div>
+      <span class="sold" id="mSold" hidden></span>
       <p id="mDesc" style="margin:0;color:#3d4262"></p>
       <dl class="specs">
         <dt>Размер</dt><dd id="mSize"></dd>
@@ -582,7 +585,10 @@ let CATALOG = [], REVIEWS = [], activeCat = "Все", current = null;
 // «Новинка» — не больше 8 самых свежих моделей за последние дни, чтобы метка что-то значила
 let NEW_SET = new Set();
 const isNew = m => NEW_SET.has(m.no);
-const popScore = m => (m.views_week || 0) * 1000000 + (m.views || 0);
+// популярность: сначала продажи за неделю, потом просмотры за неделю, потом всего
+const popScore = m => (m.sold_week || 0) * 1e12 + (m.views_week || 0) * 1e8 + (m.sold || 0) * 1e5 + (m.views || 0);
+const times = n => (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? "раза" : "раз";
+const soldText = m => m.sold ? `Купили ${m.sold} ${times(m.sold)}` : "";
 
 /* ---------- хранилище (может быть недоступно) ---------- */
 const store = {
@@ -681,6 +687,7 @@ function cardEl(m){
     <div class="body">
       <h3>${esc(m.title)}</h3>
       <span class="cat">${esc(m.category)}</span>
+      ${m.sold ? `<span class="sold">${soldText(m)}</span>` : ""}
       <span class="price ${m.price == null ? "ask" : ""}">${fmt(m.price)}</span>
     </div>`;
   c.querySelector(".heart").onclick = e => { e.stopPropagation(); toggleFav(m.no); };
@@ -743,10 +750,12 @@ function renderStrips(){
   $("#newStrip").innerHTML = ""; fresh.slice(0, 12).forEach(m => $("#newStrip").appendChild(miniEl(m)));
   $("#new").hidden = !fresh.length;
 
-  const hasWeek = CATALOG.some(m => m.views_week > 0);
-  const pop = CATALOG.filter(m => m.views).sort((a,b) => hasWeek ? (b.views_week||0) - (a.views_week||0) : b.views - a.views).slice(0, 8);
-  $("#popTitle").textContent = hasWeek ? "Популярное за неделю" : "Популярное";
-  $("#popStrip").innerHTML = ""; pop.forEach((m,k) => $("#popStrip").appendChild(miniEl(m, fmt(m.price), k+1)));
+  const hasSales = CATALOG.some(m => m.sold_week > 0);
+  const hasWeek = hasSales || CATALOG.some(m => m.views_week > 0);
+  const pop = CATALOG.filter(m => m.views || m.sold).sort((a,b) => popScore(b) - popScore(a)).slice(0, 8);
+  $("#popTitle").textContent = hasSales ? "Хиты недели" : hasWeek ? "Популярное за неделю" : "Популярное";
+  $("#popSub").textContent = hasSales ? "По покупкам и просмотрам в канале" : "По просмотрам в канале";
+  $("#popStrip").innerHTML = ""; pop.forEach((m,k) => $("#popStrip").appendChild(miniEl(m, m.sold_week ? `${fmt(m.price)}, купили ${m.sold_week} ${times(m.sold_week)}` : fmt(m.price), k+1)));
   $("#popular").hidden = pop.length < 3;
 }
 
@@ -763,6 +772,7 @@ function openModel(m, fromHash){
   $("#mTitle").textContent = m.title;
   const p = $("#mPrice"); p.textContent = fmt(m.price); p.className = "price" + (m.price == null ? " ask" : "");
   $("#mDesc").textContent = m.desc || "";
+  $("#mSold").hidden = !m.sold; $("#mSold").textContent = soldText(m);
   $("#mSize").textContent = m.size || "По желанию";
   $("#mColor").textContent = m.color || "Согласовываем в ЛС";
   const pl = $("#mPost"); pl.hidden = !m.url; if (m.url) pl.href = m.url;
