@@ -163,8 +163,8 @@ HELP = """🤖 Бот сайта. Кнопки — под этим сообще�
 /статус — сколько товаров на сайте
 /топ — популярное за неделю
 /стата — статистика за неделю
-/продано 12 — отметить продажу товара №12 (/продано 12 3 — три штуки)
-/отменить — удалить последнюю отметку о продаже
+✅ Продано — затем просто номера: «38», «20 2» (2 шт.), можно несколько сразу
+/отменить — отменить последнюю отметку о продажах
 /продажи — продажи за неделю и месяц
 /скрыть 12 — убрать товар №12 с сайта (пост в канале остаётся)
 /показать 12 — вернуть товар на сайт
@@ -391,9 +391,65 @@ def config():
     return _cache
 
 
+
+SALE_ONLY_RE = re.compile(r"^[\d\s,;:xх×*\-—–.шт]+$", re.I)
+SALE_CHUNK_RE = re.compile(r"^(\d+)(?:\s*[xх×*\-—–:]?\s*(\d+))?\s*(?:шт\.?)?$", re.I)
+
+
+def parse_sales(text):
+    """«38 2\\n20, 15х3» → ([(38, 2), (20, 1), (15, 3)], [нераспознанные куски])."""
+    pairs, bad = [], []
+    for chunk in re.split(r"[\n,;]+", text):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        m = SALE_CHUNK_RE.match(chunk)
+        if m:
+            pairs.append((int(m.group(1)), max(1, min(int(m.group(2) or 1), 100))))
+        else:
+            bad.append(chunk)
+    return pairs, bad
+
+
+def is_sales_list(text):
+    return bool(text) and bool(re.search(r"\d", text)) and bool(SALE_ONLY_RE.match(text))
+
+
+SALES_HELP = ("✅ Пришлите номера проданных товаров — можно сразу несколько, каждый с новой строки или через запятую:\n\n"
+              "38\n20 2\n15\n\n"
+              "(число после номера — сколько штук, если больше одной)\n"
+              "Номер есть в карточке товара на сайте и в тексте заказа. Ошиблись — /отменить.")
+
+
+def record_sales(uid, pairs, bad):
+    items = catalog_items()
+    good = [(no, q) for no, q in pairs if _find(items, no)]
+    unknown = [no for no, q in pairs if not _find(items, no)]
+    if not good:
+        msg = "Не нашёл таких номеров на сайте: " + ", ".join(f"№{n}" for n in unknown) if unknown else "Не понял номера."
+        return send(uid, msg + "\n\n" + SALES_HELP)
+    batch = int(time.time() * 1000)
+    data = update_json("sales.json", lambda d: d.setdefault("sales", []).extend(
+        {"no": no, "qty": q, "ts": batch, "b": batch} for no, q in good),
+        "Бот: продано " + ", ".join(f"№{no}×{q}" for no, q in good), {"sales": []})
+    lines = []
+    for no, q in good:
+        total = sum(int(r.get("qty") or 1) for r in data["sales"] if r.get("no") == no)
+        lines.append(f"• №{no} {_find(items, no)['title']} × {q} (всего {total})")
+    msg = f"✅ Записал продажи ({sum(q for _, q in good)} шт.):\n" + "\n".join(lines)
+    if unknown:
+        msg += "\n\n⚠️ Не нашёл на сайте и пропустил: " + ", ".join(f"№{n}" for n in unknown)
+    if bad:
+        msg += "\n⚠️ Не понял: " + ", ".join(bad)
+    return send(uid, msg + "\n\nОшиблись — /отменить (отменит всю эту пачку). Можно присылать следующие номера.")
+
+
 def handle_owner(uid, text, images):
     if text in MENU_BUTTONS:
         text = MENU_BUTTONS[text]
+    if is_sales_list(text):                       # просто номера: «38 2», «20» … — это продажи
+        pairs, bad = parse_sales(text)
+        return record_sales(uid, pairs, bad)
     cmd = text.split()[0].lower() if text else ""
     cmd = EN.get(cmd, cmd)
 
@@ -410,32 +466,24 @@ def handle_owner(uid, text, images):
         sd, _ = gh_file("sales.json")
         return send(uid, stats_text(catalog_items(), (sd or {}).get("sales", [])))
     if cmd == "/продано":
-        parts = text.split()
-        no = num(parts[1]) if len(parts) > 1 else None
-        qty = max(1, min(num(parts[2]) or 1, 100)) if len(parts) > 2 else 1
-        if not no:
-            return send(uid, "Напишите номер проданного товара:\n/продано 12 — продана 1 шт.\n/продано 12 3 — продано 3 шт.\n\n"
-                             "Номер есть в карточке товара на сайте и в тексте заказа от покупателя.")
-        items = catalog_items()
-        it = _find(items, no)
-        if not it:
-            return send(uid, f"Товара №{no} нет на сайте — проверьте номер. Он есть в карточке товара и в тексте заказа.")
-        data = update_json("sales.json", lambda d: d.setdefault("sales", []).append(
-            {"no": no, "qty": qty, "ts": int(time.time() * 1000)}), f"Бот: продано №{no} × {qty}", {"sales": []})
-        total = sum(int(r.get("qty") or 1) for r in data["sales"] if r.get("no") == no)
-        name = f"№{no} {it['title']}"
-        return send(uid, f"✅ Записал продажу: {name} × {qty}\nВсего продано: {total} шт.\n"
-                         "Ошиблись — /отменить. «Популярное» на сайте обновится через 1–2 минуты.")
+        rest = text.split(None, 1)[1] if len(text.split(None, 1)) > 1 else ""
+        if not rest.strip():
+            return send(uid, SALES_HELP)
+        pairs, bad = parse_sales(rest)
+        return record_sales(uid, pairs, bad)
     if cmd == "/отменить":
         removed = []
         def f(d):
-            if d.get("sales"):
-                removed.append(d["sales"].pop())
-        update_json("sales.json", f, "Бот: отмена последней продажи", {"sales": []})
+            sales = d.get("sales") or []
+            if not sales:
+                return
+            last_b = sales[-1].get("b")
+            while sales and (sales[-1].get("b") == last_b if last_b else not removed):
+                removed.append(sales.pop())
+        update_json("sales.json", f, "Бот: отмена последних продаж", {"sales": []})
         if not removed:
             return send(uid, "Отметок о продажах пока нет.")
-        r = removed[0]
-        return send(uid, f"↩️ Удалил последнюю отметку: №{r['no']} × {r.get('qty', 1)}")
+        return send(uid, "↩️ Отменил последнюю отметку: " + ", ".join(f"№{r['no']}×{r.get('qty', 1)}" for r in reversed(removed)))
     if cmd == "/продажи":
         sd, _ = gh_file("sales.json")
         return send(uid, sales_text(catalog_items(), (sd or {}).get("sales", [])))

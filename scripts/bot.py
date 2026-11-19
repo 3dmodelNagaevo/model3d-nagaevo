@@ -22,8 +22,8 @@ HELP = """🤖 Бот сайта. Кнопки меню — под этим со
 /статус — сколько товаров на сайте, когда обновлялся
 /топ — популярное за неделю (по просмотрам постов)
 /стата — статистика за неделю
-/продано 12 — отметить продажу товара №12 (/продано 12 3 — три штуки)
-/отменить — удалить последнюю отметку о продаже
+✅ Продано — затем просто номера: «38», «20 2» (2 шт.), можно несколько сразу
+/отменить — отменить последнюю отметку о продажах
 /продажи — продажи за неделю и месяц
 /скрыть 12 — убрать товар №12 с сайта (пост в канале остаётся)
 /показать 12 — вернуть товар на сайт
@@ -181,6 +181,36 @@ def webhook_active(token):
         return False
 
 
+
+SALE_ONLY_RE = re.compile(r"^[\d\s,;:xх×*\-—–.шт]+$", re.I)
+SALE_CHUNK_RE = re.compile(r"^(\d+)(?:\s*[xх×*\-—–:]?\s*(\d+))?\s*(?:шт\.?)?$", re.I)
+
+
+def parse_sales(text):
+    """«38 2\\n20, 15х3» → ([(38, 2), (20, 1), (15, 3)], [нераспознанные куски])."""
+    pairs, bad = [], []
+    for chunk in re.split(r"[\n,;]+", text):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        m = SALE_CHUNK_RE.match(chunk)
+        if m:
+            pairs.append((int(m.group(1)), max(1, min(int(m.group(2) or 1), 100))))
+        else:
+            bad.append(chunk)
+    return pairs, bad
+
+
+def is_sales_list(text):
+    return bool(text) and bool(re.search(r"\d", text)) and bool(SALE_ONLY_RE.match(text))
+
+
+SALES_HELP = ("✅ Пришлите номера проданных товаров — можно сразу несколько, каждый с новой строки или через запятую:\n\n"
+              "38\n20 2\n15\n\n"
+              "(число после номера — сколько штук, если больше одной)\n"
+              "Номер есть в карточке товара на сайте и в тексте заказа. Ошиблись — /отменить.")
+
+
 def process_commands(token, chat_id, owners, state, notifier, ov, sales_doc=None):
     """Читает личку бота. Возвращает список отложенных ответов fn(items) — им нужен свежий каталог."""
     if webhook_active(token):
@@ -215,6 +245,8 @@ def process_commands(token, chat_id, owners, state, notifier, ov, sales_doc=None
         images = [a for a in body.get("attachments") or [] if a.get("type") == "image"]
         if text in MENU_BUTTONS:                       # нажата кнопка меню
             text = MENU_BUTTONS[text]
+        if is_sales_list(text):                        # просто номера — это продажи
+            text = "/продано " + text
         cmd = text.split()[0].lower() if text else ""
         cmd = EN_ALIASES.get(cmd, cmd)
         log(f"  команда от владельца: {cmd or '(без текста)'}")
@@ -270,25 +302,26 @@ def process_commands(token, chat_id, owners, state, notifier, ov, sales_doc=None
                 reply("❌ MAX не дал опубликовать. Проверьте, что у бота в канале есть право "
                       f"«Публиковать посты».\n\n{e}")
         elif cmd == "/продано":
-            parts = text.split()
-            no = _num(parts[1]) if len(parts) > 1 else None
-            qty = _num(parts[2]) if len(parts) > 2 else 1
-            if not no:
-                reply("Напишите номер проданного товара:\n/продано 12 — продана 1 шт.\n/продано 12 3 — продано 3 шт.\n\n"
-                      "Номер есть в карточке товара на сайте и в тексте заказа от покупателя.")
+            rest = text.split(None, 1)[1] if len(text.split(None, 1)) > 1 else ""
+            pairs, bad = parse_sales(rest)
+            if not pairs or sales_doc is None:
+                reply(SALES_HELP)
                 continue
-            if sales_doc is None:
-                continue
-            sales_doc.setdefault("sales", []).append({"no": no, "qty": max(1, min(qty or 1, 100)), "ts": int(time.time() * 1000)})
-            total = sum(int(r.get("qty") or 1) for r in sales_doc["sales"] if r.get("no") == no)
-            deferred.append(lambda items, no=no, qty=qty, total=total, reply=reply: reply(sold_reply(items, total, no, qty)))
+            batch = int(time.time() * 1000)
+            sales_doc.setdefault("sales", []).extend({"no": no, "qty": q, "ts": batch, "b": batch} for no, q in pairs)
+            deferred.append(lambda items, pairs=pairs, bad=bad, reply=reply: reply(
+                "✅ Записал продажи:\n" + "\n".join(
+                    f"• №{no} {(_find(items, no) or {}).get('title', '(нет на сайте — проверьте номер)')} × {q}" for no, q in pairs)
+                + (("\n⚠️ Не понял: " + ", ".join(bad)) if bad else "") + "\n\nОшиблись — /отменить."))
         elif cmd == "/отменить":
-            if sales_doc and sales_doc.get("sales"):
-                last = sales_doc["sales"].pop()
-                deferred.append(lambda items, last=last, reply=reply: reply(
-                    f"↩️ Удалил последнюю отметку: №{last['no']} × {last.get('qty', 1)}"))
-            else:
+            sales = (sales_doc or {}).get("sales") or []
+            if not sales:
                 reply("Отметок о продажах пока нет.")
+                continue
+            last_b, removed = sales[-1].get("b"), []
+            while sales and (sales[-1].get("b") == last_b if last_b else not removed):
+                removed.append(sales.pop())
+            reply("↩️ Отменил последнюю отметку: " + ", ".join(f"№{r['no']}×{r.get('qty', 1)}" for r in reversed(removed)))
         elif cmd == "/продажи":
             deferred.append(lambda items, reply=reply: reply(sales_text(items, (sales_doc or {}).get("sales", []))))
         elif cmd == "/обновить":
