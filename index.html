@@ -177,9 +177,9 @@
         </div>
       </div>
       <div class="hero-pics">
-        <img src="img/bmw1.jpg" alt="Напечатанная модель BMW M4">
-        <img src="img/spinner.jpg" alt="Магнитный волчок Magic Spinner">
-        <img src="img/katana.jpg" alt="Складная катана">
+        <img src="img/bmw1.jpg" alt="Напечатанная модель">
+        <img src="img/spinner.jpg" alt="Напечатанная модель">
+        <img src="img/stand.jpg" alt="Напечатанная модель">
       </div>
     </div>
   </div>
@@ -454,6 +454,11 @@ fetch("catalog.json?v=" + Date.now())
     CATALOG = items.filter(i => i.source === "max" || !fromMax.has(norm(i.title)))
                    .map(i => ({ photos: [], ...i }));
     renderChips(); renderGrid();
+    // в шапку — фото трёх последних моделей из канала
+    const fresh = CATALOG.filter(i => i.photos && i.photos[0]).slice(0, 3);
+    document.querySelectorAll(".hero-pics img").forEach((img, k) => {
+      if (fresh[k]) { img.src = fresh[k].photos[0]; img.alt = fresh[k].title; }
+    });
   })
   .catch(() => {
     $("#grid").innerHTML = '<div class="empty" style="grid-column:1/-1">Не удалось загрузить каталог. Обновите страницу или <a href="#contacts">напишите мне</a>.</div>';
