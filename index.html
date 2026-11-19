@@ -115,6 +115,9 @@
   .ct .btn{margin-top:10px;align-self:flex-start}
   .ct.main{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 
+  .channels{margin-top:18px;background:var(--accent-soft);border-radius:var(--radius);padding:22px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between}
+  .channels b{display:block;font-size:18px}
+  .channels span{color:var(--muted);font-size:15px}
   footer{padding:32px 0 48px;color:var(--muted);font-size:14px;border-top:1px solid var(--line);margin-top:24px}
 
   /* modal */
@@ -153,6 +156,7 @@
       <a href="#find">Найти модель</a>
       <a href="#delivery">Доставка и условия</a>
       <a href="#contacts">Контакты</a>
+      <a id="navCh" target="_blank" rel="noopener">Канал</a>
     </nav>
     <a class="btn btn-primary btn-sm" id="headerOrder" target="_blank" rel="noopener">Написать в MAX</a>
   </div>
@@ -169,6 +173,7 @@
         <div class="hero-cta">
           <a class="btn btn-primary" href="#catalog">Смотреть каталог</a>
           <a class="btn btn-ghost" href="#find">Найти модель под заказ</a>
+          <a class="btn btn-ghost" id="heroCh" target="_blank" rel="noopener">Канал в MAX</a>
         </div>
         <div class="facts">
           <div class="fact"><b>от 50 ₽</b><span>стоимость изделия</span></div>
@@ -279,6 +284,16 @@
           <a class="btn btn-ghost btn-sm" id="ctTg" target="_blank" rel="noopener">Написать в Telegram</a>
         </div>
       </div>
+      <div class="channels">
+        <div>
+          <b>Новые модели сначала появляются в канале</b>
+          <span>Подпишитесь, чтобы первыми видеть новинки и цены.</span>
+        </div>
+        <div class="hero-cta">
+          <a class="btn btn-primary" id="chMax" target="_blank" rel="noopener">Канал в MAX</a>
+          <a class="btn btn-ghost" id="chTg" target="_blank" rel="noopener">Канал в Telegram</a>
+        </div>
+      </div>
     </div>
   </section>
 </main>
@@ -327,7 +342,8 @@ const CONTACTS = {
   phonePretty: "+7 917 498-31-86",
   max: "https://max.ru/u/f9LHodD0cOIASIo07UGTqsR7Fx0LPNcqKwAi9GFiTlXqkxZ281BEJNmiZK0",
   channel: "https://max.ru/channel_model3Dnagaevo",
-  telegram: "model3Dnagaevo1"
+  telegram: "model3Dnagaevo1",       // личка в Telegram
+  tgChannel: ""                     // ссылка на Telegram-канал, например "https://t.me/..." (пусто — кнопка скрыта)
 };
 
 const CATEGORY_ORDER = ["Игрушки и антистресс", "Фигурки и декор", "Авто", "Для геймеров", "Для дома", "Подарки", "Разное"];
@@ -440,6 +456,8 @@ $("#ctTel").href = "tel:" + CONTACTS.phone;
 document.querySelectorAll("[data-phone]").forEach(el => el.textContent = CONTACTS.phonePretty);
 $("#tgHandle").textContent = "@" + CONTACTS.telegram;
 $("#chLink").href = CONTACTS.channel;
+["#chMax","#heroCh","#navCh"].forEach(sel => $(sel).href = CONTACTS.channel);
+if (CONTACTS.tgChannel) $("#chTg").href = CONTACTS.tgChannel; else $("#chTg").style.display = "none";
 $("#year").textContent = new Date().getFullYear();
 
 /* загрузка каталога */
