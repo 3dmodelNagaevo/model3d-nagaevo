@@ -1,5 +1,5 @@
 {
-  "updated": 1795088577,
+  "updated": 1795089242,
   "items": [
     {
       "mid": "mid.ffffb8167a965fcf01a1f3445fed058e",
@@ -211,6 +211,56 @@
       "no": 11,
       "views_week": 0,
       "views_month": 0
+    },
+    {
+      "mid": "mid.ffffb8167a965fcf01a1d6cdde9424b4",
+      "ts": 1794605178516,
+      "url": "",
+      "title": "Логопедический набор 2D",
+      "category": "Наборы",
+      "price": 800,
+      "size": "По желанию",
+      "color": "Согласовываем в ЛС",
+      "material": "",
+      "desc": "26 плоских тактильных фигурок с выпуклым контуром: зубная щётка, гриб, лягушка, качели, слон, хомяк, кораблик и другие. Ребёнок ощупывает рельеф, узнаёт предмет и называет его. Так тренируются звуки, речь, внимание и мелкая моторика. Размер около 5 см, гладкие скруглённые края Подходит для логопеда, детского сада и занятий дома Артикуляционная гимнастика 📩 Заказ: https://max.ru/u/f9LHodD0cOIASIo07UGTqsR7Fx0LPNcqKwAi9GFiTlXqkxZ281BEJNmiZK0",
+      "tags": "",
+      "views": 33,
+      "photos": [
+        "photos/mid_ffffb8167a965fcf01a1d6cdde9424b4_0.jpg",
+        "photos/mid_ffffb8167a965fcf01a1d6cdde9424b4_1.jpg",
+        "photos/mid_ffffb8167a965fcf01a1d6cdde9424b4_2.jpg",
+        "photos/mid_ffffb8167a965fcf01a1d6cdde9424b4_3.jpg",
+        "photos/mid_ffffb8167a965fcf01a1d6cdde9424b4_4.jpg"
+      ],
+      "source": "max",
+      "no": 42,
+      "views_week": 33,
+      "views_month": 33
+    },
+    {
+      "mid": "mid.ffffb8167a965fcf01a1d6cdcfc43767",
+      "ts": 1794605174724,
+      "url": "",
+      "title": "Логопедический набор 3D",
+      "category": "Наборы",
+      "price": 1000,
+      "size": "По желанию",
+      "color": "Согласовываем в ЛС",
+      "material": "",
+      "desc": "Те же 26 тактильных фигурок, только объёмные: бегемот, лошадка, дятел на пеньке, чашка с улыбкой, будильник, горка, гармошка и другие. Фигурки удобно держать в руках и рассматривать со всех сторон. С ними можно играть в «Чудесный мешочек», составлять предложения и автоматизировать звуки. Размер около 5 см, без острых деталей Прочный пластик, приятно трогать Артикуляционная гимнастика 📩 Заказ: https://max.ru/u/f9LHodD0cOIASIo07UGTqsR7Fx0LPNcqKwAi9GFiTlXqkxZ281BEJNmiZK0",
+      "tags": "",
+      "views": 31,
+      "photos": [
+        "photos/mid_ffffb8167a965fcf01a1d6cdcfc43767_0.jpg",
+        "photos/mid_ffffb8167a965fcf01a1d6cdcfc43767_1.jpg",
+        "photos/mid_ffffb8167a965fcf01a1d6cdcfc43767_2.jpg",
+        "photos/mid_ffffb8167a965fcf01a1d6cdcfc43767_3.jpg",
+        "photos/mid_ffffb8167a965fcf01a1d6cdcfc43767_4.jpg"
+      ],
+      "source": "max",
+      "no": 43,
+      "views_week": 31,
+      "views_month": 31
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1d628adb955c5",
