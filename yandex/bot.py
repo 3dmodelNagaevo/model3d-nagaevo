@@ -152,7 +152,7 @@ MENU_BUTTONS = {
     "📊 Статус": "/статус", "🔥 Топ": "/топ", "📈 Статистика": "/стата", "🔄 Обновить": "/обновить",
     "🙈 Скрыть": "/скрыть", "👁 Вернуть": "/показать", "💰 Цена": "/цена", "🖼 Обложка": "/обложка",
     "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон",
-    "💬 Отзыв": "/отзыв", "🗂 Отзывы": "/отзывы", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
+    "💬 Отзыв": "/отзыв", "🗂 Отзывы": "/отзывы", "📜 История": "/история", "↩️ Отменить": "/отменить", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
     # старые подписи кнопок (из прошлых сообщений)
     "🔥 Топ недели": "/топ", "🙈 Скрыть товар": "/скрыть", "👁 Вернуть товар": "/показать",
     "💰 Изменить цену": "/цена", "🔄 Обновить сайт": "/обновить",
@@ -161,6 +161,7 @@ MENU_BUTTONS = {
 MENU_ROWS = [
     ["📊 Статус", "📈 Статистика"],
     ["✅ Продано", "🧾 Продажи"],
+    ["📜 История", "↩️ Отменить"],
     ["🔥 Топ", "🔄 Обновить"],
     ["🙈 Скрыть", "👁 Вернуть"],
     ["💰 Цена", "🖼 Обложка"],
@@ -190,6 +191,9 @@ HELP = """🤖 Бот сайта. Кнопки — под этим сообще�
 /стата — статистика за неделю
 ✅ Продано — затем просто номера: «38», «20 2» (2 шт.), можно несколько сразу
 /отменить — отменить последнюю отметку о продажах
+/история — все отметки о продажах с номерами
+/удалить продажу 7 — удалить отметку #7
+/сбросить продажи 38 — обнулить «Продано» у товара №38
 /продажи — продажи за неделю и месяц
 /скрыть 12 — убрать товар №12 с сайта (пост в канале остаётся)
 /показать 12 — вернуть товар на сайт
@@ -519,6 +523,44 @@ SALES_HELP = ("✅ Пришлите номера проданных товаро
               "Номер есть в карточке товара на сайте и в тексте заказа. Ошиблись — /отменить.")
 
 
+# ---------------------------------------------------------------- история продаж: просмотр и удаление
+
+def ensure_sale_ids(d):
+    """У каждой отметки о продаже — постоянный номер (#), по нему её можно удалить."""
+    nxt = max([r.get("id", 0) for r in d.get("sales", [])] + [0]) + 1
+    for r in d.get("sales", []):
+        if not r.get("id"):
+            r["id"] = nxt
+            nxt += 1
+    return nxt
+
+
+def history_text(items, sales, limit=25):
+    if not sales:
+        return "Отметок о продажах пока нет."
+    rows = []
+    for r in sales[-limit:][::-1]:
+        it = next((i for i in items if i.get("no") == r.get("no")), None)
+        date = time.strftime("%d.%m", time.gmtime(r.get("ts", 0) / 1000 + 3 * 3600))
+        rows.append(f"#{r.get('id', '?')} · {date} · №{r['no']} {(it or {}).get('title', '?')[:28]} × {r.get('qty', 1)}")
+    more = f"\n…и ещё {len(sales) - limit} более старых" if len(sales) > limit else ""
+    return ("📜 История продаж (новые сверху):\n" + "\n".join(rows) + more +
+            "\n\nУдалить одну отметку: /удалить продажу 7  (номер после #)\n"
+            "Обнулить «Продано» у товара: /сбросить продажи 38  (номер товара)")
+
+
+def delete_sale(d, sid):
+    before = len(d.get("sales", []))
+    d["sales"] = [r for r in d.get("sales", []) if r.get("id") != sid]
+    return before != len(d["sales"])
+
+
+def reset_item_sales(d, no):
+    before = sum(int(r.get("qty") or 1) for r in d.get("sales", []) if r.get("no") == no)
+    d["sales"] = [r for r in d.get("sales", []) if r.get("no") != no]
+    return before
+
+
 def record_sales(uid, pairs, bad):
     items = catalog_items()
     good = [(no, q) for no, q in pairs if _find(items, no)]
@@ -527,8 +569,11 @@ def record_sales(uid, pairs, bad):
         msg = "Не нашёл таких номеров на сайте: " + ", ".join(f"№{n}" for n in unknown) if unknown else "Не понял номера."
         return send(uid, msg + "\n\n" + SALES_HELP)
     batch = int(time.time() * 1000)
-    data = update_json("sales.json", lambda d: d.setdefault("sales", []).extend(
-        {"no": no, "qty": q, "ts": batch, "b": batch} for no, q in good),
+    def add(d):
+        nxt = ensure_sale_ids(d)
+        d.setdefault("sales", []).extend(
+            {"id": nxt + k, "no": no, "qty": q, "ts": batch, "b": batch} for k, (no, q) in enumerate(good))
+    data = update_json("sales.json", add,
         "Бот: продано " + ", ".join(f"№{no}×{q}" for no, q in good), {"sales": []})
     lines = []
     for no, q in good:
@@ -576,6 +621,30 @@ def handle_owner(uid, text, images):
             return send(uid, SALES_HELP)
         pairs, bad = parse_sales(rest)
         return record_sales(uid, pairs, bad)
+    if cmd in ("/история", "история"):
+        sd, _ = gh_file("sales.json")
+        sd = sd or {"sales": []}
+        if any(not r.get("id") for r in sd.get("sales", [])):     # старые отметки без номеров — пронумеровать
+            sd = update_json("sales.json", ensure_sale_ids, "Бот: номера отметок продаж", {"sales": []})
+        return send(uid, history_text(catalog_items(), sd.get("sales", [])))
+    if re.match(r"^/?удалить[ _]продаж", text.lower()):
+        sid = num(text)
+        if not sid:
+            return send(uid, "Напишите номер отметки из «📜 История»: /удалить продажу 7")
+        res = []
+        update_json("sales.json", lambda d: res.append(delete_sale(d, sid)), f"Бот: удалена продажа #{sid}", {"sales": []})
+        return send(uid, f"🗑 Отметка #{sid} удалена. «Продано» на сайте обновится через 1–2 минуты."
+                    if res and res[0] else f"Отметки #{sid} нет — посмотрите номера в «📜 История».")
+    if re.match(r"^/?сбросить[ _]продаж", text.lower()):
+        no = num(text)
+        if not no:
+            return send(uid, "Напишите номер товара: /сбросить продажи 38 — у него станет «Продано: 0».")
+        res = []
+        update_json("sales.json", lambda d: res.append(reset_item_sales(d, no)), f"Бот: сброс продаж №{no}", {"sales": []})
+        it = _find(catalog_items(), no)
+        name = f"№{no} {it['title']}" if it else f"№{no}"
+        return send(uid, f"🧹 Удалил все отметки продаж у {name} ({res[0]} шт.). На сайте «Продано» исчезнет через 1–2 минуты."
+                    if res and res[0] else f"У {name} отметок о продажах нет.")
     if cmd == "/отменить":
         removed = []
         def f(d):

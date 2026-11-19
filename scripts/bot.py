@@ -53,7 +53,7 @@ MENU_BUTTONS = {
     "📊 Статус": "/статус", "🔥 Топ": "/топ", "📈 Статистика": "/стата", "🔄 Обновить": "/обновить",
     "🙈 Скрыть": "/скрыть", "👁 Вернуть": "/показать", "💰 Цена": "/цена", "🖼 Обложка": "/обложка",
     "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон",
-    "💬 Отзыв": "/отзыв", "🗂 Отзывы": "/отзывы", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
+    "💬 Отзыв": "/отзыв", "🗂 Отзывы": "/отзывы", "📜 История": "/история", "↩️ Отменить": "/отменить", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
     # старые подписи кнопок (из прошлых сообщений)
     "🔥 Топ недели": "/топ", "🙈 Скрыть товар": "/скрыть", "👁 Вернуть товар": "/показать",
     "💰 Изменить цену": "/цена", "🔄 Обновить сайт": "/обновить",
@@ -61,6 +61,7 @@ MENU_BUTTONS = {
 MENU_ROWS = [
     ["📊 Статус", "📈 Статистика"],
     ["✅ Продано", "🧾 Продажи"],
+    ["📜 История", "↩️ Отменить"],
     ["🔥 Топ", "🔄 Обновить"],
     ["🙈 Скрыть", "👁 Вернуть"],
     ["💰 Цена", "🖼 Обложка"],
@@ -326,11 +327,25 @@ def process_commands(token, chat_id, owners, state, notifier, ov, sales_doc=None
                 reply(SALES_HELP)
                 continue
             batch = int(time.time() * 1000)
-            sales_doc.setdefault("sales", []).extend({"no": no, "qty": q, "ts": batch, "b": batch} for no, q in pairs)
+            nxt = ensure_sale_ids(sales_doc)
+            sales_doc.setdefault("sales", []).extend(
+                {"id": nxt + k, "no": no, "qty": q, "ts": batch, "b": batch} for k, (no, q) in enumerate(pairs))
             deferred.append(lambda items, pairs=pairs, bad=bad, reply=reply: reply(
                 "✅ Записал продажи:\n" + "\n".join(
                     f"• №{no} {(_find(items, no) or {}).get('title', '(нет на сайте — проверьте номер)')} × {q}" for no, q in pairs)
                 + (("\n⚠️ Не понял: " + ", ".join(bad)) if bad else "") + "\n\nОшиблись — /отменить."))
+        elif cmd == "/история":
+            if sales_doc is not None:
+                ensure_sale_ids(sales_doc)
+            deferred.append(lambda items, reply=reply: reply(history_text(items, (sales_doc or {}).get("sales", []))))
+        elif cmd in ("/удалить", "/удалить_продажу") and "продаж" in text.lower():
+            sid = _num(text)
+            ok = bool(sid) and sales_doc is not None and delete_sale(sales_doc, sid)
+            reply(f"🗑 Отметка #{sid} удалена." if ok else "Напишите номер отметки из «📜 История»: /удалить продажу 7")
+        elif cmd in ("/сбросить", "/сбросить_продажи"):
+            no = _num(text)
+            n = reset_item_sales(sales_doc, no) if (no and sales_doc is not None) else 0
+            reply(f"🧹 Удалил отметки продаж у №{no} ({n} шт.)." if n else "Напишите номер товара: /сбросить продажи 38")
         elif cmd == "/отменить":
             sales = (sales_doc or {}).get("sales") or []
             if not sales:
@@ -437,6 +452,44 @@ def delete_review_local(rid):
     doc["reviews"] = [r for r in doc["reviews"] if r.get("id") != rid]
     sm.dump_json(path, doc)
     return f"🗑 Отзыв №{rid} убран с сайта." if before != len(doc["reviews"]) else f"Отзыва №{rid} нет."
+
+
+# ---------------------------------------------------------------- история продаж: просмотр и удаление
+
+def ensure_sale_ids(d):
+    """У каждой отметки о продаже — постоянный номер (#), по нему её можно удалить."""
+    nxt = max([r.get("id", 0) for r in d.get("sales", [])] + [0]) + 1
+    for r in d.get("sales", []):
+        if not r.get("id"):
+            r["id"] = nxt
+            nxt += 1
+    return nxt
+
+
+def history_text(items, sales, limit=25):
+    if not sales:
+        return "Отметок о продажах пока нет."
+    rows = []
+    for r in sales[-limit:][::-1]:
+        it = next((i for i in items if i.get("no") == r.get("no")), None)
+        date = time.strftime("%d.%m", time.gmtime(r.get("ts", 0) / 1000 + 3 * 3600))
+        rows.append(f"#{r.get('id', '?')} · {date} · №{r['no']} {(it or {}).get('title', '?')[:28]} × {r.get('qty', 1)}")
+    more = f"\n…и ещё {len(sales) - limit} более старых" if len(sales) > limit else ""
+    return ("📜 История продаж (новые сверху):\n" + "\n".join(rows) + more +
+            "\n\nУдалить одну отметку: /удалить продажу 7  (номер после #)\n"
+            "Обнулить «Продано» у товара: /сбросить продажи 38  (номер товара)")
+
+
+def delete_sale(d, sid):
+    before = len(d.get("sales", []))
+    d["sales"] = [r for r in d.get("sales", []) if r.get("id") != sid]
+    return before != len(d["sales"])
+
+
+def reset_item_sales(d, no):
+    before = sum(int(r.get("qty") or 1) for r in d.get("sales", []) if r.get("no") == no)
+    d["sales"] = [r for r in d.get("sales", []) if r.get("no") != no]
+    return before
 
 
 def times(n):
