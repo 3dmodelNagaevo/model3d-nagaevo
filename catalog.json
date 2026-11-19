@@ -1,9 +1,10 @@
 {
-  "updated": 1795081810,
+  "updated": 1795081888,
   "items": [
     {
       "mid": "mid.ffffb8167a965fcf01a1f327f4fb2e2a",
       "ts": 1795080844539,
+      "url": "",
       "title": "Геометрический вихрь \"Гипно-сфера\"",
       "category": "Разное",
       "price": 350,
@@ -12,7 +13,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 8,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f327f4fb2e2a_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1f327f4fb2e2a_1.jpg",
@@ -20,11 +21,14 @@
         "photos/mid_ffffb8167a965fcf01a1f327f4fb2e2a_3.jpg"
       ],
       "source": "max",
-      "no": 40
+      "no": 40,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1ee23f13b0c61",
       "ts": 1794996695355,
+      "url": "",
       "title": "BMW M4 (G82)",
       "category": "Авто",
       "price": 1000,
@@ -33,7 +37,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 21,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1ee23f13b0c61_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1ee23f13b0c61_1.jpg",
@@ -41,11 +45,14 @@
         "photos/mid_ffffb8167a965fcf01a1ee23f13b0c61_3.jpg"
       ],
       "source": "max",
-      "no": 5
+      "no": 5,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1ede0b6974f3b",
       "ts": 1794992289431,
+      "url": "",
       "title": "Подставка для телефона, прочная",
       "category": "Для дома",
       "price": 250,
@@ -54,18 +61,21 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 21,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1ede0b6974f3b_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1ede0b6974f3b_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1ede0b6974f3b_2.jpg"
       ],
       "source": "max",
-      "no": 6
+      "no": 6,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1eddff0e06f9a",
       "ts": 1794992238816,
+      "url": "",
       "title": "Раздвижная катана",
       "category": "Игрушки и антистресс",
       "price": 500,
@@ -74,18 +84,21 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 15,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1eddff0e06f9a_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1eddff0e06f9a_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1eddff0e06f9a_2.jpg"
       ],
       "source": "max",
-      "no": 7
+      "no": 7,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1e9dfcee634e6",
       "ts": 1794925121254,
+      "url": "",
       "title": "Кот с поднятыми бровями",
       "category": "Фигурки и декор",
       "price": 120,
@@ -94,18 +107,21 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 24,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1e9dfcee634e6_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1e9dfcee634e6_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1e9dfcee634e6_2.jpg"
       ],
       "source": "max",
-      "no": 8
+      "no": 8,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1e9dcd28322ef",
       "ts": 1794924925571,
+      "url": "",
       "title": "Скульптура воина-ронина \"Лунный серп\"",
       "category": "Фигурки и декор",
       "price": 1000,
@@ -114,18 +130,21 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 21,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1e9dcd28322ef_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1e9dcd28322ef_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1e9dcd28322ef_2.jpg"
       ],
       "source": "max",
-      "no": 9
+      "no": 9,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1de769cc51b61",
       "ts": 1794733677765,
+      "url": "",
       "title": "Огненная коза (фигурка к Лунному Новому году)",
       "category": "Фигурки и декор",
       "price": 500,
@@ -134,7 +153,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 39,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1de769cc51b61_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1de769cc51b61_1.jpg",
@@ -142,11 +161,14 @@
         "photos/mid_ffffb8167a965fcf01a1de769cc51b61_3.jpg"
       ],
       "source": "max",
-      "no": 10
+      "no": 10,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1de7167eb0610",
       "ts": 1794733336555,
+      "url": "",
       "title": "Статуэтка \"Огненная коза 2027\"",
       "category": "Фигурки и декор",
       "price": 700,
@@ -155,18 +177,21 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 35,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1de7167eb0610_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1de7167eb0610_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1de7167eb0610_2.jpg"
       ],
       "source": "max",
-      "no": 11
+      "no": 11,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1d628adb955c5",
       "ts": 1794594352569,
+      "url": "",
       "title": "Декоративный тюльпан",
       "category": "Фигурки и декор",
       "price": 350,
@@ -175,16 +200,19 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 26,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1d628adb955c5_0.jpg"
       ],
       "source": "max",
-      "no": 12
+      "no": 12,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1d4208c993715",
       "ts": 1794560265369,
+      "url": "",
       "title": "Органайзер для ватных дисков и палочек",
       "category": "Для дома",
       "price": 300,
@@ -193,7 +221,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 35,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1d4208c993715_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1d4208c993715_1.jpg",
@@ -201,11 +229,14 @@
         "photos/mid_ffffb8167a965fcf01a1d4208c993715_3.jpg"
       ],
       "source": "max",
-      "no": 13
+      "no": 13,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1d417282a1817",
       "ts": 1794559649834,
+      "url": "",
       "title": "Пиратский корабль \"Черная жемчужина\"",
       "category": "Фигурки и декор",
       "price": 100,
@@ -214,7 +245,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 32,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1d417282a1817_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1d417282a1817_1.jpg",
@@ -222,11 +253,14 @@
         "photos/mid_ffffb8167a965fcf01a1d417282a1817_3.jpg"
       ],
       "source": "max",
-      "no": 14
+      "no": 14,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1d410f13914a8",
       "ts": 1794559242553,
+      "url": "",
       "title": "Мини Рим",
       "category": "Фигурки и декор",
       "price": 250,
@@ -235,18 +269,21 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 34,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1d410f13914a8_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1d410f13914a8_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1d410f13914a8_2.jpg"
       ],
       "source": "max",
-      "no": 15
+      "no": 15,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1ca2eeb040b15",
       "ts": 1794393434884,
+      "url": "",
       "title": "Держатель для благовоний Самурай",
       "category": "Для дома",
       "price": 350,
@@ -255,18 +292,21 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 43,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1ca2eeb040b15_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1ca2eeb040b15_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1ca2eeb040b15_2.jpg"
       ],
       "source": "max",
-      "no": 16
+      "no": 16,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1ca20a89934a4",
       "ts": 1794392500377,
+      "url": "",
       "title": "Статуэтка ангела",
       "category": "Фигурки и декор",
       "price": 450,
@@ -275,7 +315,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 42,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1ca20a89934a4_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1ca20a89934a4_1.jpg",
@@ -283,11 +323,14 @@
         "photos/mid_ffffb8167a965fcf01a1ca20a89934a4_3.jpg"
       ],
       "source": "max",
-      "no": 17
+      "no": 17,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1ca126ffa1663",
       "ts": 1794391568378,
+      "url": "",
       "title": "Готическая шкатулка",
       "category": "Фигурки и декор",
       "price": 400,
@@ -296,18 +339,21 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 34,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1ca126ffa1663_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1ca126ffa1663_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1ca126ffa1663_2.jpg"
       ],
       "source": "max",
-      "no": 18
+      "no": 18,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1ac1eef987f48",
       "ts": 1793889071000,
+      "url": "",
       "title": "Текстурированное яйцо дракона (антистресс)",
       "category": "Игрушки и антистресс",
       "price": 250,
@@ -316,17 +362,20 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 73,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1ac1eef987f48_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1ac1eef987f48_1.jpg"
       ],
       "source": "max",
-      "no": 19
+      "no": 19,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a16493fa676c88",
       "ts": 1792688781927,
+      "url": "",
       "title": "Ниндзя-органайзер для ручек",
       "category": "Для дома",
       "price": 120,
@@ -335,7 +384,7 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 117,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a16493fa676c88_0.jpg",
         "photos/mid_ffffb8167a965fcf01a16493fa676c88_1.jpg",
@@ -343,11 +392,14 @@
         "photos/mid_ffffb8167a965fcf01a16493fa676c88_3.jpg"
       ],
       "source": "max",
-      "no": 20
+      "no": 20,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a16491c9475fd4",
       "ts": 1792688638279,
+      "url": "",
       "title": "Настольная подставка для наушников",
       "category": "Для дома",
       "price": 250,
@@ -356,7 +408,7 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 81,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a16491c9475fd4_0.jpg",
         "photos/mid_ffffb8167a965fcf01a16491c9475fd4_1.jpg",
@@ -364,11 +416,14 @@
         "photos/mid_ffffb8167a965fcf01a16491c9475fd4_3.jpg"
       ],
       "source": "max",
-      "no": 21
+      "no": 21,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1648be4896b5e",
       "ts": 1792688252041,
+      "url": "",
       "title": "Держатель для пультов",
       "category": "Для дома",
       "price": 150,
@@ -377,7 +432,7 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 68,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1648be4896b5e_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1648be4896b5e_1.jpg",
@@ -385,11 +440,14 @@
         "photos/mid_ffffb8167a965fcf01a1648be4896b5e_3.jpg"
       ],
       "source": "max",
-      "no": 22
+      "no": 22,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1648794fa1955",
       "ts": 1792687969530,
+      "url": "",
       "title": "Декоративный кролик с бабочкой",
       "category": "Фигурки и декор",
       "price": 100,
@@ -398,17 +456,20 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 69,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1648794fa1955_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1648794fa1955_1.jpg"
       ],
       "source": "max",
-      "no": 23
+      "no": 23,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0d452da8b5600",
       "ts": 1790268594827,
+      "url": "",
       "title": "Спортивный седан Audi RS7",
       "category": "Авто",
       "price": 500,
@@ -417,17 +478,20 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 219,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0d452da8b5600_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0d452da8b5600_1.jpg"
       ],
       "source": "max",
-      "no": 24
+      "no": 24,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0d444578d5204",
       "ts": 1790267643789,
+      "url": "",
       "title": "Моаи с поднятой бровью",
       "category": "Фигурки и декор",
       "price": 100,
@@ -436,7 +500,7 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 185,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0d444578d5204_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0d444578d5204_1.jpg",
@@ -444,11 +508,14 @@
         "photos/mid_ffffb8167a965fcf01a0d444578d5204_3.jpg"
       ],
       "source": "max",
-      "no": 25
+      "no": 25,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0d43e937c6283",
       "ts": 1790267265916,
+      "url": "",
       "title": "Декоративная модель Porsche 992 GT3",
       "category": "Авто",
       "price": 200,
@@ -457,18 +524,21 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 140,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0d43e937c6283_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0d43e937c6283_1.jpg",
         "photos/mid_ffffb8167a965fcf01a0d43e937c6283_2.jpg"
       ],
       "source": "max",
-      "no": 26
+      "no": 26,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0c888ba963beb",
       "ts": 1790070798998,
+      "url": "",
       "title": "Громкий свисток",
       "category": "Разное",
       "price": 50,
@@ -477,18 +547,21 @@
       "material": "PETG",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 152,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0c888ba963beb_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0c888ba963beb_1.jpg",
         "photos/mid_ffffb8167a965fcf01a0c888ba963beb_2.jpg"
       ],
       "source": "max",
-      "no": 27
+      "no": 27,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0c50c1d1714da",
       "ts": 1790012300567,
+      "url": "",
       "title": "Ваза",
       "category": "Фигурки и декор",
       "price": 150,
@@ -497,18 +570,21 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 132,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0c50c1d1714da_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0c50c1d1714da_1.jpg",
         "photos/mid_ffffb8167a965fcf01a0c50c1d1714da_2.jpg"
       ],
       "source": "max",
-      "no": 28
+      "no": 28,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0c4fa7beb6494",
       "ts": 1790011145195,
+      "url": "",
       "title": "Скульптура ленивого кота",
       "category": "Фигурки и декор",
       "price": 200,
@@ -517,18 +593,21 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 110,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0c4fa7beb6494_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0c4fa7beb6494_1.jpg",
         "photos/mid_ffffb8167a965fcf01a0c4fa7beb6494_2.jpg"
       ],
       "source": "max",
-      "no": 29
+      "no": 29,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0bee8a09738c8",
       "ts": 1789909311639,
+      "url": "",
       "title": "Спящий котенок",
       "category": "Фигурки и декор",
       "price": 120,
@@ -537,18 +616,21 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 125,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0bee8a09738c8_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0bee8a09738c8_1.jpg",
         "photos/mid_ffffb8167a965fcf01a0bee8a09738c8_2.jpg"
       ],
       "source": "max",
-      "no": 30
+      "no": 30,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0bec1097269ed",
       "ts": 1789906717042,
+      "url": "",
       "title": "Дракон",
       "category": "Игрушки и антистресс",
       "price": 200,
@@ -557,18 +639,21 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 120,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0bec1097269ed_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0bec1097269ed_1.jpg",
         "photos/mid_ffffb8167a965fcf01a0bec1097269ed_2.jpg"
       ],
       "source": "max",
-      "no": 31
+      "no": 31,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b508d55675d2",
       "ts": 1789743650134,
+      "url": "",
       "title": "Фигурка Кинг-Конга",
       "category": "Фигурки и декор",
       "price": 100,
@@ -577,16 +662,19 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 136,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b508d55675d2_0.jpg"
       ],
       "source": "max",
-      "no": 32
+      "no": 32,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b50555c47849",
       "ts": 1789743420868,
+      "url": "",
       "title": "Мягкий массажер для головы",
       "category": "Разное",
       "price": 150,
@@ -595,17 +683,20 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 127,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b50555c47849_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b50555c47849_1.jpg"
       ],
       "source": "max",
-      "no": 33
+      "no": 33,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b4f3c4950837",
       "ts": 1789742269589,
+      "url": "",
       "title": "Выдвижная капибара-антистресс",
       "category": "Игрушки и антистресс",
       "price": 200,
@@ -614,18 +705,21 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 115,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b4f3c4950837_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b4f3c4950837_1.jpg",
         "photos/mid_ffffb8167a965fcf01a0b4f3c4950837_2.jpg"
       ],
       "source": "max",
-      "no": 34
+      "no": 34,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b4e3a3af6539",
       "ts": 1789741212591,
+      "url": "",
       "title": "Звезда-антистресс",
       "category": "Игрушки и антистресс",
       "price": 150,
@@ -634,18 +728,21 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 105,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b4e3a3af6539_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b4e3a3af6539_1.jpg",
         "photos/mid_ffffb8167a965fcf01a0b4e3a3af6539_2.jpg"
       ],
       "source": "max",
-      "no": 35
+      "no": 35,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b480356f5ce8",
       "ts": 1789734696303,
+      "url": "",
       "title": "Игрушка манекен",
       "category": "Игрушки и антистресс",
       "price": 300,
@@ -654,7 +751,7 @@
       "material": "PLA и PETG",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 98,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b480356f5ce8_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b480356f5ce8_1.jpg",
@@ -662,11 +759,14 @@
         "photos/mid_ffffb8167a965fcf01a0b480356f5ce8_3.jpg"
       ],
       "source": "max",
-      "no": 36
+      "no": 36,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b47405aa0f8a",
       "ts": 1789733897642,
+      "url": "",
       "title": "Спираль-антистресс",
       "category": "Игрушки и антистресс",
       "price": 150,
@@ -675,17 +775,20 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 94,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b47405aa0f8a_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b47405aa0f8a_1.jpg"
       ],
       "source": "max",
-      "no": 37
+      "no": 37,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b36e304e0f20",
       "ts": 1789716738126,
+      "url": "",
       "title": "Волчок-иллюзия",
       "category": "Игрушки и антистресс",
       "price": 80,
@@ -694,17 +797,20 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "url": "",
+      "views": 98,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b36e304e0f20_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b36e304e0f20_1.jpg"
       ],
       "source": "max",
-      "no": 38
+      "no": 38,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b33c282831bb",
       "ts": 1789713459240,
+      "url": "",
       "title": "Балансирующая птица",
       "category": "Игрушки и антистресс",
       "price": 50,
@@ -713,13 +819,15 @@
       "material": "PLA",
       "desc": "(Цвет согласовывать в ЛС)",
       "tags": "",
-      "url": "",
+      "views": 97,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b33c282831bb_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b33c282831bb_1.jpg"
       ],
       "source": "max",
-      "no": 39
+      "no": 39,
+      "views_week": 0,
+      "views_month": 0
     },
     {
       "no": 3,
@@ -735,5 +843,6 @@
       ],
       "tags": "волчок спиннер антистресс игрушка"
     }
-  ]
+  ],
+  "reviews": []
 }
