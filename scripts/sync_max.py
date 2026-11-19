@@ -164,11 +164,49 @@ def find_channel(token):
     raise ApiError("Бот видит чаты, но не канал. Проверьте, что бот — администратор канала.")
 
 
+MAX_PAGES = 30            # до 3000 постов истории канала
+
+
 def fetch_posts(token, chat_id):
-    data = api_get("/messages", {"chat_id": chat_id, "count": FETCH_COUNT}, token)
-    msgs = data.get("messages") or []
-    # комментарии к постам приходят с post_id — их пропускаем
-    return [m for m in msgs if not (m.get("recipient") or {}).get("post_id")]
+    """Все посты канала: листаем историю страницами по 100, пока есть более старые."""
+    def page(**extra):
+        data = api_get("/messages", {"chat_id": chat_id, "count": FETCH_COUNT, **extra}, token)
+        return [m for m in (data.get("messages") or [])
+                if not (m.get("recipient") or {}).get("post_id")]  # комментарии пропускаем
+
+    seen, result = set(), []
+
+    def add(msgs):
+        new = [m for m in msgs if (m.get("body") or {}).get("mid") not in seen]
+        for m in new:
+            seen.add((m.get("body") or {}).get("mid"))
+            result.append(m)
+        return new
+
+    batch = page()
+    add(batch)
+    pages = 1
+    complete = len(batch) < FETCH_COUNT   # меньше 100 — значит, это вся история
+    # Параметры from/to в API описаны неоднозначно — пробуем оба и берём тот, что даёт более старые посты.
+    while not complete and pages < MAX_PAGES:
+        oldest = min(int(m.get("timestamp") or 0) for m in result)
+        got = None
+        for key in ("to", "from"):
+            try:
+                cand = page(**{key: oldest - 1})
+            except ApiError as e:
+                log(f"  ! листание ({key}): {e}")
+                continue
+            older = [m for m in cand if int(m.get("timestamp") or 0) < oldest]
+            if older:
+                got = (cand, add(older))
+                break
+        if not got or not got[1]:
+            break                       # листать не получилось — история может быть неполной
+        pages += 1
+        complete = len(got[0]) < FETCH_COUNT
+    log(f"  просмотрено постов: {len(result)} (страниц: {pages}{', вся история' if complete else ''})")
+    return result, complete
 
 
 # ---------------------------------------------------------------- разбор поста
@@ -268,7 +306,7 @@ def load_catalog():
     return []
 
 
-def sync(messages, old_items, downloader=download):
+def sync(messages, old_items, downloader=download, whole_history=None):
     """Чистая логика синхронизации. Возвращает новый список товаров."""
     manual = [i for i in old_items if i.get("source") != "max"]
     old_max = {i["mid"]: i for i in old_items if i.get("source") == "max"}
@@ -308,7 +346,7 @@ def sync(messages, old_items, downloader=download):
     # Товары, которых нет в свежей выборке:
     #   - пост старше окна выборки → оставляем (просто давно выложен);
     #   - пост внутри окна → его удалили или убрали из каталога → удаляем с сайта.
-    window_full = len(messages) >= FETCH_COUNT
+    window_full = (len(messages) >= FETCH_COUNT) if whole_history is None else not whole_history
     oldest_ts = min((int(m.get("timestamp") or 0) for m in messages), default=0)
     for mid, old in old_max.items():
         if mid in fresh:
@@ -338,14 +376,16 @@ def main():
     try:
         chat_id = find_channel(token)
         log(f"Читаю посты канала {chat_id}…")
-        messages = fetch_posts(token, chat_id)
+        messages, whole = fetch_posts(token, chat_id)
     except ApiError as e:
         log(f"ОШИБКА: {e}")
         return 1
     log(f"  получено постов: {len(messages)}")
 
     old_items = load_catalog()
-    items = sync(messages, old_items)
+    items = sync(messages, old_items, whole_history=whole)
+    if not whole:
+        log("  ! видна не вся история канала: удаление очень старых постов не отслеживается")
 
     new_json = json.dumps({"updated": int(time.time()), "items": items}, ensure_ascii=False, indent=2)
     old_cmp = json.dumps(old_items, ensure_ascii=False, sort_keys=True)
