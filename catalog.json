@@ -1,6 +1,27 @@
 {
-  "updated": 1795094279,
+  "updated": 1795095789,
   "items": [
+    {
+      "mid": "mid.ffffb8167a965fcf01a1f40b6473141e",
+      "ts": 1795095749747,
+      "url": "",
+      "title": "Эрго-закладка \"Легкий поворот\"",
+      "category": "Разное",
+      "price": 150,
+      "size": "По желанию",
+      "color": "Согласовывать в ЛС",
+      "material": "",
+      "desc": "",
+      "tags": "",
+      "views": 2,
+      "photos": [
+        "photos/mid_ffffb8167a965fcf01a1f40b6473141e_0.jpg"
+      ],
+      "source": "max",
+      "no": 44,
+      "views_week": 2,
+      "views_month": 2
+    },
     {
       "mid": "mid.ffffb8167a965fcf01a1f3445fed058e",
       "ts": 1795082706925,
