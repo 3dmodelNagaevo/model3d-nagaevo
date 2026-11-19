@@ -31,6 +31,7 @@ HELP = """🤖 Бот сайта. Кнопки меню — под этим со
 /цена 12 сброс — вернуть цену из поста
 /обложка 12 3 — сделать 3-е фото главным у товара №12
 /шаблон — шаблон поста для канала
+/отзыв текст (+ фото) — добавить отзыв на сайт, /отзывы — список
 /пост — опубликовать товар в канал (см. ниже)
 
 📸 Публикация: пришлите фото и подпись:
@@ -51,7 +52,8 @@ SITE_URL = (os.environ.get("SITE_URL") or "https://3dmodelnagaevo.github.io/mode
 MENU_BUTTONS = {
     "📊 Статус": "/статус", "🔥 Топ": "/топ", "📈 Статистика": "/стата", "🔄 Обновить": "/обновить",
     "🙈 Скрыть": "/скрыть", "👁 Вернуть": "/показать", "💰 Цена": "/цена", "🖼 Обложка": "/обложка",
-    "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
+    "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон",
+    "💬 Отзыв": "/отзыв", "🗂 Отзывы": "/отзывы", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
     # старые подписи кнопок (из прошлых сообщений)
     "🔥 Топ недели": "/топ", "🙈 Скрыть товар": "/скрыть", "👁 Вернуть товар": "/показать",
     "💰 Изменить цену": "/цена", "🔄 Обновить сайт": "/обновить",
@@ -62,6 +64,7 @@ MENU_ROWS = [
     ["🔥 Топ", "🔄 Обновить"],
     ["🙈 Скрыть", "👁 Вернуть"],
     ["💰 Цена", "🖼 Обложка"],
+    ["💬 Отзыв", "🗂 Отзывы"],
     ["📸 Новый пост", "📝 Шаблон"],
     ["❓ Помощь"],
 ]
@@ -339,6 +342,12 @@ def process_commands(token, chat_id, owners, state, notifier, ov, sales_doc=None
             reply("↩️ Отменил последнюю отметку: " + ", ".join(f"№{r['no']}×{r.get('qty', 1)}" for r in reversed(removed)))
         elif cmd == "/продажи":
             deferred.append(lambda items, reply=reply: reply(sales_text(items, (sales_doc or {}).get("sales", []))))
+        elif cmd in ("/отзыв", "отзыв:") or "#отзыв" in text.lower():
+            reply(save_review_local(text, images))
+        elif cmd == "/отзывы":
+            reply(list_reviews_local())
+        elif cmd in ("/удалить", "/удалить_отзыв") and "отзыв" in text.lower():
+            reply(delete_review_local(_num(text)))
         elif cmd == "/шаблон":
             notifier.send(TEMPLATE_HELP, sender)
             reply(POST_TEMPLATE)
@@ -374,6 +383,61 @@ def process_commands(token, chat_id, owners, state, notifier, ov, sales_doc=None
 
 
 # ---------------------------------------------------------------- тексты
+
+REVIEW_HELP = ("💬 Как добавить отзыв на сайт (в канал он не попадёт):\n\n"
+               "Пришлите фото и в подписи: /отзыв Купили дракона сыну — играет каждый день! — Анна\n"
+               "Можно без фото. Можно указать товар: №12. Удалить: /удалить отзыв 3")
+
+
+def _rev_doc():
+    import sync_max as sm
+    return sm.REVIEWS, sm.load_json(sm.REVIEWS, {"reviews": []})
+
+
+def save_review_local(text, images):
+    import sync_max as sm
+    body = re.sub(r"^/?(отзыв|review)\s*:?\s*", "", re.sub(r"#отзыв", "", text, flags=re.I).strip(), flags=re.I).strip()
+    if not body and not images:
+        return REVIEW_HELP
+    path, doc = _rev_doc()
+    rid = max([r.get("id", 0) for r in doc["reviews"]] + [0]) + 1
+    raw = []
+    for k, a in enumerate(images[:4]):
+        url = (a.get("payload") or {}).get("url")
+        if not url:
+            continue
+        try:
+            dest = sm.ROOT / "reviews" / "raw" / f"{rid}_{k}.jpg"
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(maxapi.download(url))
+            raw.append(f"reviews/raw/{dest.name}")
+        except Exception as e:
+            log(f"  ! фото отзыва: {e}")
+    m = re.search(r"№\s*(\d+)", body)
+    doc["reviews"].append({"id": rid, "ts": int(time.time() * 1000), "text": body[:800], "raw": raw,
+                           "no": int(m.group(1)) if m else None})
+    sm.dump_json(path, doc)
+    return f"💬 Отзыв №{rid} добавлен на сайт" + (f" с фото ({len(raw)})" if raw else "") + ". Убрать: /удалить отзыв " + str(rid)
+
+
+def list_reviews_local():
+    _, doc = _rev_doc()
+    if not doc["reviews"]:
+        return "Отзывов из бота пока нет.\n\n" + REVIEW_HELP
+    return "🗂 Отзывы на сайте (из бота):\n" + "\n".join(
+        f"№{r['id']}: {(r.get('text') or '(без текста)')[:60]}{' 📷' if r.get('raw') else ''}" for r in doc["reviews"][-15:])
+
+
+def delete_review_local(rid):
+    import sync_max as sm
+    if not rid:
+        return "Напишите номер отзыва: /удалить отзыв 3"
+    path, doc = _rev_doc()
+    before = len(doc["reviews"])
+    doc["reviews"] = [r for r in doc["reviews"] if r.get("id") != rid]
+    sm.dump_json(path, doc)
+    return f"🗑 Отзыв №{rid} убран с сайта." if before != len(doc["reviews"]) else f"Отзыва №{rid} нет."
+
 
 def times(n):
     return "раза" if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14) else "раз"

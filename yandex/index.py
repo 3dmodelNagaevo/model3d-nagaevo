@@ -112,6 +112,12 @@ def gh_put(name, data, sha, message):
     gh("PUT", f"/repos/{REPO}/contents/{name}", body)
 
 
+def gh_put_bytes(name, data, message):
+    gh("PUT", f"/repos/{REPO}/contents/{name}", {
+        "message": message, "branch": "main", "content": base64.b64encode(data).decode(),
+        "committer": {"name": "catalog-bot", "email": "catalog-bot@users.noreply.github.com"}})
+
+
 def update_json(name, fn, message, default=None):
     """Правка JSON-файла в репозитории с повтором при конфликте. Возвращает новые данные."""
     for _ in range(3):
@@ -142,7 +148,8 @@ def run_sync():
 MENU_BUTTONS = {
     "📊 Статус": "/статус", "🔥 Топ": "/топ", "📈 Статистика": "/стата", "🔄 Обновить": "/обновить",
     "🙈 Скрыть": "/скрыть", "👁 Вернуть": "/показать", "💰 Цена": "/цена", "🖼 Обложка": "/обложка",
-    "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
+    "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон",
+    "💬 Отзыв": "/отзыв", "🗂 Отзывы": "/отзывы", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
     # старые подписи кнопок (из прошлых сообщений)
     "🔥 Топ недели": "/топ", "🙈 Скрыть товар": "/скрыть", "👁 Вернуть товар": "/показать",
     "💰 Изменить цену": "/цена", "🔄 Обновить сайт": "/обновить",
@@ -154,6 +161,7 @@ MENU_ROWS = [
     ["🔥 Топ", "🔄 Обновить"],
     ["🙈 Скрыть", "👁 Вернуть"],
     ["💰 Цена", "🖼 Обложка"],
+    ["💬 Отзыв", "🗂 Отзывы"],
     ["📸 Новый пост", "📝 Шаблон"],
     ["❓ Помощь"],
 ]
@@ -188,6 +196,7 @@ HELP = """🤖 Бот сайта. Кнопки — под этим сообще�
 /обложка 12 3 — сделать 3-е фото главным
 /обновить — обновить сайт прямо сейчас
 /шаблон — шаблон поста для канала
+/отзыв текст (+ фото) — добавить отзыв на сайт, /отзывы — список
 
 📸 Публикация: пришлите фото с подписью
 /пост Дракон-антистресс
@@ -408,6 +417,76 @@ def config():
 
 
 
+
+REVIEW_HELP = ("💬 Как добавить отзыв на сайт (в канал он не попадёт):\n\n"
+               "Пришлите фото (товар у покупателя или скриншот переписки) и в подписи:\n\n"
+               "/отзыв Купили дракона сыну — играет каждый день! — Анна\n\n"
+               "• можно без фото — просто текст после /отзыв;\n"
+               "• можно указать товар: добавьте №12 — на сайте появится ссылка на него;\n"
+               "• на скриншотах закрасьте фамилию и телефон покупателя.\n\n"
+               "🗂 Отзывы — список, /удалить отзыв 3 — убрать с сайта.")
+
+
+def add_review(uid, text, images):
+    body = re.sub(r"^/?(отзыв|review)\s*:?\s*", "", text.strip(), flags=re.I).strip()
+    if not body and not images:
+        return send(uid, REVIEW_HELP)
+    m = re.search(r"№\s*(\d+)", body)
+    no = int(m.group(1)) if m else None
+    rid_holder = {}
+    def reserve(d):
+        rid = max([r.get("id", 0) for r in d.get("reviews", [])] + [0]) + 1
+        rid_holder["id"] = rid
+    data, _ = gh_file("reviews.json")
+    reserve(data or {"reviews": []})
+    rid = rid_holder["id"]
+    raw = []
+    for k, a in enumerate(images[:4]):
+        url = (a.get("payload") or {}).get("url")
+        if not url:
+            continue
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=25, context=ctx()) as r:
+                blob = r.read()
+            path = f"reviews/raw/{rid}_{k}.jpg"
+            gh_put_bytes(path, blob, f"Бот: фото отзыва {rid}")
+            raw.append(path)
+        except Exception as e:
+            print("review photo:", e)
+    entry = {"id": rid, "ts": int(time.time() * 1000), "text": body[:800], "raw": raw, "no": no}
+    update_json("reviews.json", lambda d: d.setdefault("reviews", []).append(entry), f"Бот: отзыв {rid}", {"reviews": []})
+    item = _find(catalog_items(), no) if no else None
+    extra = f"\nТовар: №{no} {item['title']}" if item else (f"\n⚠️ Товара №{no} нет на сайте — ссылки не будет." if no else "")
+    lost = len(images) - len(raw)
+    return send(uid, f"💬 Отзыв №{rid} добавлен на сайт" + (f" с фото ({len(raw)})" if raw else "") + "." + extra
+                + (f"\n⚠️ {lost} фото не удалось сохранить." if lost > 0 else "")
+                + "\nПоявится через 1–2 минуты. Убрать: /удалить отзыв " + str(rid))
+
+
+def list_reviews(uid):
+    data, _ = gh_file("reviews.json")
+    revs = (data or {}).get("reviews", [])
+    if not revs:
+        return send(uid, "Отзывов из бота пока нет.\n\n" + REVIEW_HELP)
+    lines = [f"№{r['id']} — {time.strftime('%d.%m', time.gmtime(r['ts'] / 1000 + 3 * 3600))}: "
+             f"{(r.get('text') or '(без текста)')[:60]}{' 📷' if r.get('raw') else ''}" for r in revs[-15:]]
+    return send(uid, "🗂 Отзывы на сайте (из бота):\n" + "\n".join(lines) + "\n\nУбрать: /удалить отзыв 3")
+
+
+def delete_review(uid, text):
+    rid = num(text)
+    if not rid:
+        return send(uid, "Напишите номер отзыва: /удалить отзыв 3\nНомера — в «🗂 Отзывы».")
+    gone = []
+    def f(d):
+        before = len(d.get("reviews", []))
+        d["reviews"] = [r for r in d.get("reviews", []) if r.get("id") != rid]
+        gone.append(before != len(d["reviews"]))
+    update_json("reviews.json", f, f"Бот: удалён отзыв {rid}", {"reviews": []})
+    return send(uid, f"🗑 Отзыв №{rid} убран с сайта." if gone and gone[0] else f"Отзыва №{rid} нет.")
+
+
 SALE_ONLY_RE = re.compile(r"^[\d\s,;:xх×*\-—–.шт]+$", re.I)
 SALE_CHUNK_RE = re.compile(r"^(\d+)(?:\s*[xх×*\-—–:]?\s*(\d+))?\s*(?:шт\.?)?$", re.I)
 
@@ -463,6 +542,13 @@ def record_sales(uid, pairs, bad):
 def handle_owner(uid, text, images):
     if text in MENU_BUTTONS:
         text = MENU_BUTTONS[text]
+    low = text.lower()
+    if low.startswith("/отзыв") and not low.startswith("/отзывы") or low.startswith("отзыв:") or "#отзыв" in low:
+        return add_review(uid, text.replace("#отзыв", "").replace("#Отзыв", ""), images)
+    if low in ("/отзывы", "отзывы"):
+        return list_reviews(uid)
+    if re.match(r"^/?удалить[ _]отзыв", low):
+        return delete_review(uid, text)
     if is_sales_list(text):                       # просто номера: «38 2», «20» … — это продажи
         pairs, bad = parse_sales(text)
         return record_sales(uid, pairs, bad)

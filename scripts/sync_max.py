@@ -33,6 +33,7 @@ CATALOG = ROOT / "catalog.json"
 STATE = ROOT / "state.json"
 OVERRIDES = ROOT / "overrides.json"   # /скрыть и /цена из бота (правят и GitHub, и Yandex Cloud)
 SALES = ROOT / "sales.json"           # отметки «/продано» из бота
+REVIEWS = ROOT / "reviews.json"       # отзывы, присланные боту (/отзыв)
 PHOTOS = ROOT / "photos"
 CHANNEL_FILE = ROOT / "channel_id.txt"
 SITE_URL = (os.environ.get("SITE_URL") or "https://3dmodelnagaevo.github.io/model3d-nagaevo/").rstrip("/") + "/"
@@ -300,12 +301,33 @@ def fetch_photos(item_or_review, old=None):
 
 # ---------------------------------------------------------------- синхронизация
 
-def sync(messages, old_items, old_reviews, state, whole_history, ov=None):
+def add_bot_reviews(reviews, bot_reviews):
+    """Отзывы из бота: исходные фото из reviews/raw/ → сжатые копии в photos/."""
+    for r in bot_reviews:
+        photos = []
+        for k, raw in enumerate(r.get("raw", [])[:4]):
+            src = ROOT / raw
+            dest = PHOTOS / f"rev_{r['id']}_{k}.jpg"
+            if not dest.exists() and src.exists():
+                try:
+                    photolib.save_photo(src.read_bytes(), dest)
+                except Exception as e:
+                    log(f"  ! фото отзыва {r['id']}: {e}")
+                    continue
+            if dest.exists():
+                photos.append(f"photos/{dest.name}")
+        mid = f"bot{r['id']}"
+        text = re.sub(r"\s*№\s*\d+", "", r.get("text", "")).strip()
+        reviews[mid] = {"mid": mid, "ts": r.get("ts", 0), "text": text, "photos": photos,
+                        "url": "", "no": r.get("no"), "source": "bot", "id": r["id"]}
+
+
+def sync(messages, old_items, old_reviews, state, whole_history, ov=None, bot_reviews=()):
     """Возвращает (items, reviews, events)."""
     events = {"added": [], "removed": [], "warn": []}
     manual = [i for i in old_items if i.get("source") != "max"]
     old_max = {i["mid"]: i for i in old_items if i.get("source") == "max"}
-    old_rev = {r["mid"]: r for r in old_reviews}
+    old_rev = {r.get("mid"): r for r in old_reviews}
     next_no = max([i.get("no", 0) for i in old_items] + [0]) + 1
     PHOTOS.mkdir(exist_ok=True)
     now_ms = int(time.time() * 1000)
@@ -368,6 +390,7 @@ def sync(messages, old_items, old_reviews, state, whole_history, ov=None):
             it["price"] = prices[str(it["no"])]
 
     items = sorted(fresh.values(), key=lambda i: i.get("ts", 0), reverse=True) + manual
+    add_bot_reviews(reviews, bot_reviews)
     reviews = sorted(reviews.values(), key=lambda r: r["ts"], reverse=True)
 
     used = {p for x in items + reviews for p in x.get("photos", [])}
@@ -480,7 +503,8 @@ def main():
         dump_json(STATE, state)
         return 1
 
-    items, reviews, events = sync(messages, old_items, old_reviews, state, whole, ov)
+    bot_reviews = load_json(REVIEWS, {}).get("reviews", [])
+    items, reviews, events = sync(messages, old_items, old_reviews, state, whole, ov, bot_reviews)
     update_views(items, old_items, state)
     apply_sales(items, sales_doc.get("sales", []))
 

@@ -194,10 +194,13 @@
   /* ---------- отзывы ---------- */
   .reviews{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
   .rev{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
-  .rev img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
-  .rev div{padding:14px 16px}
-  .rev p{margin:0 0 8px}
+  .rev .pics{display:grid;grid-auto-flow:column;grid-auto-columns:100%;overflow-x:auto;scroll-snap-type:x mandatory}
+  .rev .pics img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;scroll-snap-align:start}
+  .rev .pics.multi{grid-auto-columns:85%;gap:4px}
+  .rev .txt{padding:14px 16px}
+  .rev p{margin:0 0 8px;white-space:pre-line}
   .rev small{color:var(--muted)}
+  .rev .about{display:inline-block;margin-top:6px;font-size:14px;font-weight:600;color:var(--cobalt);cursor:pointer;background:none;border:0;padding:0}
 
   /* ---------- условия ---------- */
   .info{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
@@ -773,8 +776,14 @@ function renderStrips(){
 
 function renderReviews(){
   $("#reviews").hidden = $("#navReviews").hidden = !REVIEWS.length;
-  $("#revGrid").innerHTML = REVIEWS.map(r => `<div class="rev">${r.photos && r.photos[0] ? `<img src="${esc(thumb(r.photos[0]))}" alt="" loading="lazy">` : ""}
-    <div><p>${esc(r.text)}</p><small>${new Date(r.ts).toLocaleDateString("ru-RU")}${r.url ? ` · <a href="${esc(r.url)}" target="_blank" rel="noopener">в канале</a>` : ""}</small></div></div>`).join("");
+  $("#revGrid").innerHTML = REVIEWS.map((r, k) => {
+    const pics = (r.photos || []).map(p => `<img src="${esc(p)}" alt="" loading="lazy">`).join("");
+    const item = r.no && CATALOG.find(m => m.no === r.no);
+    return `<div class="rev">${pics ? `<div class="pics${r.photos.length > 1 ? " multi" : ""}">${pics}</div>` : ""}
+      <div class="txt"><p>${esc(r.text)}</p><small>${new Date(r.ts).toLocaleDateString("ru-RU")}</small>
+      ${item ? `<br><button class="about" data-no="${item.no}">${esc(item.title)}</button>` : ""}</div></div>`;
+  }).join("");
+  $$("#revGrid .about").forEach(b => b.onclick = () => openModel(CATALOG.find(m => m.no === +b.dataset.no)));
 }
 
 /* ---------- карточка товара ---------- */
