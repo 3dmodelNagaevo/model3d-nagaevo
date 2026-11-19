@@ -1,0 +1,54 @@
+name: Черновик поста из MakerWorld
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Ссылка на модель MakerWorld"
+        required: true
+      uid:
+        description: "id владельца в MAX (кому прислать черновик)"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-sync        # не пересекаться с синхронизацией каталога (обе пишут в репозиторий)
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Сертификаты Минцифры (нужны для API MAX)
+        run: |
+          mkdir -p .certs
+          curl -fsS --retry 3 https://gu-st.ru/content/lending/russian_trusted_root_ca_pem.crt -o .certs/russian_root.crt || true
+          curl -fsS --retry 3 https://gu-st.ru/content/lending/russian_trusted_sub_ca_pem.crt -o .certs/russian_sub.crt || true
+
+      - run: pip install --quiet --disable-pip-version-check pillow || true
+
+      - name: Скачать модель и фото
+        env:
+          MAX_TOKEN: ${{ secrets.MAX_TOKEN }}
+          URL: ${{ inputs.url }}
+          UID_: ${{ inputs.uid }}
+        run: python3 scripts/makerworld.py prepare "$URL" "$UID_"
+
+      - name: Сохранить черновик
+        run: |
+          git config user.name "catalog-bot"
+          git config user.email "catalog-bot@users.noreply.github.com"
+          git add drafts.json drafts
+          git commit -q -m "Черновик поста из MakerWorld" || exit 0
+          for i in 1 2 3; do git push && break || (sleep 3; git pull --rebase -q origin main); done
+
+      - name: Прислать предпросмотр в MAX
+        env:
+          MAX_TOKEN: ${{ secrets.MAX_TOKEN }}
+          UID_: ${{ inputs.uid }}
+        run: python3 scripts/makerworld.py notify "$UID_"

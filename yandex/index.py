@@ -132,6 +132,12 @@ def update_overrides(fn, message):
     return update_json("overrides.json", fn, message)
 
 
+def run_draft(url, uid):
+    """Черновик из MakerWorld готовит GitHub (оттуда сайт MakerWorld открывается без ограничений)."""
+    gh("POST", f"/repos/{REPO}/actions/workflows/draft.yml/dispatches",
+       {"ref": "main", "inputs": {"url": url, "uid": str(uid)}})
+
+
 def run_sync():
     """Запустить обновление сайта на GitHub прямо сейчас."""
     gh("POST", f"/repos/{REPO}/actions/workflows/sync.yml/dispatches", {"ref": "main"})
@@ -173,6 +179,9 @@ HELP = """🤖 Бот сайта. Кнопки — под этим сообще�
 /обложка 12 — показать фото товара №12 и выбрать главное
 /обложка 12 3 — сделать 3-е фото главным
 /обновить — обновить сайт прямо сейчас
+
+🔗 Пришлите ссылку на модель MakerWorld — бот сделает черновик поста с фото,
+вы поправите (Название: …, Цена: …, Фото: 1 3) и нажмёте «Опубликовать».
 
 📸 Публикация: пришлите фото с подписью
 /пост Дракон-антистресс
@@ -392,6 +401,103 @@ def config():
 
 
 
+
+# ---------------------------------------------------------------- черновики из MakerWorld
+
+MW_RE = re.compile(r"https?://(?:www\.)?makerworld\.com/\S*?models/\d+\S*", re.I)
+RAW = f"https://raw.githubusercontent.com/{REPO}/main/"
+LICENSE_TEXT = {
+    "ok": "✅ Лицензия разрешает коммерческое использование.",
+    "warn": "⚠️ Лицензия открытая, но автор в описании упоминает коммерческую лицензию — проверьте условия на странице модели.",
+    "unknown": "⚠️ Не смог определить, разрешена ли продажа печати. Проверьте лицензию на странице модели.",
+    "forbidden": "⛔ Лицензия запрещает коммерческое использование (продажу печати) без разрешения автора. "
+                 "Опубликовать такой товар бот не может. Можно купить коммерческую лицензию у автора и выложить пост вручную.",
+}
+EDIT_RE = re.compile(r"^(название|цена|стоимость|описание|размер|цвет|фото)\s*[:\-—–]\s*(.*)$", re.I)
+
+
+def draft_post_text(d):
+    lines = [d["name"]]
+    if d.get("desc"):
+        lines.append(d["desc"])
+    lines += [f"- Размер: ({d.get('size') or 'по желанию'})", f"- Цвет: {d.get('color') or 'согласовывать в ЛС'}",
+              f"- Стоимость: {d['price']} ₽" if d.get("price") else "- Стоимость: ❗укажите цену"]
+    if d.get("author"):
+        lines.append(f"Автор модели: {d['author']} (MakerWorld)")
+    if d.get("tags"):
+        lines.append(" ".join("#" + t for t in d["tags"]))
+    return "\n".join(lines)
+
+
+def draft_keyboard():
+    return {"type": "inline_keyboard", "payload": {"buttons": [
+        [{"type": "message", "text": "✅ Опубликовать"}, {"type": "message", "text": "❌ Отменить черновик"}]]}}
+
+
+def send_draft(uid, d, head="📝 Черновик обновлён:"):
+    text = (f"{head}\n\n{draft_post_text(d)}\n\n📷 Фото: {', '.join(map(str, d['use'])) or 'нет'} из {len(d['photos'])}"
+            f"\n{LICENSE_TEXT.get(d.get('license_status'), '')}")
+    max_api("POST", "/messages", {"user_id": uid, "disable_link_preview": "true"},
+            {"text": text[:3900], "attachments": [draft_keyboard()]})
+
+
+def is_draft_edit(text):
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    return bool(lines) and all(EDIT_RE.match(l) or l.startswith("#") for l in lines)
+
+
+def edit_draft(uid, text):
+    changed = {}
+    def f(drafts):
+        d = drafts.get(str(uid))
+        if not d:
+            return
+        for line in [l.strip() for l in text.splitlines() if l.strip()]:
+            if line.startswith("#"):
+                d["tags"] = [t.lower() for t in re.findall(r"#([\wё]+)", line)]
+                continue
+            m = EDIT_RE.match(line)
+            key, val = m.group(1).lower(), m.group(2).strip()
+            if key == "название" and val:
+                d["name"] = val[:120]
+            elif key in ("цена", "стоимость"):
+                d["price"] = num(val)
+            elif key == "описание":
+                d["desc"] = val[:800]
+            elif key == "размер":
+                d["size"] = val.strip("()") or "по желанию"
+            elif key == "цвет":
+                d["color"] = val or "согласовывать в ЛС"
+            elif key == "фото":
+                picks = [int(x) for x in re.findall(r"\d+", val) if 1 <= int(x) <= len(d["photos"])]
+                d["use"] = list(dict.fromkeys(picks)) or d["use"]
+        changed.update(d)
+    update_json("drafts.json", f, "Бот: правка черновика")
+    if not changed:
+        return send(uid, "Черновика нет. Пришлите ссылку на модель MakerWorld, чтобы начать.")
+    return send_draft(uid, changed)
+
+
+def publish_draft(uid):
+    drafts, _ = gh_file("drafts.json")
+    d = (drafts or {}).get(str(uid))
+    if not d:
+        return send(uid, "Черновика нет. Пришлите ссылку на модель MakerWorld.")
+    if d.get("license_status") == "forbidden":
+        return send(uid, LICENSE_TEXT["forbidden"] + f"\n\nЛицензия: {d.get('license')}\n{d.get('url')}")
+    if not d.get("price"):
+        return send(uid, "Укажите цену — пришлите строку:\nЦена: 500", menu=False)
+    atts = [{"type": "image", "payload": {"url": RAW + d["photos"][k - 1]}} for k in d["use"] if k <= len(d["photos"])]
+    max_api("POST", "/messages", {"chat_id": config()["channel"]},
+            {"text": draft_post_text(d), **({"attachments": atts[:10]} if atts else {})})
+    update_json("drafts.json", lambda x: x.pop(str(uid), None), "Бот: черновик опубликован")
+    return send(uid, "✅ Опубликовал в канал. На сайте появится через 1–2 минуты.")
+
+
+def cancel_draft(uid):
+    update_json("drafts.json", lambda x: x.pop(str(uid), None), "Бот: черновик отменён")
+    return send(uid, "🗑 Черновик удалён.")
+
 SALE_ONLY_RE = re.compile(r"^[\d\s,;:xх×*\-—–.шт]+$", re.I)
 SALE_CHUNK_RE = re.compile(r"^(\d+)(?:\s*[xх×*\-—–:]?\s*(\d+))?\s*(?:шт\.?)?$", re.I)
 
@@ -447,6 +553,16 @@ def record_sales(uid, pairs, bad):
 def handle_owner(uid, text, images):
     if text in MENU_BUTTONS:
         text = MENU_BUTTONS[text]
+    mw = MW_RE.search(text or "")
+    if mw:                                        # ссылка на модель MakerWorld → черновик поста
+        run_draft(mw.group(0), uid)
+        return send(uid, "⏳ Готовлю черновик поста: скачиваю фото и описание с MakerWorld. Пришлю через 1–2 минуты.", menu=False)
+    if text == "✅ Опубликовать":
+        return publish_draft(uid)
+    if text == "❌ Отменить черновик":
+        return cancel_draft(uid)
+    if is_draft_edit(text):
+        return edit_draft(uid, text)
     if is_sales_list(text):                       # просто номера: «38 2», «20» … — это продажи
         pairs, bad = parse_sales(text)
         return record_sales(uid, pairs, bad)
