@@ -742,6 +742,236 @@ def handle_owner(uid, text, images):
     return send(uid, "Не понял команду. Нажмите «❓ Помощь» или выберите кнопку в меню.")
 
 
+# ---------------------------------------------------------------- библиотека ссылок (групповой чат)
+
+LINK_RE = re.compile(r"https?://[^\s<>\"']+", re.I)
+SITES = {"makerworld": "MakerWorld", "printables": "Printables", "thingiverse": "Thingiverse",
+         "cults3d": "Cults3D", "thangs": "Thangs", "myminifactory": "MyMiniFactory", "youtube": "YouTube",
+         "youtu.be": "YouTube", "pinterest": "Pinterest", "ozon": "Ozon", "wildberries": "WB", "avito": "Авито"}
+LINKS_HELP = """🔖 Библиотека ссылок
+
+Просто кидайте сюда ссылки на модели — бот сохранит каждую под номером.
+Подпишите своими словами и хэштегами, по ним потом удобно искать:
+https://makerworld.com/... дракон шарнирный #антистресс #подарок
+
+🔍 найти дракон — поиск по названию, подписи, тегам и сайту
+📋 /ссылки — последние; /ссылки #антистресс или /ссылки makerworld — фильтр
+🏷 /теги — все теги
+➕ /тег 12 #дракон — добавить теги к ссылке №12
+✅ /готово 12 — отметить «напечатано»; /ссылки готово или /ссылки план — фильтр
+🗑 /удалить ссылку 12
+📥 /импорт — забрать ссылки из старых сообщений этого чата"""
+
+
+def link_site(url):
+    host = re.sub(r"^https?://(www\.)?", "", url.lower()).split("/")[0]
+    for k, v in SITES.items():
+        if k in host:
+            return v
+    return host
+
+
+def link_title(url):
+    """Название из адреса: makerworld.com/en/models/2210286-articulated-dragon → «articulated dragon»."""
+    path = re.sub(r"[?#].*$", "", re.sub(r"^https?://[^/]+", "", url))
+    seg = [x for x in path.split("/") if x]
+    best = ""
+    for x in reversed(seg):
+        x = re.sub(r"^\d+[-_]?", "", urllib.parse.unquote(x))
+        if re.search(r"[A-Za-zА-Яа-я]{3,}", x) and x.lower() not in ("models", "model", "thing", "en", "ru", "design", "files"):
+            best = x
+            break
+    return re.sub(r"[-_+]+", " ", best).strip()[:80]
+
+
+def norm_url(u):
+    """Одна и та же модель — одна ссылка: без «#…», а у сайтов моделей и без «?…»."""
+    u = u.rstrip(").,;!").split("#")[0]
+    if link_site(u) in ("MakerWorld", "Printables", "Thingiverse", "Cults3D", "Thangs", "MyMiniFactory"):
+        u = u.split("?")[0]
+    return u.rstrip("/")
+
+
+def link_line(e):
+    date = time.strftime("%d.%m", time.gmtime(e.get("ts", 0) / 1000 + 3 * 3600))
+    name = e.get("note") or e.get("title") or e.get("site")
+    tags = " ".join("#" + t for t in e.get("tags", []))
+    done = " ✅" if e.get("status") == "done" else ""
+    return f"№{e['id']}{done} · {date} · {name[:70]} ({e.get('site')}) {tags}".rstrip() + f"\n{e['url']}"
+
+
+def chat_send(chat_id, text):
+    max_api("POST", "/messages", {"chat_id": chat_id, "disable_link_preview": "true"}, {"text": text[:3900]})
+
+
+def save_links(chat_id, text, sender, mid):
+    urls = list(dict.fromkeys(norm_url(u) for u in LINK_RE.findall(text)))
+    tags = [t.lower() for t in re.findall(r"#([\wё]+)", LINK_RE.sub(" ", text))]   # #… внутри ссылок — не теги
+    note = re.sub(r"\s+", " ", TAG_RE.sub("", LINK_RE.sub("", text))).strip(" -—:,.")[:120]
+    saved = []
+    def f(d):
+        lst = d.setdefault("links", [])
+        nxt = max([e.get("id", 0) for e in lst] + [0]) + 1
+        known = {e["url"]: e for e in lst}
+        for u in urls:
+            if u in known:                      # уже есть — дополняем подпись и теги
+                e = known[u]
+                e["tags"] = list(dict.fromkeys(e.get("tags", []) + tags))
+                if note and not e.get("note"):
+                    e["note"] = note
+                saved.append(("old", e))
+                continue
+            e = {"id": nxt, "url": u, "site": link_site(u), "title": link_title(u), "note": note, "tags": tags,
+                 "ts": int(time.time() * 1000), "chat": chat_id, "mid": mid, "by": sender, "status": ""}
+            lst.append(e)
+            saved.append(("new", e))
+            nxt += 1
+    update_json("links.json", f, "Бот: ссылки " + ", ".join(urls)[:60], {"links": []})
+    lines = [("🔖 №{} сохранена: " if kind == "new" else "🔁 №{} уже была, обновил: ").format(e["id"])
+             + (e.get("note") or e.get("title") or e["site"])[:60] + (" " + " ".join("#" + t for t in e["tags"]) if e["tags"] else "")
+             for kind, e in saved]
+    if lines:
+        chat_send(chat_id, "\n".join(lines))
+
+
+def import_links(chat_id):
+    """Забрать ссылки из старых сообщений чата (до 500 последних)."""
+    msgs, oldest = [], None
+    for _ in range(5):
+        params = {"chat_id": chat_id, "count": 100}
+        if oldest:
+            params["to"] = oldest - 1
+        batch = (max_api("GET", "/messages", params) or {}).get("messages") or []
+        batch = [m for m in batch if not oldest or int(m.get("timestamp") or 0) < oldest]
+        if not batch:
+            break
+        msgs += batch
+        oldest = min(int(m.get("timestamp") or 0) for m in batch)
+        if len(batch) < 100:
+            break
+    found = []
+    for m in msgs:
+        body = m.get("body") or {}
+        t = body.get("text") or ""
+        if (m.get("sender") or {}).get("is_bot") or not LINK_RE.search(t):
+            continue
+        found.append((int(m.get("timestamp") or 0), t, (m.get("sender") or {}).get("user_id"), body.get("mid")))
+    found.sort()
+    added = []
+    def f(d):
+        lst = d.setdefault("links", [])
+        known = {e["url"] for e in lst}
+        nxt = max([e.get("id", 0) for e in lst] + [0]) + 1
+        for ts, t, by, mid in found:
+            tags = [x.lower() for x in re.findall(r"#([\wё]+)", LINK_RE.sub(" ", t))]
+            note = re.sub(r"\s+", " ", TAG_RE.sub("", LINK_RE.sub("", t))).strip(" -—:,.")[:120]
+            for u in dict.fromkeys(norm_url(x) for x in LINK_RE.findall(t)):
+                if u in known:
+                    continue
+                lst.append({"id": nxt, "url": u, "site": link_site(u), "title": link_title(u), "note": note,
+                            "tags": tags, "ts": ts, "chat": chat_id, "mid": mid, "by": by, "status": ""})
+                known.add(u)
+                added.append(nxt)
+                nxt += 1
+    if found:
+        update_json("links.json", f, f"Бот: импорт ссылок из чата ({len(found)} сообщ.)", {"links": []})
+    return chat_send(chat_id, f"📥 Просмотрел {len(msgs)} сообщений, добавил ссылок: {len(added)}."
+                     + (f" Номера №{added[0]}–№{added[-1]}." if added else "") + "\nИскать: найти дракон")
+
+
+def find_links(links, query):
+    q = query.lower().strip()
+    if not q:
+        return links
+    if q in ("готово", "напечатано", "done"):
+        return [e for e in links if e.get("status") == "done"]
+    if q in ("план", "в планах", "todo", "не готово"):
+        return [e for e in links if e.get("status") != "done"]
+    words = q.split()
+    def hay(e):
+        return " ".join([e.get("title", ""), e.get("note", ""), e.get("site", ""), e.get("url", ""),
+                         " ".join("#" + t for t in e.get("tags", []))]).lower()
+    return [e for e in links if all(w in hay(e) for w in words)]
+
+
+def handle_group(msg, chat_id):
+    body = msg.get("body") or {}
+    text = (body.get("text") or "").strip()
+    sender = (msg.get("sender") or {})
+    if sender.get("is_bot") or not text:
+        return
+    low = text.lower()
+    m = re.match(r"^(?:/найти|найти|/поиск|поиск|\?)\s*(.*)$", low, re.S)
+    if m:
+        data, _ = gh_file("links.json")
+        res = find_links((data or {}).get("links", []), m.group(1))
+        if not res:
+            return chat_send(chat_id, f"🔍 По запросу «{m.group(1)}» ничего нет. /ссылки — последние, /теги — все теги.")
+        res = sorted(res, key=lambda e: -e.get("ts", 0))
+        return chat_send(chat_id, f"🔍 Найдено: {len(res)}\n\n" + "\n\n".join(link_line(e) for e in res[:12])
+                         + ("\n\n…показаны 12 последних, уточните запрос" if len(res) > 12 else ""))
+    if low.startswith("/ссылки") or low == "ссылки":
+        data, _ = gh_file("links.json")
+        q = text.split(None, 1)[1] if len(text.split(None, 1)) > 1 else ""
+        res = sorted(find_links((data or {}).get("links", []), q), key=lambda e: -e.get("ts", 0))
+        if not res:
+            return chat_send(chat_id, "Ссылок пока нет." if not q else f"По «{q}» ничего нет.")
+        return chat_send(chat_id, f"📋 Ссылок: {len(res)}" + (f" ({q})" if q else "") + "\n\n"
+                         + "\n\n".join(link_line(e) for e in res[:12]))
+    if low.startswith("/теги") or low == "теги":
+        data, _ = gh_file("links.json")
+        cnt = {}
+        for e in (data or {}).get("links", []):
+            for t in e.get("tags", []):
+                cnt[t] = cnt.get(t, 0) + 1
+        if not cnt:
+            return chat_send(chat_id, "Тегов пока нет. Добавляйте #теги в подпись к ссылке или /тег 12 #дракон")
+        return chat_send(chat_id, "🏷 Теги:\n" + "\n".join(f"#{t} — {n}" for t, n in sorted(cnt.items(), key=lambda x: -x[1])))
+    if low.startswith("/тег"):
+        no = num(text.split(None, 1)[1]) if len(text.split()) > 1 else None
+        tags = [t.lower() for t in re.findall(r"#([\wё]+)", text)]
+        if not no or not tags:
+            return chat_send(chat_id, "Формат: /тег 12 #дракон #подарок")
+        ok = []
+        def f(d):
+            for e in d.get("links", []):
+                if e.get("id") == no:
+                    e["tags"] = list(dict.fromkeys(e.get("tags", []) + tags))
+                    ok.append(e)
+        update_json("links.json", f, f"Бот: теги ссылки {no}", {"links": []})
+        return chat_send(chat_id, f"🏷 №{no}: " + " ".join("#" + t for t in ok[0]["tags"]) if ok else f"Ссылки №{no} нет.")
+    if re.match(r"^/(готово|напечатано|план)\b", low):
+        no = num(text)
+        status = "" if low.startswith("/план") else "done"
+        ok = []
+        def f(d):
+            for e in d.get("links", []):
+                if e.get("id") == no:
+                    e["status"] = status
+                    ok.append(e)
+        if not no:
+            return chat_send(chat_id, "Формат: /готово 12")
+        update_json("links.json", f, f"Бот: статус ссылки {no}", {"links": []})
+        return chat_send(chat_id, (f"✅ №{no} отмечена как напечатанная." if status else f"📝 №{no} снова в планах.") if ok else f"Ссылки №{no} нет.")
+    if re.match(r"^/?удалить[ _]ссылк", low):
+        no = num(text)
+        ok = []
+        def f(d):
+            before = len(d.get("links", []))
+            d["links"] = [e for e in d.get("links", []) if e.get("id") != no]
+            ok.append(before != len(d["links"]))
+        if not no:
+            return chat_send(chat_id, "Формат: /удалить ссылку 12")
+        update_json("links.json", f, f"Бот: удалена ссылка {no}", {"links": []})
+        return chat_send(chat_id, f"🗑 №{no} удалена." if ok and ok[0] else f"Ссылки №{no} нет.")
+    if low in ("/помощь", "/help", "/start", "помощь"):
+        return chat_send(chat_id, LINKS_HELP)
+    if low.startswith("/импорт"):
+        return import_links(chat_id)
+    if LINK_RE.search(text):
+        return save_links(chat_id, text, sender.get("user_id"), body.get("mid"))
+
+
 def handle_update(u):
     t = u.get("update_type")
     cfg = config()
@@ -757,6 +987,10 @@ def handle_update(u):
         if u.get("chat_id") in (None, cfg.get("channel")):
             run_sync()
         return
+
+    # групповые чаты (например «ДЛЯ ссылок…») — библиотека ссылок
+    if t == "message_created" and rec.get("chat_type") == "chat" and rec.get("chat_id") != cfg.get("channel"):
+        return handle_group(msg, rec.get("chat_id"))
 
     uid = (msg.get("sender") or u.get("user") or {}).get("user_id")
     if uid not in cfg["owners"]:
