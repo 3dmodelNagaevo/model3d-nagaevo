@@ -1,0 +1,68 @@
+name: Каталог из MAX → сайт
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # каждые 15 минут (GitHub может запускать с опозданием)
+  workflow_dispatch:          # кнопка «Run workflow» — запустить вручную
+  push:
+    branches: [main]          # вы поменяли файлы сайта — сразу выкладываем
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: catalog-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      changed: ${{ steps.sync.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Сертификаты Минцифры (нужны для API MAX)
+        run: |
+          mkdir -p .certs
+          curl -fsS --retry 3 https://gu-st.ru/content/lending/russian_trusted_root_ca_pem.crt -o .certs/russian_root.crt || echo "корневой сертификат не скачался"
+          curl -fsS --retry 3 https://gu-st.ru/content/lending/russian_trusted_sub_ca_pem.crt -o .certs/russian_sub.crt || echo "выпускающий сертификат не скачался"
+
+      - name: Забрать новые посты из канала
+        id: sync
+        env:
+          MAX_TOKEN: ${{ secrets.MAX_TOKEN }}
+          MAX_CHANNEL_ID: ${{ vars.MAX_CHANNEL_ID }}
+        run: python3 scripts/sync_max.py
+
+      - name: Сохранить каталог
+        if: steps.sync.outputs.changed == 'true'
+        run: |
+          git config user.name "catalog-bot"
+          git config user.email "catalog-bot@users.noreply.github.com"
+          git add catalog.json photos
+          git commit -m "Каталог: обновление из канала MAX"
+          git push
+
+  deploy:
+    needs: sync
+    # выкладываем сайт, если каталог изменился или запуск был не по расписанию
+    # (даже если MAX временно недоступен — правки сайта всё равно выйдут)
+    if: ${{ !cancelled() && (needs.sync.outputs.changed == 'true' || github.event_name != 'schedule') }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deploy
+        uses: actions/deploy-pages@v4
