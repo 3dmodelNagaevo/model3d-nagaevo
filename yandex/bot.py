@@ -746,8 +746,12 @@ def handle_owner(uid, text, images):
 
 LINK_RE = re.compile(r"https?://[^\s<>\"']+", re.I)
 SITES = {"makerworld": "MakerWorld", "printables": "Printables", "thingiverse": "Thingiverse",
-         "cults3d": "Cults3D", "thangs": "Thangs", "myminifactory": "MyMiniFactory", "youtube": "YouTube",
-         "youtu.be": "YouTube", "pinterest": "Pinterest", "ozon": "Ozon", "wildberries": "WB", "avito": "Авито"}
+         "cults3d": "Cults3D", "thangs": "Thangs", "myminifactory": "MyMiniFactory", "crealitycloud": "Creality Cloud",
+         "sketchfab": "Sketchfab", "grabcad": "GrabCAD", "3dtoday": "3DToday", "3dsky": "3DSky", "cgtrader": "CGTrader",
+         "makeronline": "Makeronline", "pinshape": "Pinshape", "youmagine": "YouMagine", "patreon": "Patreon",
+         "etsy": "Etsy", "aliexpress": "AliExpress", "ozon": "Ozon", "wildberries": "WB", "wb.ru": "WB", "avito": "Авито",
+         "youtube": "YouTube", "youtu.be": "YouTube", "rutube": "Rutube", "pinterest": "Pinterest",
+         "vk.com": "ВК", "t.me": "Telegram", "max.ru": "MAX", "disk.yandex": "Яндекс Диск", "drive.google": "Google Диск"}
 LINKS_HELP = """🔖 Библиотека ссылок
 
 Просто кидайте сюда ссылки на модели — бот сохранит каждую под номером.
@@ -787,7 +791,8 @@ def link_title(url):
 def norm_url(u):
     """Одна и та же модель — одна ссылка: без «#…», а у сайтов моделей и без «?…»."""
     u = u.rstrip(").,;!").split("#")[0]
-    if link_site(u) in ("MakerWorld", "Printables", "Thingiverse", "Cults3D", "Thangs", "MyMiniFactory"):
+    if link_site(u) in ("MakerWorld", "Printables", "Thingiverse", "Cults3D", "Thangs", "MyMiniFactory",
+                        "Creality Cloud", "Sketchfab", "CGTrader", "3DToday", "Makeronline"):
         u = u.split("?")[0]
     return u.rstrip("/")
 
