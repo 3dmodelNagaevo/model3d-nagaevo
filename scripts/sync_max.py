@@ -50,6 +50,7 @@ HASHTAG_CATEGORIES = {
     "дом": "Для дома", "длядома": "Для дома", "полезное": "Для дома",
     "подарки": "Подарки", "подарок": "Подарки",
     "геймерам": "Для геймеров", "игры": "Для геймеров",
+    "набор": "Наборы", "наборы": "Наборы",
 }
 KEYWORD_CATEGORIES = [
     ("Наборы", r"\bнабор|комплект"),
@@ -201,6 +202,21 @@ def split_post(text):
     return tags, fields, rest
 
 
+URL_RE = re.compile(r"https?://\S+|(?:max\.ru|t\.me|vk\.com|wa\.me)/\S+", re.I)
+
+
+def clean_desc(lines):
+    """Описание для сайта: без ссылок и строк «Заказ: …» (на сайте свои кнопки заказа)."""
+    out = []
+    for line in lines:
+        if re.match(r"^\W*(заказ|заказать|написать|пишите|контакты?|связь)\b", line, re.I) and URL_RE.search(line):
+            continue
+        line = URL_RE.sub("", line).strip(" :—–-")
+        if line:
+            out.append(line)
+    return "\n".join(out).strip()
+
+
 def image_urls(body):
     out = []
     for att in body.get("attachments") or []:
@@ -241,7 +257,7 @@ def classify(msg):
             return "warn", rest[0][:80]          # похоже на товар, но без цены
         return None, None
     title = re.sub(r"^[^\w«\"(]+", "", rest[0]).strip(" .:") or rest[0]
-    desc = " ".join(rest[1:]).strip()
+    desc = clean_desc(rest[1:])
     item = {
         **base,
         "title": title[:120],
