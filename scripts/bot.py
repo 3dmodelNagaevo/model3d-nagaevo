@@ -303,22 +303,57 @@ def top_text(items, key, label, n=5):
         f"{k}. {i['title']} — {i[key]} просм." for k, i in enumerate(rows, 1))
 
 
-def metrika_text():
-    mid, tok = os.environ.get("METRIKA_ID", "").strip(), os.environ.get("METRIKA_TOKEN", "").strip()
-    if not (mid and tok):
-        return ""
-    q = urllib.parse.urlencode({"ids": mid, "metrics": "ym:s:visits,ym:s:users,ym:s:pageviews",
-                                "date1": "7daysAgo", "date2": "today"})
-    req = urllib.request.Request(f"https://api-metrika.yandex.net/stat/v1/data?{q}",
+METRIKA_DEFAULT_ID = "114366870"
+
+
+def _metrika(path, params, tok):
+    q = urllib.parse.urlencode(params)
+    req = urllib.request.Request(f"https://api-metrika.yandex.net{path}?{q}",
                                  headers={"Authorization": f"OAuth {tok}"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read())
+
+
+def metrika_text(days=7):
+    """Сводка Метрики: посетители, визиты, источники, цели (нажатия «Заказать» и т.п.)."""
+    mid = os.environ.get("METRIKA_ID", "").strip() or METRIKA_DEFAULT_ID
+    tok = os.environ.get("METRIKA_TOKEN", "").strip()
+    if not tok:
+        return ""
+    period = {"date1": f"{days}daysAgo", "date2": "today", "ids": mid, "accuracy": "full"}
+    lines = []
     try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            d = json.loads(r.read())
-        v, u, p = (int(x) for x in d["totals"])
-        return f"🌐 Сайт за 7 дней: {u} посетителей, {v} визитов, {p} просмотров страниц"
+        d = _metrika("/stat/v1/data", {**period, "metrics": "ym:s:users,ym:s:visits,ym:s:pageviews"}, tok)
+        u, v, p = (int(x) for x in d["totals"])
+        lines.append(f"🌐 Сайт за {days} дн.: {u} посетителей, {v} визитов, {p} просмотров страниц")
     except Exception as e:
         log(f"  ! Метрика: {e}")
-        return ""
+        return "🌐 Метрика: не удалось получить данные (проверьте токен METRIKA_TOKEN)."
+    try:  # откуда пришли
+        d = _metrika("/stat/v1/data", {**period, "metrics": "ym:s:visits",
+                                       "dimensions": "ym:s:lastTrafficSource", "sort": "-ym:s:visits", "limit": 5}, tok)
+        src = [f"{r['dimensions'][0]['name']} — {int(r['metrics'][0])}" for r in d.get("data", []) if r["metrics"][0]]
+        if src:
+            lines.append("↪️ Откуда: " + ", ".join(src))
+        d = _metrika("/stat/v1/data", {**period, "metrics": "ym:s:visits",
+                                       "filters": "ym:s:UTMSource=='flyer'"}, tok)
+        fl = int(d["totals"][0]) if d.get("totals") else 0
+        if fl:
+            lines.append(f"📄 С листовки (QR): {fl} визитов")
+    except Exception as e:
+        log(f"  ! Метрика (источники): {e}")
+    try:  # цели
+        goals = _metrika(f"/management/v1/counter/{mid}/goals", {}, tok).get("goals", [])
+        goals = [g for g in goals if g.get("id")][:15]
+        if goals:
+            metrics = ",".join(f"ym:s:goal{g['id']}reaches" for g in goals)
+            d = _metrika("/stat/v1/data", {**period, "metrics": metrics}, tok)
+            got = [(g["name"], int(n)) for g, n in zip(goals, d.get("totals", []))]
+            got = sorted([x for x in got if x[1]], key=lambda x: -x[1])
+            lines.append("🎯 Цели: " + (", ".join(f"{n} — {c}" for n, c in got) if got else "пока не было"))
+    except Exception as e:
+        log(f"  ! Метрика (цели): {e}")
+    return "\n".join(lines)
 
 
 def stats_text(items, state):
