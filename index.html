@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D модели в Нагаево на заказ</title>
+<meta name="description" content="Печать на 3D-принтере в Нагаево: фигурки, игрушки-антистресс, декор, подарки, аксессуары. Заказ через MAX, Telegram или по телефону.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f7f7f4; --card:#ffffff; --ink:#16181d; --muted:#666c78; --line:#e6e6e0;
+    --accent:#5b3df5; --accent-ink:#ffffff; --accent-soft:#efebff;
+    --tg:#2aa3e0; --ok:#1f9d55; --radius:16px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:Manrope,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  a{color:inherit}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+
+  /* header */
+  header{position:sticky;top:0;z-index:20;background:rgba(247,247,244,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;gap:24px;height:64px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:800;text-decoration:none;font-size:17px;letter-spacing:-.01em}
+  .logo-mark{width:34px;height:34px;border-radius:10px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:14px;font-weight:800}
+  .nav-links{display:flex;gap:20px;margin-left:auto;font-size:15px;font-weight:600;color:var(--muted)}
+  .nav-links a{text-decoration:none}
+  .nav-links a:hover{color:var(--ink)}
+  @media (max-width:760px){.nav-links{display:none}}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:12px 18px;font:inherit;font-weight:700;font-size:15px;cursor:pointer;text-decoration:none;transition:transform .08s ease, background .15s}
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:var(--accent);color:var(--accent-ink)}
+  .btn-primary:hover{background:#4a2be6}
+  .btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+  .btn-ghost:hover{border-color:#cfcfc8}
+  .btn-sm{padding:9px 14px;font-size:14px;border-radius:10px}
+  .nav .btn{margin-left:8px;white-space:nowrap}
+  .logo{white-space:nowrap}
+  @media (max-width:420px){.logo{font-size:15px}.nav .btn{padding:8px 12px;font-size:13px}}
+  @media (max-width:760px){.nav .btn{margin-left:auto}}
+
+  /* hero */
+  .hero{padding:56px 0 40px}
+  .hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:center}
+  @media (max-width:860px){.hero-grid{grid-template-columns:1fr}}
+  .eyebrow{display:inline-block;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:13px;padding:6px 12px;border-radius:999px;margin-bottom:16px}
+  h1{font-size:clamp(32px,5vw,52px);line-height:1.05;letter-spacing:-.03em;margin:0 0 16px;font-weight:800}
+  .lead{font-size:18px;color:var(--muted);margin:0 0 28px;max-width:540px}
+  .hero-cta{display:flex;flex-wrap:wrap;gap:10px}
+  .facts{display:flex;flex-wrap:wrap;gap:24px;margin-top:32px}
+  .fact b{display:block;font-size:22px;letter-spacing:-.02em}
+  .fact span{color:var(--muted);font-size:14px}
+  .hero-pics{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .hero-pics img{width:100%;height:100%;object-fit:cover;border-radius:var(--radius);display:block;aspect-ratio:1/1;background:#eee}
+  .hero-pics img:first-child{grid-column:1/-1;aspect-ratio:16/9}
+
+  /* sections */
+  section{padding:48px 0}
+  h2{font-size:clamp(26px,3.4vw,36px);letter-spacing:-.025em;margin:0 0 8px;font-weight:800}
+  .sub{color:var(--muted);margin:0 0 24px}
+
+  /* catalog controls */
+  .controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:24px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;color:var(--ink)}
+  .chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .search{margin-left:auto;position:relative;min-width:240px;flex:0 1 300px}
+  @media (max-width:760px){.search{margin-left:0;flex:1 1 100%}}
+  .search input{width:100%;font:inherit;font-size:15px;padding:11px 14px 11px 38px;border-radius:12px;border:1px solid var(--line);background:var(--card);outline:none}
+  .search input:focus{border-color:var(--accent)}
+  .search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s, transform .15s;text-align:left;padding:0;font:inherit;color:inherit}
+  .card:hover{box-shadow:0 10px 30px rgba(20,20,30,.08);transform:translateY(-2px)}
+  .card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  .card .ph{aspect-ratio:4/3;background:#efefea;position:relative;flex:0 0 auto;overflow:hidden}
+  .card .ph img{width:100%;height:100%;object-fit:cover;display:block}
+  .tag{position:absolute;left:10px;top:10px;background:rgba(255,255,255,.92);font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px}
+  .card .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
+  .card h3{margin:0;font-size:16px;line-height:1.3}
+  .card .meta{color:var(--muted);font-size:13px}
+  .card .row{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:8px}
+  .price{font-weight:800;font-size:18px;letter-spacing:-.01em}
+  .price.ask{font-size:14px;color:var(--muted);font-weight:700}
+  .more{font-size:13px;font-weight:700;color:var(--accent)}
+  .empty{padding:40px;text-align:center;color:var(--muted);background:var(--card);border:1px dashed var(--line);border-radius:var(--radius)}
+
+  /* find model banner */
+  .find{background:var(--ink);color:#fff;border-radius:24px;padding:36px;display:grid;grid-template-columns:1.3fr 1fr;gap:28px;align-items:center}
+  @media (max-width:860px){.find{grid-template-columns:1fr;padding:28px}}
+  .find h2{color:#fff}
+  .find p{color:#c9cbd3;margin:0 0 20px}
+  .steps{display:grid;gap:12px;counter-reset:s;margin:0;padding:0;list-style:none}
+  .steps li{counter-increment:s;display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,.06);border-radius:14px;padding:12px 14px;font-size:15px}
+  .steps li::before{content:counter(s);flex:0 0 26px;height:26px;border-radius:8px;background:var(--accent);display:grid;place-items:center;font-weight:800;font-size:13px}
+
+  /* info cards */
+  .info{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media (max-width:860px){.info{grid-template-columns:1fr}}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+  .box h3{margin:0 0 10px;font-size:17px}
+  .box ul{margin:0;padding-left:18px;color:#3b3f48;font-size:15px}
+  .box li{margin:4px 0}
+  .note{margin-top:16px;font-size:14px;color:var(--muted)}
+
+  /* contacts */
+  .contacts{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media (max-width:860px){.contacts{grid-template-columns:1fr}}
+  .ct{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;display:flex;flex-direction:column;gap:6px}
+  .ct .lbl{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .ct .val{font-size:18px;font-weight:800;word-break:break-word}
+  .ct .btn{margin-top:10px;align-self:flex-start}
+  .ct.main{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+  footer{padding:32px 0 48px;color:var(--muted);font-size:14px;border-top:1px solid var(--line);margin-top:24px}
+
+  /* modal */
+  .modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,16,20,.5)}
+  .modal.open{display:flex}
+  .sheet{background:var(--card);border-radius:22px;max-width:880px;width:100%;max-height:92vh;overflow:auto;display:grid;grid-template-columns:1.1fr 1fr}
+  @media (max-width:760px){.sheet{grid-template-columns:1fr;border-radius:18px}}
+  .gallery{background:#efefea;padding:14px;display:flex;flex-direction:column;gap:10px}
+  .gallery .big{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px;display:block;background:#e5e5df}
+  .thumbs{display:flex;gap:8px;flex-wrap:wrap}
+  .thumbs button{border:2px solid transparent;border-radius:10px;padding:0;overflow:hidden;cursor:pointer;width:64px;height:48px;background:none}
+  .thumbs button[aria-current="true"]{border-color:var(--accent)}
+  .thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+  .detail{padding:24px;display:flex;flex-direction:column;gap:12px;position:relative}
+  .close{position:absolute;right:14px;top:14px;width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:20px;line-height:1}
+  .detail h3{margin:0;font-size:24px;letter-spacing:-.02em;padding-right:40px}
+  .specs{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:15px;margin:0}
+  .specs dt{color:var(--muted)}
+  .specs dd{margin:0;font-weight:600}
+  .order{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+  .order .btn{width:100%}
+  .alt{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .msg{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px;color:#3b3f48}
+  .msg b{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:60;max-width:90vw;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="logo" href="#top"><span class="logo-mark">3D</span>Модели Нагаево</a>
+    <nav class="nav-links">
+      <a href="#catalog">Каталог</a>
+      <a href="#find">Найти модель</a>
+      <a href="#delivery">Доставка и условия</a>
+      <a href="#contacts">Контакты</a>
+    </nav>
+    <a class="btn btn-primary btn-sm" id="headerOrder" target="_blank" rel="noopener">Написать в MAX</a>
+  </div>
+</header>
+
+<main id="top">
+  <!-- HERO -->
+  <div class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow">3D-печать на заказ · Нагаево</span>
+        <h1>Напечатаю то, что вы придумали</h1>
+        <p class="lead">Фигурки, игрушки-антистресс, декор, подарки и полезные мелочи для дома. Размер и цвет — под вас.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="#catalog">Смотреть каталог</a>
+          <a class="btn btn-ghost" href="#find">Найти модель под заказ</a>
+        </div>
+        <div class="facts">
+          <div class="fact"><b>от 50 ₽</b><span>стоимость изделия</span></div>
+          <div class="fact"><b>любой</b><span>размер и цвет</span></div>
+          <div class="fact"><b>Нагаево</b><span>самовывоз / ТК33</span></div>
+        </div>
+      </div>
+      <div class="hero-pics">
+        <img src="img/bmw1.jpg" alt="Напечатанная модель BMW M4">
+        <img src="img/spinner.jpg" alt="Магнитный волчок Magic Spinner">
+        <img src="img/katana.jpg" alt="Складная катана">
+      </div>
+    </div>
+  </div>
+
+  <!-- CATALOG -->
+  <section id="catalog">
+    <div class="wrap">
+      <h2>Каталог</h2>
+      <p class="sub">Нажмите на модель, чтобы посмотреть фото и заказать. Нет нужной — <a href="#find">найду под заказ</a>.</p>
+      <div class="controls">
+        <div class="chips" id="chips" role="group" aria-label="Категории"></div>
+        <label class="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="q" type="search" placeholder="Поиск: машина, подставка…" aria-label="Поиск по каталогу">
+        </label>
+      </div>
+      <div class="grid" id="grid"></div>
+    </div>
+  </section>
+
+  <!-- FIND MODEL -->
+  <section id="find">
+    <div class="wrap">
+      <div class="find">
+        <div>
+          <h2>Не нашли в каталоге?</h2>
+          <p>Пришлите фото, ссылку или просто опишите, что хотите. Помогу найти подходящую 3D-модель, подберу размер и цвет и напечатаю.</p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" id="findOrder" target="_blank" rel="noopener">Описать идею в MAX</a>
+            <a class="btn btn-ghost" id="findTg" target="_blank" rel="noopener">Telegram</a>
+          </div>
+        </div>
+        <ol class="steps">
+          <li>Пишете, что нужно: фото, ссылка или описание</li>
+          <li>Ищу модель, согласуем размер, цвет и цену</li>
+          <li>Печатаю и сообщаю, когда готово</li>
+          <li>Забираете в Нагаево или отправляю через ТК33</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- DELIVERY & TERMS -->
+  <section id="delivery">
+    <div class="wrap">
+      <h2>Доставка и условия</h2>
+      <p class="sub">Пожалуйста, прочитайте перед заказом.</p>
+      <div class="info">
+        <div class="box">
+          <h3>📦 Получение</h3>
+          <ul>
+            <li>Самовывоз</li>
+            <li>Передача на ТК33</li>
+            <li><b>Только в Нагаево</b></li>
+          </ul>
+        </div>
+        <div class="box">
+          <h3>⚠️ Безопасность</h3>
+          <ul>
+            <li>Не предназначено для детей до 3 лет (мелкие детали)</li>
+            <li>PLA-пластик — не для контакта с пищей и нагрева выше 50 °C</li>
+            <li>Использование на ваш страх и риск</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h3>🔹 Качество и возврат</h3>
+          <ul>
+            <li>FDM-печать: могут быть видны слои, возможна шероховатость</li>
+            <li>Цвет на фото может немного отличаться от реального</li>
+            <li>Изделия делаются под заказ и возврату/обмену не подлежат</li>
+          </ul>
+        </div>
+      </div>
+      <p class="note">Заказывая изделие, вы подтверждаете согласие с данными условиями.</p>
+    </div>
+  </section>
+
+  <!-- CONTACTS -->
+  <section id="contacts">
+    <div class="wrap">
+      <h2>Контакты</h2>
+      <p class="sub">Удобнее всего писать в MAX — отвечаю быстрее всего там.</p>
+      <div class="contacts">
+        <div class="ct main">
+          <span class="lbl">MAX — основной</span>
+          <span class="val" data-phone></span>
+          <a class="btn btn-primary btn-sm" id="ctMax" target="_blank" rel="noopener">Открыть профиль в MAX</a>
+        </div>
+        <div class="ct">
+          <span class="lbl">Телефон</span>
+          <span class="val" data-phone></span>
+          <a class="btn btn-ghost btn-sm" id="ctTel">Позвонить</a>
+        </div>
+        <div class="ct">
+          <span class="lbl">Telegram</span>
+          <span class="val" id="tgHandle"></span>
+          <a class="btn btn-ghost btn-sm" id="ctTg" target="_blank" rel="noopener">Написать в Telegram</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">© <span id="year"></span> 3D модели Нагаево на заказ · Канал в MAX: <a id="chLink" target="_blank" rel="noopener">model3Dnagaevo</a></div>
+</footer>
+
+<!-- MODEL MODAL -->
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="sheet">
+    <div class="gallery">
+      <img class="big" id="mBig" alt="">
+      <div class="thumbs" id="mThumbs"></div>
+    </div>
+    <div class="detail">
+      <button class="close" id="mClose" aria-label="Закрыть">×</button>
+      <h3 id="mTitle"></h3>
+      <div class="price" id="mPrice"></div>
+      <p id="mDesc" style="margin:0;color:#3b3f48"></p>
+      <a id="mPost" class="more" target="_blank" rel="noopener" style="text-decoration:none">Пост в канале MAX →</a>
+      <dl class="specs">
+        <dt>Размер</dt><dd id="mSize"></dd>
+        <dt>Цвет</dt><dd id="mColor"></dd>
+        <dt>Получение</dt><dd>Самовывоз / ТК33, Нагаево</dd>
+      </dl>
+      <div class="msg"><b>Текст заказа (скопируется сам)</b><span id="mMsg"></span></div>
+      <div class="order">
+        <a class="btn btn-primary" id="mMax" target="_blank" rel="noopener">Заказать в MAX</a>
+        <div class="alt">
+          <a class="btn btn-ghost btn-sm" id="mTg" target="_blank" rel="noopener">Telegram</a>
+          <a class="btn btn-ghost btn-sm" id="mTel">Позвонить</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   НАСТРОЙКИ — меняются здесь
+   ========================================================= */
+const CONTACTS = {
+  phone: "+79174983186",
+  phonePretty: "+7 917 498-31-86",
+  max: "https://max.ru/u/f9LHodD0cOIASIo07UGTqsR7Fx0LPNcqKwAi9GFiTlXqkxZ281BEJNmiZK0",
+  channel: "https://max.ru/channel_model3Dnagaevo",
+  telegram: "model3Dnagaevo1"
+};
+
+const CATEGORY_ORDER = ["Игрушки и антистресс", "Фигурки и декор", "Авто", "Для геймеров", "Для дома", "Подарки", "Разное"];
+
+/* =========================================================
+   КАТАЛОГ берётся из файла catalog.json.
+   Посты из канала MAX попадают туда автоматически (scripts/sync_max.py).
+   Свои товары можно добавить в catalog.json вручную с "source": "manual".
+   ========================================================= */
+let CATALOG = [];
+
+/* ========================================================= */
+const $ = s => document.querySelector(s);
+const fmt = p => p == null ? "Цена по запросу" : "от " + p.toLocaleString("ru-RU") + " ₽";
+const tgUrl = "https://t.me/" + CONTACTS.telegram;
+let activeCat = "Все", current = null;
+
+function toast(t){
+  const el = $("#toast"); el.textContent = t; el.classList.add("show");
+  clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove("show"), 3200);
+}
+async function copy(text){
+  try { await navigator.clipboard.writeText(text); return true; } catch(e){ return false; }
+}
+function orderText(m){
+  return `Здравствуйте! Хочу заказать с сайта: ${m.title} (№${m.no}). Размер: …, цвет: …`;
+}
+
+function renderChips(){
+  const box = $("#chips"); box.innerHTML = "";
+  const present = [...new Set(CATALOG.map(m => m.category))]
+    .sort((a,b) => (CATEGORY_ORDER.indexOf(a)+1 || 99) - (CATEGORY_ORDER.indexOf(b)+1 || 99));
+  ["Все", ...present].forEach(c => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = c;
+    b.setAttribute("aria-pressed", c === activeCat);
+    b.onclick = () => { activeCat = c; renderChips(); renderGrid(); };
+    box.appendChild(b);
+  });
+}
+
+function renderGrid(){
+  const q = $("#q").value.trim().toLowerCase();
+  const list = CATALOG.filter(m =>
+    (activeCat === "Все" || m.category === activeCat) &&
+    (!q || (m.title + " " + m.category + " " + (m.tags||"") + " " + (m.desc||"")).toLowerCase().includes(q))
+  );
+  const g = $("#grid"); g.innerHTML = "";
+  if (!list.length){
+    g.innerHTML = `<div class="empty" style="grid-column:1/-1">Ничего не нашлось. <a href="#find">Напишите мне</a> — найду модель под заказ.</div>`;
+    return;
+  }
+  list.forEach(m => {
+    const c = document.createElement("button");
+    c.className = "card";
+    c.innerHTML = `
+      <div class="ph">${m.photos[0] ? `<img src="${m.photos[0]}" alt="" loading="lazy">` : ""}<span class="tag">${m.category}</span></div>
+      <div class="body">
+        <h3>${m.title}</h3>
+        <div class="meta">Размер: ${(m.size||'по желанию').toLowerCase()} · Цвет на выбор</div>
+        <div class="row"><span class="price ${m.price==null?'ask':''}">${fmt(m.price)}</span><span class="more">Подробнее →</span></div>
+      </div>`;
+    c.onclick = () => openModel(m);
+    g.appendChild(c);
+  });
+}
+
+function openModel(m){
+  current = m;
+  $("#mTitle").textContent = m.title;
+  const p = $("#mPrice"); p.textContent = fmt(m.price); p.className = "price" + (m.price==null?" ask":"");
+  $("#mDesc").textContent = m.desc || "";
+  const pl = $("#mPost"); if (m.url){ pl.href = m.url; pl.style.display = ""; } else pl.style.display = "none";
+  $("#mSize").textContent = m.size;
+  $("#mColor").textContent = m.color;
+  $("#mMsg").textContent = orderText(m);
+  $("#mBig").src = m.photos[0] || ""; $("#mBig").style.display = m.photos[0] ? "" : "none"; $("#mBig").alt = m.title;
+  const th = $("#mThumbs"); th.innerHTML = "";
+  if (m.photos.length > 1) m.photos.forEach((src,i) => {
+    const b = document.createElement("button");
+    b.setAttribute("aria-current", i===0);
+    b.innerHTML = `<img src="${src}" alt="Фото ${i+1}">`;
+    b.onclick = () => { $("#mBig").src = src; th.querySelectorAll("button").forEach(x=>x.setAttribute("aria-current", x===b)); };
+    th.appendChild(b);
+  });
+  $("#modal").classList.add("open");
+  document.body.style.overflow = "hidden";
+  $("#mClose").focus();
+}
+function closeModel(){ $("#modal").classList.remove("open"); document.body.style.overflow = ""; }
+
+/* Ссылка открывается сама (обычный <a>), а по клику копируем текст заказа */
+function orderVia(name){
+  copy(orderText(current)).then(ok =>
+    toast(ok ? `Текст заказа скопирован — вставьте его в чат ${name}` : `Напишите в ${name} название модели: ${current.title}`));
+}
+
+/* wiring */
+$("#mClose").onclick = closeModel;
+$("#modal").addEventListener("click", e => { if (e.target.id === "modal") closeModel(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModel(); });
+$("#mMax").href = CONTACTS.max; $("#mMax").onclick = () => orderVia("MAX");
+$("#mTg").href = tgUrl; $("#mTg").onclick = () => orderVia("Telegram");
+$("#mTel").href = "tel:" + CONTACTS.phone;
+$("#q").addEventListener("input", renderGrid);
+
+["#headerOrder","#findOrder","#ctMax"].forEach(s => $(s).href = CONTACTS.max);
+["#findTg","#ctTg"].forEach(s => $(s).href = tgUrl);
+$("#ctTel").href = "tel:" + CONTACTS.phone;
+document.querySelectorAll("[data-phone]").forEach(el => el.textContent = CONTACTS.phonePretty);
+$("#tgHandle").textContent = "@" + CONTACTS.telegram;
+$("#chLink").href = CONTACTS.channel;
+$("#year").textContent = new Date().getFullYear();
+
+/* загрузка каталога */
+const norm = t => (t||"").toLowerCase().replace(/[^a-zа-яё0-9]/g, "");
+$("#grid").innerHTML = '<div class="empty" style="grid-column:1/-1">Загружаю каталог…</div>';
+fetch("catalog.json?v=" + Date.now())
+  .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(data => {
+    const items = Array.isArray(data) ? data : (data.items || []);
+    const fromMax = new Set(items.filter(i => i.source === "max").map(i => norm(i.title)));
+    // ручной товар скрываем, если такой же уже пришёл из канала
+    CATALOG = items.filter(i => i.source === "max" || !fromMax.has(norm(i.title)))
+                   .map(i => ({ photos: [], ...i }));
+    renderChips(); renderGrid();
+  })
+  .catch(() => {
+    $("#grid").innerHTML = '<div class="empty" style="grid-column:1/-1">Не удалось загрузить каталог. Обновите страницу или <a href="#contacts">напишите мне</a>.</div>';
+  });
+</script>
+</body>
+</html>
