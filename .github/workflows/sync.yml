@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      changed: ${{ steps.sync.outputs.changed }}
+      changed: ${{ steps.save.outputs.changed }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,20 +31,37 @@ jobs:
           curl -fsS --retry 3 https://gu-st.ru/content/lending/russian_trusted_root_ca_pem.crt -o .certs/russian_root.crt || echo "корневой сертификат не скачался"
           curl -fsS --retry 3 https://gu-st.ru/content/lending/russian_trusted_sub_ca_pem.crt -o .certs/russian_sub.crt || echo "выпускающий сертификат не скачался"
 
-      - name: Забрать новые посты из канала
+      - name: Библиотеки для сжатия фото и QR
+        run: pip install --quiet --disable-pip-version-check pillow qrcode || echo "без сжатия фото"
+
+      - name: Забрать новые посты из канала и команды бота
         id: sync
         env:
           MAX_TOKEN: ${{ secrets.MAX_TOKEN }}
           MAX_CHANNEL_ID: ${{ vars.MAX_CHANNEL_ID }}
+          OWNER_IDS: ${{ vars.OWNER_IDS }}
+          METRIKA_ID: ${{ vars.METRIKA_ID }}
+          METRIKA_TOKEN: ${{ secrets.METRIKA_TOKEN }}
         run: python3 scripts/sync_max.py
 
+      # сохраняем даже после ошибки: бот не должен выполнить команды повторно
       - name: Сохранить каталог
-        if: steps.sync.outputs.changed == 'true'
+        id: save
+        if: ${{ !cancelled() }}
         run: |
           git config user.name "catalog-bot"
           git config user.email "catalog-bot@users.noreply.github.com"
-          git add catalog.json photos channel_id.txt 2>/dev/null || git add catalog.json photos
-          git commit -m "Каталог: обновление из канала MAX"
+          for p in catalog.json state.json channel_id.txt photos m qr; do if [ -e "$p" ]; then git add -A "$p"; fi; done
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # сайт пересобираем, только если поменялось что-то кроме служебного state.json
+          if git diff --cached --name-only | grep -qv '^state.json$'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+          git commit -q -m "Каталог: обновление из канала MAX"
           git push
 
   deploy:

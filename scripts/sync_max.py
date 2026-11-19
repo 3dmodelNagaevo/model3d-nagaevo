@@ -1,41 +1,46 @@
 #!/usr/bin/env python3
 """
-Синхронизация каталога сайта с постами канала MAX.
+Синхронизация сайта с каналом MAX + бот для владельца.
 
-Что делает:
-  1. Берёт последние посты канала через Bot API MAX (бот должен быть админом канала).
-  2. Находит посты-товары: с хэштегом #каталог ИЛИ со строкой «Стоимость:» / «Цена:».
-     Пост с #нетнасайте никогда не попадает на сайт.
-  3. Достаёт название, цену, размер, цвет, описание, категорию и фото.
-  4. Обновляет catalog.json и папку photos/. Ручные товары (source != "max") не трогает.
+Каждый запуск (раз в ~15 минут, GitHub Actions):
+  1. Читает личные сообщения боту от владельца канала и выполняет команды
+     (/скрыть, /цена, /пост …) — см. scripts/bot.py.
+  2. Забирает все посты канала, находит товары (строка «Стоимость:»/«Цена:» или #каталог)
+     и отзывы (#отзыв). #нетнасайте — пост не попадает на сайт.
+  3. Обновляет catalog.json, фото (сжатые + миниатюры), страницы товаров m/N.html.
+  4. Считает просмотры постов за неделю/месяц (для «Популярного»).
+  5. Шлёт владельцу уведомления и раз в неделю — отчёт.
 
 Переменные окружения:
-  MAX_TOKEN       — токен бота (обязательно, хранится в секретах GitHub)
-  MAX_CHANNEL_ID  — id канала (необязательно: если не задан, бот найдёт канал сам)
-
-Только стандартная библиотека Python, ничего устанавливать не нужно.
+  MAX_TOKEN       — токен бота (секрет GitHub, обязательно)
+  MAX_CHANNEL_ID  — id канала (необязательно, найдётся сам и сохранится в channel_id.txt)
+  OWNER_IDS       — id владельцев через запятую (необязательно, берутся из админов канала)
+  SITE_URL        — адрес сайта (для превью ссылок и QR)
+  METRIKA_ID / METRIKA_TOKEN — Яндекс Метрика для отчётов (необязательно)
 """
+import datetime as dt
 import json
 import os
 import re
-import ssl
 import sys
 import time
-import pathlib
-import urllib.error
-import urllib.parse
-import urllib.request
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+import maxapi
+from maxapi import ApiError, log, ROOT
+import photos as photolib
+
 CATALOG = ROOT / "catalog.json"
+STATE = ROOT / "state.json"
 PHOTOS = ROOT / "photos"
-CERTS = ROOT / ".certs"
+CHANNEL_FILE = ROOT / "channel_id.txt"
+SITE_URL = (os.environ.get("SITE_URL") or "https://3dmodelnagaevo.github.io/model3d-nagaevo/").rstrip("/") + "/"
 
-API_HOSTS = ["https://platform-api2.max.ru", "https://platform-api.max.ru"]
-FETCH_COUNT = 100          # сколько последних постов смотреть (максимум API — 100)
-MAX_PHOTOS = 8             # сколько фото брать из одного поста
+FETCH_COUNT = 100          # постов за один запрос (максимум API)
+MAX_PAGES = 30             # до 3000 постов истории
+MAX_PHOTOS = 8             # фото с одного поста
+VIEWS_REFRESH_SEC = 3 * 3600   # просмотры обновляем раз в 3 часа, чтобы не плодить коммиты
+MSK = dt.timezone(dt.timedelta(hours=3))
 
-# Хэштег → категория на сайте
 HASHTAG_CATEGORIES = {
     "авто": "Авто", "машины": "Авто", "машина": "Авто",
     "антистресс": "Игрушки и антистресс", "игрушки": "Игрушки и антистресс", "игрушка": "Игрушки и антистресс",
@@ -44,7 +49,6 @@ HASHTAG_CATEGORIES = {
     "подарки": "Подарки", "подарок": "Подарки",
     "геймерам": "Для геймеров", "игры": "Для геймеров",
 }
-# Если хэштега категории нет — угадываем по словам в названии/описании
 KEYWORD_CATEGORIES = [
     ("Авто", r"bmw|бмв|mercedes|мерседес|audi|ауди|porsche|порш|toyota|nissan|lada|лада|машин|автомобил|\bавто"),
     ("Для геймеров", r"геймпад|джойстик|playstation|xbox|nintendo|геймер|контроллер"),
@@ -54,125 +58,66 @@ KEYWORD_CATEGORIES = [
     ("Подарки", r"подар|сувенир|брелок|магнит"),
 ]
 DEFAULT_CATEGORY = "Разное"
+HIDE_TAGS = {"нетнасайте", "скрыть", "несайт"}
+REVIEW_TAGS = {"отзыв", "отзывы"}
 
 FIELD_RE = re.compile(r"^(размер|цвет|стоимость|цена|материал)\s*[:\-—–]\s*(.*)$", re.I)
 HASHTAG_RE = re.compile(r"#([\wё]+)", re.I)
 BULLET_RE = re.compile(r"^[\s\-–—•*·▪️▫️🔹🔸✅➖➡️👉]+")
 
 
-def log(*a):
-    print(*a, flush=True)
+# ---------------------------------------------------------------- файлы
+
+def load_json(path, default):
+    try:
+        return json.loads(path.read_text("utf-8"))
+    except Exception:
+        return default
 
 
-# ---------------------------------------------------------------- HTTP
-
-def ssl_context():
-    """Системные сертификаты + сертификаты Минцифры (нужны для platform-api2.max.ru)."""
-    ctx = ssl.create_default_context()
-    if CERTS.is_dir():
-        for f in sorted(CERTS.glob("*.crt")):
-            try:
-                ctx.load_verify_locations(cafile=str(f))
-            except Exception as e:  # битый файл не должен ломать запуск
-                log(f"  ! не удалось загрузить сертификат {f.name}: {e}")
-    return ctx
+def dump_json(path, data):
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", "utf-8")
 
 
-CTX = ssl_context()
+def load_catalog():
+    data = load_json(CATALOG, {})
+    if isinstance(data, list):
+        return data, []
+    return data.get("items", []), data.get("reviews", [])
 
 
-class ApiError(Exception):
-    pass
-
-
-def api_get(path, params, token):
-    """GET к Bot API MAX. Пробует новый домен, при сетевой/SSL ошибке — старый."""
-    query = urllib.parse.urlencode(params)
-    last_err = None
-    for host in API_HOSTS:
-        url = f"{host}{path}?{query}" if query else f"{host}{path}"
-        req = urllib.request.Request(url, headers={"Authorization": token, "User-Agent": "model3d-catalog-sync"})
-        try:
-            with urllib.request.urlopen(req, timeout=30, context=CTX) as r:
-                return json.loads(r.read().decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            body = e.read().decode("utf-8", "replace")[:300]
-            if e.code == 401:
-                raise ApiError("MAX ответил 401: неверный или перевыпущенный токен. Обновите секрет MAX_TOKEN.")
-            if e.code == 403:
-                raise ApiError("MAX ответил 403: у бота нет доступа к каналу. Проверьте, что бот — администратор канала.")
-            last_err = f"{host}: HTTP {e.code} {body}"
-        except Exception as e:  # SSL, DNS, таймаут — пробуем следующий домен
-            last_err = f"{host}: {e}"
-        log(f"  ! {last_err}")
-    raise ApiError(f"Не удалось обратиться к API MAX. Последняя ошибка: {last_err}")
-
-
-def download(url, dest):
-    req = urllib.request.Request(url, headers={"User-Agent": "model3d-catalog-sync"})
-    with urllib.request.urlopen(req, timeout=60, context=CTX) as r:
-        data = r.read()
-    if len(data) < 200:
-        raise ValueError("слишком маленький файл")
-    dest.write_bytes(data)
-
-
-# ---------------------------------------------------------------- MAX
-
-CHANNEL_FILE = ROOT / "channel_id.txt"
-
+# ---------------------------------------------------------------- канал
 
 def find_channel(token):
-    """Ищет id канала. GET /chats с июня 2026 не работает, поэтому:
-    1) MAX_CHANNEL_ID из настроек GitHub; 2) сохранённый channel_id.txt;
-    3) события бота (GET /updates): добавление в канал и новые посты."""
     env = os.environ.get("MAX_CHANNEL_ID", "").strip()
     if env:
         return int(env)
-    if CHANNEL_FILE.exists():
-        saved = CHANNEL_FILE.read_text().strip()
-        if saved:
-            return int(saved)
-
-    data = api_get("/updates", {"limit": 100, "timeout": 0}, token)
-    found = {}
+    if CHANNEL_FILE.exists() and CHANNEL_FILE.read_text().strip():
+        return int(CHANNEL_FILE.read_text().strip())
+    data = maxapi.get("/updates", {"limit": 100, "timeout": 0}, token)
+    found = []
     for u in data.get("updates") or []:
-        msg = u.get("message") or {}
-        rec = msg.get("recipient") or {}
+        rec = (u.get("message") or {}).get("recipient") or {}
         if rec.get("chat_type") == "channel" and rec.get("chat_id"):
-            found[rec["chat_id"]] = "пост в канале"
-        if u.get("update_type") in ("bot_added", "chat_title_changed") and u.get("chat_id"):
-            if u.get("is_channel", True):
-                found.setdefault(u["chat_id"], u.get("update_type"))
-    if not found:
-        raise ApiError(
-            "Не удалось определить канал. Выложите в канал любой пост (можно удалить потом) "
-            "и запустите снова — или укажите id канала в переменной MAX_CHANNEL_ID.")
-    for cid, why in found.items():
-        log(f"  найден чат {cid} ({why})")
-    # проверяем, что это канал и бот в нём админ
-    for cid in found:
+            found.append(rec["chat_id"])
+        if u.get("update_type") == "bot_added" and u.get("chat_id"):
+            found.append(u["chat_id"])
+    for cid in dict.fromkeys(found):
         try:
-            info = api_get(f"/chats/{cid}", {}, token)
+            if maxapi.get(f"/chats/{cid}", {}, token).get("type") == "channel":
+                CHANNEL_FILE.write_text(f"{cid}\n")
+                return cid
         except ApiError as e:
             log(f"  ! {cid}: {e}")
-            continue
-        if info.get("type") == "channel":
-            log(f"  канал: {info.get('title')!r} id={cid}")
-            CHANNEL_FILE.write_text(f"{cid}\n")
-            return cid
-    raise ApiError("Бот видит чаты, но не канал. Проверьте, что бот — администратор канала.")
-
-
-MAX_PAGES = 30            # до 3000 постов истории канала
+    raise ApiError("Не удалось определить канал. Выложите в канал любой пост и запустите снова "
+                   "или задайте переменную MAX_CHANNEL_ID.")
 
 
 def fetch_posts(token, chat_id):
-    """Все посты канала: листаем историю страницами по 100, пока есть более старые."""
+    """Все посты канала: листаем историю страницами по 100."""
     def page(**extra):
-        data = api_get("/messages", {"chat_id": chat_id, "count": FETCH_COUNT, **extra}, token)
-        return [m for m in (data.get("messages") or [])
-                if not (m.get("recipient") or {}).get("post_id")]  # комментарии пропускаем
+        data = maxapi.get("/messages", {"chat_id": chat_id, "count": FETCH_COUNT, **extra}, token)
+        return [m for m in (data.get("messages") or []) if not (m.get("recipient") or {}).get("post_id")]
 
     seen, result = set(), []
 
@@ -185,13 +130,11 @@ def fetch_posts(token, chat_id):
 
     batch = page()
     add(batch)
-    pages = 1
-    complete = len(batch) < FETCH_COUNT   # меньше 100 — значит, это вся история
-    # Параметры from/to в API описаны неоднозначно — пробуем оба и берём тот, что даёт более старые посты.
+    pages, complete = 1, len(batch) < FETCH_COUNT
     while not complete and pages < MAX_PAGES:
         oldest = min(int(m.get("timestamp") or 0) for m in result)
         got = None
-        for key in ("to", "from"):
+        for key in ("to", "from"):   # в документации неоднозначно — пробуем оба
             try:
                 cand = page(**{key: oldest - 1})
             except ApiError as e:
@@ -202,7 +145,7 @@ def fetch_posts(token, chat_id):
                 got = (cand, add(older))
                 break
         if not got or not got[1]:
-            break                       # листать не получилось — история может быть неполной
+            break
         pages += 1
         complete = len(got[0]) < FETCH_COUNT
     log(f"  просмотрено постов: {len(result)} (страниц: {pages}{', вся история' if complete else ''})")
@@ -212,8 +155,7 @@ def fetch_posts(token, chat_id):
 # ---------------------------------------------------------------- разбор поста
 
 def clean_value(v):
-    v = v.strip().strip("()[]").strip()
-    v = re.sub(r"\s+", " ", v)
+    v = re.sub(r"\s+", " ", v.strip().strip("()[]").strip())
     return v[:1].upper() + v[1:] if v else v
 
 
@@ -236,25 +178,14 @@ def guess_category(tags, text):
     return DEFAULT_CATEGORY
 
 
-def parse_post(msg):
-    """Пост → товар (dict) или None, если пост — не товар."""
-    body = msg.get("body") or {}
-    text = (body.get("text") or "").strip()
-    if not text:
-        return None
+def split_post(text):
+    """Текст поста → (хэштеги, поля {price,size,color,material}, прочие строки)."""
     tags = [t.lower() for t in HASHTAG_RE.findall(text)]
-    if any(t in ("нетнасайте", "скрыть", "несайт") for t in tags):
-        return None
-
-    lines = []
-    for raw in text.splitlines():
-        line = HASHTAG_RE.sub("", raw)
-        line = BULLET_RE.sub("", line).strip()
-        if line:
-            lines.append(line)
-
     fields, rest = {}, []
-    for line in lines:
+    for raw in text.splitlines():
+        line = BULLET_RE.sub("", HASHTAG_RE.sub("", raw)).strip()
+        if not line:
+            continue
         m = FIELD_RE.match(line)
         if m:
             key = m.group(1).lower()
@@ -262,24 +193,46 @@ def parse_post(msg):
             fields[key] = m.group(2).strip()
         else:
             rest.append(line)
+    return tags, fields, rest
 
-    is_product = "каталог" in tags or "catalog" in tags or "price" in fields
-    if not is_product or not rest:
-        return None
 
-    title = re.sub(r"^[^\w«\"(]+", "", rest[0]).strip(" .:") or rest[0]
-    desc = " ".join(rest[1:]).strip()
-
-    photos = []
+def image_urls(body):
+    out = []
     for att in body.get("attachments") or []:
         if att.get("type") == "image":
             url = (att.get("payload") or {}).get("url")
             if url:
-                photos.append(url)
+                out.append(url)
+    return out
 
-    return {
+
+def classify(msg):
+    """Пост → ("item", dict) | ("review", dict) | ("warn", title) | (None, None)."""
+    body = msg.get("body") or {}
+    text = (body.get("text") or "").strip()
+    if not text:
+        return None, None
+    tags, fields, rest = split_post(text)
+    if HIDE_TAGS & set(tags):
+        return None, None
+    base = {
         "mid": str(body.get("mid")),
         "ts": int(msg.get("timestamp") or 0),
+        "url": (msg.get("stat") or {}).get("url") or "",
+        "_photo_urls": image_urls(body)[:MAX_PHOTOS],
+    }
+    views = (msg.get("stat") or {}).get("views")
+    if REVIEW_TAGS & set(tags):
+        return "review", {**base, "text": " ".join(rest)[:800], "_photo_urls": base["_photo_urls"][:1]}
+    is_product = "каталог" in tags or "catalog" in tags or "price" in fields
+    if not is_product or not rest:
+        if rest and base["_photo_urls"] and ({"size", "color"} & set(fields)):
+            return "warn", rest[0][:80]          # похоже на товар, но без цены
+        return None, None
+    title = re.sub(r"^[^\w«\"(]+", "", rest[0]).strip(" .:") or rest[0]
+    desc = " ".join(rest[1:]).strip()
+    item = {
+        **base,
         "title": title[:120],
         "category": guess_category(tags, title + " " + desc),
         "price": parse_price(fields.get("price")),
@@ -288,119 +241,197 @@ def parse_post(msg):
         "material": clean_value(fields.get("material") or ""),
         "desc": desc[:600],
         "tags": " ".join(tags),
-        "url": ((msg.get("stat") or {}).get("url")) or "",
-        "_photo_urls": photos[:MAX_PHOTOS],
     }
+    if isinstance(views, int):
+        item["views"] = views
+    return "item", item
 
 
-# ---------------------------------------------------------------- каталог
+# ---------------------------------------------------------------- фото
 
 def safe_name(s):
     return re.sub(r"[^\w\-]", "_", s)[:60]
 
 
-def load_catalog():
-    if CATALOG.exists():
-        data = json.loads(CATALOG.read_text("utf-8"))
-        return data.get("items", []) if isinstance(data, dict) else data
-    return []
+def fetch_photos(item_or_review, old=None):
+    urls = item_or_review.pop("_photo_urls")
+    out = []
+    for n, url in enumerate(urls):
+        fname = f"{safe_name(item_or_review['mid'])}_{n}.jpg"
+        dest = PHOTOS / fname
+        if not dest.exists():
+            try:
+                photolib.save_photo(maxapi.download(url), dest)
+            except Exception as e:
+                log(f"  ! фото не скачалось ({item_or_review.get('title', 'отзыв')}): {e}")
+                continue
+        out.append(f"photos/{fname}")
+    if not out and old:
+        out = old.get("photos", [])
+    return out
 
 
-def sync(messages, old_items, downloader=download, whole_history=None):
-    """Чистая логика синхронизации. Возвращает новый список товаров."""
+# ---------------------------------------------------------------- синхронизация
+
+def sync(messages, old_items, old_reviews, state, whole_history):
+    """Возвращает (items, reviews, events)."""
+    events = {"added": [], "removed": [], "warn": []}
     manual = [i for i in old_items if i.get("source") != "max"]
     old_max = {i["mid"]: i for i in old_items if i.get("source") == "max"}
+    old_rev = {r["mid"]: r for r in old_reviews}
     next_no = max([i.get("no", 0) for i in old_items] + [0]) + 1
-
     PHOTOS.mkdir(exist_ok=True)
-    fresh = {}
-    for msg in messages:
-        item = parse_post(msg)
-        if not item:
-            continue
-        urls = item.pop("_photo_urls")
-        old = old_max.get(item["mid"])
-        photos = []
-        for n, url in enumerate(urls):
-            fname = f"{safe_name(item['mid'])}_{n}.jpg"
-            dest = PHOTOS / fname
-            if not dest.exists():
-                try:
-                    downloader(url, dest)
-                except Exception as e:
-                    log(f"  ! фото не скачалось ({item['title']}): {e}")
-                    continue
-            photos.append(f"photos/{fname}")
-        if not photos and old:
-            photos = old.get("photos", [])
-        item["photos"] = photos
-        item["source"] = "max"
-        if old:
-            item["no"] = old["no"]
-        else:
-            item["no"] = next_no
-            next_no += 1
-            log(f"  + новый товар №{item['no']}: {item['title']}")
-        fresh[item["mid"]] = item
+    now_ms = int(time.time() * 1000)
 
-    # Товары, которых нет в свежей выборке:
-    #   - пост старше окна выборки → оставляем (просто давно выложен);
-    #   - пост внутри окна → его удалили или убрали из каталога → удаляем с сайта.
-    window_full = (len(messages) >= FETCH_COUNT) if whole_history is None else not whole_history
+    fresh, reviews = {}, {}
+    for msg in messages:
+        kind, data = classify(msg)
+        if kind == "item":
+            old = old_max.get(data["mid"])
+            data["photos"] = fetch_photos(data, old)
+            data["source"] = "max"
+            if old:
+                data["no"] = old["no"]
+                if "views" not in data and "views" in old:
+                    data["views"] = old["views"]
+            else:
+                data["no"] = next_no
+                next_no += 1
+                if old_items:  # на самом первом запуске не спамим
+                    events["added"].append(data)
+            fresh[data["mid"]] = data
+        elif kind == "review":
+            data["photos"] = fetch_photos(data, old_rev.get(data["mid"]))
+            reviews[data["mid"]] = data
+        elif kind == "warn":
+            mid = str((msg.get("body") or {}).get("mid"))
+            recent = now_ms - int(msg.get("timestamp") or 0) < 3 * 86400 * 1000
+            if recent and mid not in state.setdefault("warned", []):
+                state["warned"] = (state["warned"] + [mid])[-200:]
+                events["warn"].append(data)
+
     oldest_ts = min((int(m.get("timestamp") or 0) for m in messages), default=0)
     for mid, old in old_max.items():
         if mid in fresh:
             continue
-        if window_full and old.get("ts", 0) < oldest_ts:
-            fresh[mid] = old
+        if not whole_history and old.get("ts", 0) < oldest_ts:
+            fresh[mid] = old            # пост за пределами просмотренной истории — не трогаем
         else:
+            events["removed"].append(old)
             log(f"  - убран с сайта: {old.get('title')}")
+    for d in events["added"]:
+        log(f"  + новый товар №{d['no']}: {d['title']}")
 
-    max_items = sorted(fresh.values(), key=lambda i: i.get("ts", 0), reverse=True)
-    items = max_items + manual
+    # ручные правки из бота: скрыть / цена
+    hidden = set(state.get("hidden", []))
+    prices = state.get("price", {})
+    for it in list(fresh.values()) + manual:
+        it.pop("hidden", None)
+        if it.get("no") in hidden:
+            it["hidden"] = True
+        if str(it.get("no")) in prices:
+            it["price"] = prices[str(it["no"])]
 
-    # чистим фото, на которые больше никто не ссылается
-    used = {p for i in items for p in i.get("photos", [])}
+    items = sorted(fresh.values(), key=lambda i: i.get("ts", 0), reverse=True) + manual
+    reviews = sorted(reviews.values(), key=lambda r: r["ts"], reverse=True)
+
+    used = {p for x in items + reviews for p in x.get("photos", [])}
     for f in PHOTOS.glob("*.jpg"):
         if f"photos/{f.name}" not in used:
             f.unlink()
-    return items
+            t = photolib.thumb_path(f)
+            if t.exists():
+                t.unlink()
+    return items, reviews, events
 
+
+# ---------------------------------------------------------------- просмотры
+
+def update_views(items, old_items, state):
+    """views_week / views_month — прирост просмотров с начала недели/месяца.
+    Чтобы не коммитить каждые 15 минут, свежие просмотры берём раз в 3 часа."""
+    now = time.time()
+    old_views = {i.get("mid"): i.get("views") for i in old_items}
+    refresh = now - state.get("views_ts", 0) >= VIEWS_REFRESH_SEC
+    if refresh:
+        state["views_ts"] = int(now)
+    else:
+        for it in items:
+            if it.get("mid") in old_views and old_views[it["mid"]] is not None:
+                it["views"] = old_views[it["mid"]]
+
+    msk = dt.datetime.now(MSK)
+    cur = {i["mid"]: i.get("views", 0) for i in items if i.get("source") == "max"}
+    month_key = msk.strftime("%Y-%m")
+    if state.get("snap_month", {}).get("key") != month_key:
+        state["snap_month"] = {"key": month_key, "views": cur}
+    if "snap_week" not in state:
+        state["snap_week"] = {"ts": int(now), "views": cur}
+    for it in items:
+        if it.get("source") != "max" or "views" not in it:
+            continue
+        v = it["views"]
+        it["views_week"] = max(0, v - state["snap_week"]["views"].get(it["mid"], 0))
+        it["views_month"] = max(0, v - state["snap_month"]["views"].get(it["mid"], 0))
+
+
+# ---------------------------------------------------------------- main
 
 def main():
+    import bot
+    import pages
+
     token = os.environ.get("MAX_TOKEN", "").strip()
     if not token:
         log("Нет MAX_TOKEN. Добавьте токен бота в Settings → Secrets and variables → Actions.")
         return 1
-    had_channel_file = CHANNEL_FILE.exists()
+
+    state = load_json(STATE, {})
+    old_items, old_reviews = load_catalog()
+    notifier = bot.Notifier(token)
     try:
         chat_id = find_channel(token)
-        log(f"Читаю посты канала {chat_id}…")
+        owners = bot.get_owners(token, chat_id, state)
+        notifier.owners = owners
+        log(f"Канал {chat_id}, владельцев: {len(owners)}")
+
+        # 1) команды от владельца (до синхронизации, чтобы /скрыть и /пост сработали сразу)
+        deferred = bot.process_commands(token, chat_id, owners, state, notifier)
+        dump_json(STATE, state)   # сохраняем сразу: команды не выполнятся повторно
+
+        # 2) посты канала → каталог
         messages, whole = fetch_posts(token, chat_id)
     except ApiError as e:
         log(f"ОШИБКА: {e}")
+        notifier.send(f"⚠️ Синхронизация сайта не удалась:\n{e}")
+        dump_json(STATE, state)
         return 1
-    log(f"  получено постов: {len(messages)}")
 
-    old_items = load_catalog()
-    items = sync(messages, old_items, whole_history=whole)
-    if not whole:
-        log("  ! видна не вся история канала: удаление очень старых постов не отслеживается")
+    items, reviews, events = sync(messages, old_items, old_reviews, state, whole)
+    update_views(items, old_items, state)
 
-    new_json = json.dumps({"updated": int(time.time()), "items": items}, ensure_ascii=False, indent=2)
-    old_cmp = json.dumps(old_items, ensure_ascii=False, sort_keys=True)
-    changed = json.dumps(items, ensure_ascii=False, sort_keys=True) != old_cmp
-    if changed:
-        CATALOG.write_text(new_json + "\n", "utf-8")
-    log(f"Готово. Товаров на сайте: {len(items)} (из канала: {sum(1 for i in items if i.get('source') == 'max')}). "
-        f"{'Каталог обновлён.' if changed else 'Изменений нет.'}")
+    # 3) страницы товаров, QR
+    pages.generate(items, SITE_URL)
+    pages.make_qr(SITE_URL)
 
-    if not had_channel_file and CHANNEL_FILE.exists():
-        changed = True  # сохранить найденный id канала, чтобы не искать заново
-    out = os.environ.get("GITHUB_OUTPUT")
-    if out:
-        with open(out, "a") as f:
-            f.write(f"changed={'true' if changed else 'false'}\n")
+    catalog = {"items": items, "reviews": reviews}
+    old_catalog = {"items": old_items, "reviews": old_reviews}
+    if json.dumps(catalog, sort_keys=True, ensure_ascii=False) != json.dumps(old_catalog, sort_keys=True, ensure_ascii=False):
+        dump_json(CATALOG, {"updated": int(time.time()), **catalog})
+        log("Каталог обновлён.")
+
+    # 4) ответы на команды, уведомления, отчёт
+    for fn in deferred:
+        try:
+            fn(items)
+        except Exception as e:
+            log(f"  ! ответ на команду: {e}")
+    bot.notify_events(notifier, events, SITE_URL)
+    bot.maybe_weekly_report(notifier, items, state, SITE_URL)
+
+    dump_json(STATE, state)
+    visible = [i for i in items if not i.get("hidden")]
+    log(f"Готово. Товаров на сайте: {len(visible)}, отзывов: {len(reviews)}.")
     return 0
 
 

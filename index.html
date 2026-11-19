@@ -3,82 +3,115 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>3D модели в Нагаево на заказ</title>
-<meta name="description" content="Печать на 3D-принтере в Нагаево: фигурки, игрушки-антистресс, декор, подарки, аксессуары. Заказ через MAX, Telegram или по телефону.">
+<title>3D модели в Нагаево на заказ — печать на 3D-принтере</title>
+<meta name="description" content="Печать на 3D-принтере на заказ в Нагаево: фигурки, игрушки-антистресс, декор, модели машин, полезные мелочи для дома. Размер и цвет — по желанию. Заказ в MAX, Telegram или по телефону.">
+<link rel="canonical" href="https://3dmodelnagaevo.github.io/model3d-nagaevo/">
+<!-- Open Graph: превью ссылки в MAX, Telegram, ВК -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="3D модели Нагаево на заказ">
+<meta property="og:title" content="3D модели в Нагаево на заказ">
+<meta property="og:description" content="Фигурки, игрушки-антистресс, декор, модели машин и полезные мелочи. Размер и цвет — под вас. Каталог с ценами.">
+<meta property="og:url" content="https://3dmodelnagaevo.github.io/model3d-nagaevo/">
+<meta property="og:image" content="https://3dmodelnagaevo.github.io/model3d-nagaevo/img/og-cover.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2316181d'/%3E%3Ctext x='32' y='42' font-family='Arial' font-weight='800' font-size='26' fill='white' text-anchor='middle'%3E3D%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="config.js"></script>
 <style>
   :root{
     --bg:#f7f7f4; --card:#ffffff; --ink:#16181d; --muted:#666c78; --line:#e6e6e0;
-    --accent:#5b3df5; --accent-ink:#ffffff; --accent-soft:#efebff;
-    --tg:#2aa3e0; --ok:#1f9d55; --radius:16px;
+    --accent:#5b3df5; --accent-ink:#ffffff; --accent-soft:#efebff; --new:#16a34a; --heart:#e5484d;
+    --radius:16px;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
   body{margin:0;font-family:Manrope,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
   a{color:inherit}
+  button{font:inherit;color:inherit}
   .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
 
   /* header */
   header{position:sticky;top:0;z-index:20;background:rgba(247,247,244,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-  .nav{display:flex;align-items:center;gap:24px;height:64px}
-  .logo{display:flex;align-items:center;gap:10px;font-weight:800;text-decoration:none;font-size:17px;letter-spacing:-.01em}
+  .nav{display:flex;align-items:center;gap:20px;height:64px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:800;text-decoration:none;font-size:17px;letter-spacing:-.01em;white-space:nowrap}
   .logo-mark{width:34px;height:34px;border-radius:10px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:14px;font-weight:800}
-  .nav-links{display:flex;gap:20px;margin-left:auto;font-size:15px;font-weight:600;color:var(--muted)}
-  .nav-links a{text-decoration:none}
+  .nav-links{display:flex;gap:18px;margin-left:auto;font-size:15px;font-weight:600;color:var(--muted)}
+  .nav-links a{text-decoration:none;white-space:nowrap}
   .nav-links a:hover{color:var(--ink)}
-  @media (max-width:760px){.nav-links{display:none}}
+  .fav-btn{position:relative;border:1px solid var(--line);background:var(--card);border-radius:10px;height:38px;padding:0 12px;display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;font-size:14px;white-space:nowrap}
+  .fav-btn .cnt{background:var(--heart);color:#fff;border-radius:999px;font-size:12px;min-width:20px;height:20px;display:grid;place-items:center;padding:0 6px}
+  .fav-btn .cnt:empty{display:none}
+  @media (max-width:900px){.nav-links{display:none}.fav-btn{margin-left:auto}}
+  @media (max-width:420px){.logo{font-size:15px}.nav{gap:10px}.nav .btn{padding:8px 12px;font-size:13px}.fav-btn .lbl,.hide-sm{display:none}}
+  @media (max-width:860px){.facts{gap:16px 24px}}
 
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:12px 18px;font:inherit;font-weight:700;font-size:15px;cursor:pointer;text-decoration:none;transition:transform .08s ease, background .15s}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:12px 18px;font-weight:700;font-size:15px;cursor:pointer;text-decoration:none;transition:transform .08s ease, background .15s;white-space:nowrap}
   .btn:active{transform:translateY(1px)}
   .btn-primary{background:var(--accent);color:var(--accent-ink)}
   .btn-primary:hover{background:#4a2be6}
   .btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
   .btn-ghost:hover{border-color:#cfcfc8}
   .btn-sm{padding:9px 14px;font-size:14px;border-radius:10px}
-  .nav .btn{margin-left:8px;white-space:nowrap}
-  .logo{white-space:nowrap}
-  @media (max-width:420px){.logo{font-size:15px}.nav .btn{padding:8px 12px;font-size:13px}}
-  @media (max-width:760px){.nav .btn{margin-left:auto}}
 
   /* hero */
-  .hero{padding:56px 0 40px}
+  .hero{padding:52px 0 32px}
   .hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:center}
   @media (max-width:860px){.hero-grid{grid-template-columns:1fr}}
   .eyebrow{display:inline-block;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:13px;padding:6px 12px;border-radius:999px;margin-bottom:16px}
   h1{font-size:clamp(32px,5vw,52px);line-height:1.05;letter-spacing:-.03em;margin:0 0 16px;font-weight:800}
   .lead{font-size:18px;color:var(--muted);margin:0 0 28px;max-width:540px}
-  .hero-cta{display:flex;flex-wrap:wrap;gap:10px}
+  .cta{display:flex;flex-wrap:wrap;gap:10px}
   .facts{display:flex;flex-wrap:wrap;gap:24px;margin-top:32px}
   .fact b{display:block;font-size:22px;letter-spacing:-.02em}
   .fact span{color:var(--muted);font-size:14px}
   .hero-pics{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .hero-pics img{width:100%;height:100%;object-fit:cover;border-radius:var(--radius);display:block;aspect-ratio:1/1;background:#eee}
+  .hero-pics img{width:100%;height:100%;object-fit:cover;border-radius:var(--radius);display:block;aspect-ratio:1/1;background:#eee;cursor:pointer}
   .hero-pics img:first-child{grid-column:1/-1;aspect-ratio:16/9}
 
-  /* sections */
-  section{padding:48px 0}
+  section{padding:40px 0}
   h2{font-size:clamp(26px,3.4vw,36px);letter-spacing:-.025em;margin:0 0 8px;font-weight:800}
-  .sub{color:var(--muted);margin:0 0 24px}
+  .sub{color:var(--muted);margin:0 0 22px}
+  .head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+  /* strips: новинки / популярное */
+  .strip{display:grid;grid-auto-flow:column;grid-auto-columns:200px;gap:14px;overflow-x:auto;padding:2px 2px 12px;scroll-snap-type:x mandatory}
+  .strip::-webkit-scrollbar{height:8px}.strip::-webkit-scrollbar-thumb{background:#ddd;border-radius:8px}
+  .mini{scroll-snap-align:start;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;text-align:left;padding:0;display:flex;flex-direction:column}
+  .mini:hover{box-shadow:0 8px 24px rgba(20,20,30,.08)}
+  .mini .ph{aspect-ratio:1/1;background:#efefea;position:relative;overflow:hidden}
+  .mini img{width:100%;height:100%;object-fit:cover;display:block}
+  .mini .t{padding:10px 12px 12px;font-size:14px;font-weight:700;line-height:1.3}
+  .mini .t small{display:block;color:var(--muted);font-weight:600;margin-top:4px}
+  .rank{position:absolute;left:8px;top:8px;background:var(--ink);color:#fff;border-radius:8px;font-size:12px;font-weight:800;padding:3px 8px}
 
   /* catalog controls */
-  .controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:24px}
-  .chips{display:flex;flex-wrap:wrap;gap:8px}
-  .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;color:var(--ink)}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+  .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;cursor:pointer}
   .chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
-  .search{margin-left:auto;position:relative;min-width:240px;flex:0 1 300px}
-  @media (max-width:760px){.search{margin-left:0;flex:1 1 100%}}
-  .search input{width:100%;font:inherit;font-size:15px;padding:11px 14px 11px 38px;border-radius:12px;border:1px solid var(--line);background:var(--card);outline:none}
-  .search input:focus{border-color:var(--accent)}
+  .search{position:relative;flex:1 1 260px}
+  .search input,.sel{width:100%;font:inherit;font-size:15px;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);outline:none;color:var(--ink)}
+  .search input{padding-left:38px}
+  .search input:focus,.sel:focus{border-color:var(--accent)}
   .search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+  .sel{width:auto;flex:0 0 auto;cursor:pointer;padding-right:10px}
+  .count{color:var(--muted);font-size:14px;margin:-8px 0 14px}
 
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s, transform .15s;text-align:left;padding:0;font:inherit;color:inherit}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s, transform .15s;text-align:left;padding:0;position:relative}
   .card:hover{box-shadow:0 10px 30px rgba(20,20,30,.08);transform:translateY(-2px)}
   .card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   .card .ph{aspect-ratio:4/3;background:#efefea;position:relative;flex:0 0 auto;overflow:hidden}
   .card .ph img{width:100%;height:100%;object-fit:cover;display:block}
   .tag{position:absolute;left:10px;top:10px;background:rgba(255,255,255,.92);font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px}
+  .badge-new{position:absolute;left:10px;bottom:10px;background:var(--new);color:#fff;font-size:12px;font-weight:800;padding:3px 9px;border-radius:999px}
+  .heart{position:absolute;right:10px;top:10px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.92);display:grid;place-items:center;cursor:pointer;color:#9aa0aa;z-index:2}
+  .heart svg{width:18px;height:18px}
+  .heart[aria-pressed="true"]{color:var(--heart)}
+  .heart[aria-pressed="true"] svg{fill:currentColor}
   .card .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
   .card h3{margin:0;font-size:16px;line-height:1.3}
   .card .meta{color:var(--muted);font-size:13px}
@@ -88,7 +121,7 @@
   .more{font-size:13px;font-weight:700;color:var(--accent)}
   .empty{padding:40px;text-align:center;color:var(--muted);background:var(--card);border:1px dashed var(--line);border-radius:var(--radius)}
 
-  /* find model banner */
+  /* find */
   .find{background:var(--ink);color:#fff;border-radius:24px;padding:36px;display:grid;grid-template-columns:1.3fr 1fr;gap:28px;align-items:center}
   @media (max-width:860px){.find{grid-template-columns:1fr;padding:28px}}
   .find h2{color:#fff}
@@ -97,8 +130,29 @@
   .steps li{counter-increment:s;display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,.06);border-radius:14px;padding:12px 14px;font-size:15px}
   .steps li::before{content:counter(s);flex:0 0 26px;height:26px;border-radius:8px;background:var(--accent);display:grid;place-items:center;font-weight:800;font-size:13px}
 
-  /* info cards */
-  .info{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  /* how-to + faq */
+  .how{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px}
+  @media (max-width:860px){.how{grid-template-columns:1fr 1fr}}
+  .how div{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+  .how b{display:block;font-size:28px;color:var(--accent);line-height:1;margin-bottom:8px}
+  .how span{font-size:15px}
+  details{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0 18px;margin-bottom:10px}
+  summary{cursor:pointer;font-weight:700;padding:15px 0;list-style:none;display:flex;justify-content:space-between;gap:12px}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";font-size:22px;line-height:1;color:var(--muted)}
+  details[open] summary::after{content:"–"}
+  details p{margin:0 0 16px;color:#3b3f48}
+
+  /* reviews */
+  .reviews{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+  .rev{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .rev img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+  .rev div{padding:14px 16px}
+  .rev p{margin:0 0 8px}
+  .rev small{color:var(--muted)}
+
+  /* info */
+  .info{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
   @media (max-width:860px){.info{grid-template-columns:1fr}}
   .box{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
   .box h3{margin:0 0 10px;font-size:17px}
@@ -114,17 +168,18 @@
   .ct .val{font-size:18px;font-weight:800;word-break:break-word}
   .ct .btn{margin-top:10px;align-self:flex-start}
   .ct.main{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-
   .channels{margin-top:18px;background:var(--accent-soft);border-radius:var(--radius);padding:22px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between}
   .channels b{display:block;font-size:18px}
   .channels span{color:var(--muted);font-size:15px}
+
   footer{padding:32px 0 48px;color:var(--muted);font-size:14px;border-top:1px solid var(--line);margin-top:24px}
+  footer .wrap{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between}
 
   /* modal */
   .modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,16,20,.5)}
   .modal.open{display:flex}
-  .sheet{background:var(--card);border-radius:22px;max-width:880px;width:100%;max-height:92vh;overflow:auto;display:grid;grid-template-columns:1.1fr 1fr}
-  @media (max-width:760px){.sheet{grid-template-columns:1fr;border-radius:18px}}
+  .sheet{background:var(--card);border-radius:22px;max-width:900px;width:100%;max-height:92vh;overflow:auto;display:grid;grid-template-columns:1.1fr 1fr}
+  @media (max-width:760px){.modal{padding:0;align-items:flex-end}.sheet{grid-template-columns:1fr;border-radius:18px 18px 0 0;max-height:94vh}}
   .gallery{background:#efefea;padding:14px;display:flex;flex-direction:column;gap:10px}
   .gallery .big{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px;display:block;background:#e5e5df}
   .thumbs{display:flex;gap:8px;flex-wrap:wrap}
@@ -132,18 +187,41 @@
   .thumbs button[aria-current="true"]{border-color:var(--accent)}
   .thumbs img{width:100%;height:100%;object-fit:cover;display:block}
   .detail{padding:24px;display:flex;flex-direction:column;gap:12px;position:relative}
-  .close{position:absolute;right:14px;top:14px;width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:20px;line-height:1}
-  .detail h3{margin:0;font-size:24px;letter-spacing:-.02em;padding-right:40px}
+  .top-actions{position:absolute;right:14px;top:14px;display:flex;gap:8px}
+  .icon-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;display:grid;place-items:center;color:var(--ink)}
+  .icon-btn svg{width:18px;height:18px}
+  .icon-btn[aria-pressed="true"]{color:var(--heart)}
+  .icon-btn[aria-pressed="true"] svg{fill:currentColor}
+  .detail h3{margin:0;font-size:24px;letter-spacing:-.02em;padding-right:136px}
+  .no{font-size:13px;color:var(--muted);font-weight:700}
   .specs{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:15px;margin:0}
   .specs dt{color:var(--muted)}
   .specs dd{margin:0;font-weight:600}
-  .order{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+  .order{display:flex;flex-direction:column;gap:8px;margin-top:4px}
   .order .btn{width:100%}
   .alt{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .msg{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px;color:#3b3f48}
   .msg b{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+  .similar{grid-column:1/-1;padding:4px 24px 24px}
+  .similar h4{margin:8px 0 12px;font-size:16px}
+  .similar .strip{grid-auto-columns:150px}
+
+  /* favorites panel */
+  .favlist{padding:24px;grid-column:1/-1;display:flex;flex-direction:column;gap:12px}
+  .favrow{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px}
+  .favrow img{width:64px;height:64px;object-fit:cover;border-radius:8px;cursor:pointer;background:#eee}
+  .favrow b{display:block;font-size:15px;cursor:pointer}
+  .favrow small{color:var(--muted)}
+  .favrow button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:20px;padding:6px}
+
+  .cookie{position:fixed;left:16px;right:16px;bottom:16px;z-index:40;max-width:720px;margin:0 auto;background:var(--ink);color:#fff;border-radius:14px;padding:14px 16px;display:none;gap:14px;align-items:center;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+  .cookie.show{display:flex}
+  .cookie a{color:#c9c2ff}
+  .cookie .btn{flex:0 0 auto}
+
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:60;max-width:90vw;text-align:center}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  [hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -153,68 +231,97 @@
     <a class="logo" href="#top"><span class="logo-mark">3D</span>Модели Нагаево</a>
     <nav class="nav-links">
       <a href="#catalog">Каталог</a>
-      <a href="#find">Найти модель</a>
-      <a href="#delivery">Доставка и условия</a>
+      <a href="#how">Как заказать</a>
+      <a href="#reviews" id="navReviews" hidden>Отзывы</a>
+      <a href="#delivery">Условия</a>
       <a href="#contacts">Контакты</a>
-      <a id="navCh" target="_blank" rel="noopener">Канал</a>
+      <a data-channel target="_blank" rel="noopener">Канал</a>
     </nav>
-    <a class="btn btn-primary btn-sm" id="headerOrder" target="_blank" rel="noopener">Написать в MAX</a>
+    <button class="fav-btn" id="favOpen" aria-label="Избранное">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 5.3 3.1 1.7-1.9 3.2-3.1 5.3-3.1 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></svg>
+      <span class="lbl">Избранное</span><span class="cnt" id="favCount"></span>
+    </button>
+    <a class="btn btn-primary btn-sm" data-maxprofile target="_blank" rel="noopener" data-goal="contact_max"><span class="hide-sm">Написать в&nbsp;</span>MAX</a>
   </div>
 </header>
 
 <main id="top">
-  <!-- HERO -->
   <div class="hero">
     <div class="wrap hero-grid">
       <div>
         <span class="eyebrow">3D-печать на заказ · Нагаево</span>
         <h1>Напечатаю то, что вы придумали</h1>
-        <p class="lead">Фигурки, игрушки-антистресс, декор, подарки и полезные мелочи для дома. Размер и цвет — под вас.</p>
-        <div class="hero-cta">
+        <p class="lead">Фигурки, игрушки-антистресс, декор, модели машин и полезные мелочи для дома. Размер и цвет — под вас.</p>
+        <div class="cta">
           <a class="btn btn-primary" href="#catalog">Смотреть каталог</a>
           <a class="btn btn-ghost" href="#find">Найти модель под заказ</a>
-          <a class="btn btn-ghost" id="heroCh" target="_blank" rel="noopener">Канал в MAX</a>
+          <a class="btn btn-ghost" data-channel target="_blank" rel="noopener">Канал в MAX</a>
         </div>
         <div class="facts">
           <div class="fact"><b>от 50 ₽</b><span>стоимость изделия</span></div>
-          <div class="fact"><b>любой</b><span>размер и цвет</span></div>
+          <div class="fact"><b id="factCount">—</b><span>моделей в каталоге</span></div>
           <div class="fact"><b>Нагаево</b><span>самовывоз / ТК33</span></div>
         </div>
       </div>
-      <div class="hero-pics">
-        <img src="img/bmw1.jpg" alt="Напечатанная модель">
-        <img src="img/spinner.jpg" alt="Напечатанная модель">
-        <img src="img/stand.jpg" alt="Напечатанная модель">
+      <div class="hero-pics" id="heroPics">
+        <img src="img/bmw1.jpg" alt="">
+        <img src="img/spinner.jpg" alt="">
+        <img src="img/stand.jpg" alt="">
       </div>
     </div>
   </div>
 
-  <!-- CATALOG -->
+  <section id="new" hidden>
+    <div class="wrap">
+      <div class="head-row"><div><h2>Новинки</h2><p class="sub" id="newSub">Свежие модели из канала</p></div></div>
+      <div class="strip" id="newStrip"></div>
+    </div>
+  </section>
+
+  <section id="popular" hidden>
+    <div class="wrap">
+      <div class="head-row"><div><h2 id="popTitle">Популярное</h2><p class="sub">По просмотрам в канале</p></div></div>
+      <div class="strip" id="popStrip"></div>
+    </div>
+  </section>
+
   <section id="catalog">
     <div class="wrap">
       <h2>Каталог</h2>
-      <p class="sub">Нажмите на модель, чтобы посмотреть фото и заказать. Нет нужной — <a href="#find">найду под заказ</a>.</p>
+      <p class="sub">Нажмите на модель, чтобы посмотреть фото и заказать. ♥ — добавить в избранное. Нет нужной — <a href="#find">найду под заказ</a>.</p>
+      <div class="chips" id="chips" role="group" aria-label="Категории"></div>
       <div class="controls">
-        <div class="chips" id="chips" role="group" aria-label="Категории"></div>
         <label class="search">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <input id="q" type="search" placeholder="Поиск: машина, подставка…" aria-label="Поиск по каталогу">
+          <input id="q" type="search" placeholder="Поиск: машина, кот, подставка…" aria-label="Поиск по каталогу">
         </label>
+        <select class="sel" id="sort" aria-label="Сортировка">
+          <option value="new">Сначала новые</option>
+          <option value="pop">Популярные</option>
+          <option value="cheap">Сначала дешёвые</option>
+          <option value="dear">Сначала дорогие</option>
+        </select>
+        <select class="sel" id="priceSel" aria-label="Цена">
+          <option value="">Любая цена</option>
+          <option value="0-200">до 200 ₽</option>
+          <option value="200-500">200–500 ₽</option>
+          <option value="500-">от 500 ₽</option>
+        </select>
       </div>
+      <div class="count" id="count"></div>
       <div class="grid" id="grid"></div>
     </div>
   </section>
 
-  <!-- FIND MODEL -->
   <section id="find">
     <div class="wrap">
       <div class="find">
         <div>
           <h2>Не нашли в каталоге?</h2>
           <p>Пришлите фото, ссылку или просто опишите, что хотите. Помогу найти подходящую 3D-модель, подберу размер и цвет и напечатаю.</p>
-          <div class="hero-cta">
-            <a class="btn btn-primary" id="findOrder" target="_blank" rel="noopener">Описать идею в MAX</a>
-            <a class="btn btn-ghost" id="findTg" target="_blank" rel="noopener">Telegram</a>
+          <div class="cta">
+            <a class="btn btn-primary" data-maxprofile target="_blank" rel="noopener" data-goal="find_max">Описать идею в MAX</a>
+            <a class="btn btn-ghost" data-tg target="_blank" rel="noopener" data-goal="find_tg">Telegram</a>
           </div>
         </div>
         <ol class="steps">
@@ -227,7 +334,34 @@
     </div>
   </section>
 
-  <!-- DELIVERY & TERMS -->
+  <section id="how">
+    <div class="wrap">
+      <h2>Как заказать</h2>
+      <p class="sub">Всё просто — оформление занимает пару минут.</p>
+      <div class="how">
+        <div><b>1</b><span>Выберите модель в каталоге или опишите свою идею</span></div>
+        <div><b>2</b><span>Нажмите «Заказать» — откроется чат, текст заказа уже скопирован</span></div>
+        <div><b>3</b><span>Согласуем размер, цвет и итоговую цену</span></div>
+        <div><b>4</b><span>Заберите готовое изделие в Нагаево или через ТК33</span></div>
+      </div>
+      <details><summary>Можно сделать другой размер?</summary><p>Да. Почти любую модель можно увеличить или уменьшить — напишите, какой размер нужен, и я скажу итоговую цену.</p></details>
+      <details><summary>Какие есть цвета?</summary><p>Цвет согласовываем в личных сообщениях — подскажу, какие цвета пластика есть сейчас. Цвет на фото может немного отличаться от реального.</p></details>
+      <details><summary>Можно заказать несколько моделей сразу?</summary><p>Конечно. Отметьте их ♥ в каталоге, откройте «Избранное» и нажмите «Отправить список» — я получу все модели одним сообщением.</p></details>
+      <details><summary>Нет нужной модели в каталоге — что делать?</summary><p>Пришлите фото, ссылку или описание — помогу найти подходящую 3D-модель и напечатаю её.</p></details>
+      <details><summary>Как получить заказ?</summary><p>Самовывоз или передача на ТК33. Только в Нагаево.</p></details>
+      <details><summary>Подходит ли для детей и для еды?</summary><p>Изделия не предназначены для детей до 3 лет — есть мелкие детали. PLA-пластик не подходит для контакта с пищей и нагрева выше 50 °C.</p></details>
+      <details><summary>Можно вернуть или обменять?</summary><p>Изделия изготавливаются индивидуально под заказ, поэтому возврату и обмену не подлежат.</p></details>
+    </div>
+  </section>
+
+  <section id="reviews" hidden>
+    <div class="wrap">
+      <h2>Отзывы</h2>
+      <p class="sub">Что говорят покупатели</p>
+      <div class="reviews" id="revGrid"></div>
+    </div>
+  </section>
+
   <section id="delivery">
     <div class="wrap">
       <h2>Доставка и условия</h2>
@@ -235,10 +369,14 @@
       <div class="info">
         <div class="box">
           <h3>📦 Получение</h3>
+          <ul><li>Самовывоз</li><li>Передача на ТК33</li><li><b>Только в Нагаево</b></li></ul>
+        </div>
+        <div class="box">
+          <h3>🏠 Только для личного использования</h3>
           <ul>
-            <li>Самовывоз</li>
-            <li>Передача на ТК33</li>
-            <li><b>Только в Нагаево</b></li>
+            <li>Изделия предназначены только для личного некоммерческого использования</li>
+            <li>Перепродажа и коммерческое использование изделий запрещены</li>
+            <li>Часть моделей создана сторонними авторами — права на дизайн принадлежат им</li>
           </ul>
         </div>
         <div class="box">
@@ -262,7 +400,6 @@
     </div>
   </section>
 
-  <!-- CONTACTS -->
   <section id="contacts">
     <div class="wrap">
       <h2>Контакты</h2>
@@ -270,18 +407,18 @@
       <div class="contacts">
         <div class="ct main">
           <span class="lbl">MAX — основной</span>
-          <span class="val" data-phone></span>
-          <a class="btn btn-primary btn-sm" id="ctMax" target="_blank" rel="noopener">Открыть профиль в MAX</a>
+          <span class="val" data-phonetext></span>
+          <a class="btn btn-primary btn-sm" data-maxprofile target="_blank" rel="noopener" data-goal="contact_max">Открыть профиль в MAX</a>
         </div>
         <div class="ct">
           <span class="lbl">Телефон</span>
-          <span class="val" data-phone></span>
-          <a class="btn btn-ghost btn-sm" id="ctTel">Позвонить</a>
+          <span class="val" data-phonetext></span>
+          <a class="btn btn-ghost btn-sm" data-tel data-goal="contact_call">Позвонить</a>
         </div>
         <div class="ct">
           <span class="lbl">Telegram</span>
           <span class="val" id="tgHandle"></span>
-          <a class="btn btn-ghost btn-sm" id="ctTg" target="_blank" rel="noopener">Написать в Telegram</a>
+          <a class="btn btn-ghost btn-sm" data-tg target="_blank" rel="noopener" data-goal="contact_tg">Написать в Telegram</a>
         </div>
       </div>
       <div class="channels">
@@ -289,9 +426,9 @@
           <b>Новые модели сначала появляются в канале</b>
           <span>Подпишитесь, чтобы первыми видеть новинки и цены.</span>
         </div>
-        <div class="hero-cta">
-          <a class="btn btn-primary" id="chMax" target="_blank" rel="noopener">Канал в MAX</a>
-          <a class="btn btn-ghost" id="chTg" target="_blank" rel="noopener">Канал в Telegram</a>
+        <div class="cta">
+          <a class="btn btn-primary" data-channel target="_blank" rel="noopener" data-goal="channel_max">Канал в MAX</a>
+          <a class="btn btn-ghost" data-tgchannel target="_blank" rel="noopener" data-goal="channel_tg">Канал в Telegram</a>
         </div>
       </div>
     </div>
@@ -299,10 +436,13 @@
 </main>
 
 <footer>
-  <div class="wrap">© <span id="year"></span> 3D модели Нагаево на заказ · Канал в MAX: <a id="chLink" target="_blank" rel="noopener">model3Dnagaevo</a></div>
+  <div class="wrap">
+    <span>© <span id="year"></span> 3D модели Нагаево на заказ</span>
+    <span><a data-channel target="_blank" rel="noopener">Канал в MAX</a> · <a href="privacy.html">Политика конфиденциальности</a></span>
+  </div>
 </footer>
 
-<!-- MODEL MODAL -->
+<!-- Карточка товара -->
 <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
   <div class="sheet">
     <div class="gallery">
@@ -310,16 +450,21 @@
       <div class="thumbs" id="mThumbs"></div>
     </div>
     <div class="detail">
-      <button class="close" id="mClose" aria-label="Закрыть">×</button>
+      <div class="top-actions">
+        <button class="icon-btn" id="mFav" aria-label="В избранное" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 5.3 3.1 1.7-1.9 3.2-3.1 5.3-3.1 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></svg></button>
+        <button class="icon-btn" id="mShare" aria-label="Поделиться"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg></button>
+        <button class="icon-btn" id="mClose" aria-label="Закрыть" style="font-size:22px">×</button>
+      </div>
+      <span class="no" id="mNo"></span>
       <h3 id="mTitle"></h3>
       <div class="price" id="mPrice"></div>
       <p id="mDesc" style="margin:0;color:#3b3f48"></p>
-      <a id="mPost" class="more" target="_blank" rel="noopener" style="text-decoration:none">Пост в канале MAX →</a>
       <dl class="specs">
         <dt>Размер</dt><dd id="mSize"></dd>
         <dt>Цвет</dt><dd id="mColor"></dd>
         <dt>Получение</dt><dd>Самовывоз / ТК33, Нагаево</dd>
       </dl>
+      <a id="mPost" class="more" target="_blank" rel="noopener" style="text-decoration:none">Пост в канале MAX →</a>
       <div class="msg"><b>Текст заказа (скопируется сам)</b><span id="mMsg"></span></div>
       <div class="order">
         <a class="btn btn-primary" id="mMax" target="_blank" rel="noopener">Заказать в MAX</a>
@@ -329,47 +474,148 @@
         </div>
       </div>
     </div>
+    <div class="similar" id="mSimilarWrap">
+      <h4>Похожие модели</h4>
+      <div class="strip" id="mSimilar"></div>
+    </div>
   </div>
+</div>
+
+<!-- Избранное -->
+<div class="modal" id="favModal" role="dialog" aria-modal="true" aria-labelledby="favTitle">
+  <div class="sheet" style="max-width:560px;grid-template-columns:1fr">
+    <div class="favlist">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3 id="favTitle" style="margin:0;font-size:22px">Избранное</h3>
+        <button class="icon-btn" id="favClose" aria-label="Закрыть" style="font-size:22px">×</button>
+      </div>
+      <div id="favItems"></div>
+      <div class="order" id="favActions">
+        <a class="btn btn-primary" id="favMax" target="_blank" rel="noopener">Отправить список в MAX</a>
+        <a class="btn btn-ghost btn-sm" id="favTg" target="_blank" rel="noopener">Отправить в Telegram</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="cookie" id="cookie">
+  <span>Сайт использует cookies и Яндекс Метрику, чтобы понимать, какие модели интересны посетителям. <a href="privacy.html">Подробнее</a></span>
+  <button class="btn btn-primary btn-sm" id="cookieOk">Хорошо</button>
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
-/* =========================================================
-   НАСТРОЙКИ — меняются здесь
-   ========================================================= */
-const CONTACTS = {
-  phone: "+79174983186",
-  phonePretty: "+7 917 498-31-86",
-  max: "https://max.ru/u/f9LHodD0cOIASIo07UGTqsR7Fx0LPNcqKwAi9GFiTlXqkxZ281BEJNmiZK0",
-  channel: "https://max.ru/channel_model3Dnagaevo",
-  telegram: "model3Dnagaevo1",       // личка в Telegram
-  tgChannel: ""                     // ссылка на Telegram-канал, например "https://t.me/..." (пусто — кнопка скрыта)
+const C = window.SITE_CONFIG || {};
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = p => p == null ? "Цена по запросу" : "от " + p.toLocaleString("ru-RU") + " ₽";
+const thumb = p => p && p.startsWith("photos/") ? p.replace("photos/", "photos/t/") : p;
+const tgUrl = "https://t.me/" + (C.telegram || "");
+const NEW_MS = (C.newDays || 7) * 86400000;
+const CATEGORY_ORDER = ["Игрушки и антистресс", "Фигурки и декор", "Авто", "Для геймеров", "Для дома", "Подарки", "Разное"];
+const HEART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 5.3 3.1 1.7-1.9 3.2-3.1 5.3-3.1 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></svg>';
+
+let CATALOG = [], REVIEWS = [], activeCat = "Все", current = null;
+const isNew = m => m.ts && Date.now() - m.ts < NEW_MS;
+const popScore = m => (m.views_week || 0) * 1000000 + (m.views || 0);
+
+/* ---------- хранилище (может быть недоступно) ---------- */
+const store = {
+  get(k, d){ try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
 };
 
-const CATEGORY_ORDER = ["Игрушки и антистресс", "Фигурки и декор", "Авто", "Для геймеров", "Для дома", "Подарки", "Разное"];
+/* ---------- Метрика ---------- */
+function goal(name, params){ try { if (C.metrikaId && window.ym) ym(C.metrikaId, "reachGoal", name, params || {}); } catch(e){} }
+function loadMetrika(){
+  if (!C.metrikaId || window.ym) return;
+  (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();
+  k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+  (window,document,"script","https://mc.yandex.ru/metrika/tag.js","ym");
+  ym(C.metrikaId, "init", { clickmap:true, trackLinks:true, accurateTrackBounce:true, webvisor:true });
+}
+if (C.metrikaId){
+  if (store.get("cookie_ok", false)) loadMetrika(); else $("#cookie").classList.add("show");
+  $("#cookieOk").onclick = () => { store.set("cookie_ok", true); $("#cookie").classList.remove("show"); loadMetrika(); };
+}
+document.addEventListener("click", e => { const g = e.target.closest("[data-goal]"); if (g) goal(g.dataset.goal); });
 
-/* =========================================================
-   КАТАЛОГ берётся из файла catalog.json.
-   Посты из канала MAX попадают туда автоматически (scripts/sync_max.py).
-   Свои товары можно добавить в catalog.json вручную с "source": "manual".
-   ========================================================= */
-let CATALOG = [];
-
-/* ========================================================= */
-const $ = s => document.querySelector(s);
-const fmt = p => p == null ? "Цена по запросу" : "от " + p.toLocaleString("ru-RU") + " ₽";
-const tgUrl = "https://t.me/" + CONTACTS.telegram;
-let activeCat = "Все", current = null;
-
+/* ---------- мелочи ---------- */
 function toast(t){
   const el = $("#toast"); el.textContent = t; el.classList.add("show");
   clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove("show"), 3200);
 }
-async function copy(text){
-  try { await navigator.clipboard.writeText(text); return true; } catch(e){ return false; }
+async function copy(text){ try { await navigator.clipboard.writeText(text); return true; } catch(e){ return false; } }
+const orderText = m => `Здравствуйте! Хочу заказать с сайта: ${m.title} (№${m.no}). Размер: …, цвет: …`;
+const pageUrl = m => new URL("m/" + m.no + ".html", location.href.split("#")[0].split("?")[0]).href;
+
+/* ---------- избранное ---------- */
+let FAV = new Set(store.get("fav", []));
+function toggleFav(no){
+  FAV.has(no) ? FAV.delete(no) : (FAV.add(no), goal("favorite_add"));
+  store.set("fav", [...FAV]);
+  syncFav();
 }
-function orderText(m){
-  return `Здравствуйте! Хочу заказать с сайта: ${m.title} (№${m.no}). Размер: …, цвет: …`;
+function syncFav(){
+  const n = [...FAV].filter(no => CATALOG.some(m => m.no === no)).length;
+  $("#favCount").textContent = n || "";
+  $$(".heart").forEach(b => b.setAttribute("aria-pressed", FAV.has(+b.dataset.no)));
+  if (current) $("#mFav").setAttribute("aria-pressed", FAV.has(current.no));
+  if ($("#favModal").classList.contains("open")) renderFav();
+}
+function favItems(){ return CATALOG.filter(m => FAV.has(m.no)); }
+function favText(){
+  return "Здравствуйте! Хочу заказать с сайта:\n" + favItems().map(m => `• №${m.no} ${m.title} — ${fmt(m.price)}`).join("\n") + "\nРазмер и цвет обсудим.";
+}
+function renderFav(){
+  const list = favItems(), box = $("#favItems");
+  $("#favActions").hidden = !list.length;
+  box.innerHTML = list.length ? "" : '<div class="empty">Пока пусто. Нажимайте ♥ на моделях, чтобы собрать список и отправить его одним сообщением.</div>';
+  list.forEach(m => {
+    const r = document.createElement("div"); r.className = "favrow";
+    r.innerHTML = `<img src="${esc(thumb(m.photos[0]) || "")}" alt=""><div><b>${esc(m.title)}</b><small>№${m.no} · ${fmt(m.price)}</small></div><button aria-label="Убрать">×</button>`;
+    r.querySelector("img").onclick = r.querySelector("b").onclick = () => { closeFav(); openModel(m); };
+    r.querySelector("button").onclick = () => toggleFav(m.no);
+    box.appendChild(r);
+  });
+}
+function openFav(){ renderFav(); $("#favModal").classList.add("open"); document.body.style.overflow = "hidden"; }
+function closeFav(){ $("#favModal").classList.remove("open"); document.body.style.overflow = ""; }
+$("#favOpen").onclick = openFav;
+$("#favClose").onclick = closeFav;
+$("#favModal").addEventListener("click", e => { if (e.target.id === "favModal") closeFav(); });
+$("#favMax").href = C.max; $("#favTg").href = tgUrl;
+[["#favMax","MAX","fav_send_max"],["#favTg","Telegram","fav_send_tg"]].forEach(([s,name,g]) => $(s).addEventListener("click", () => {
+  goal(g, { count: favItems().length });
+  copy(favText()).then(ok => toast(ok ? `Список скопирован — вставьте его в чат ${name}` : "Напишите номера моделей из списка"));
+}));
+
+/* ---------- карточки ---------- */
+function cardEl(m){
+  const c = document.createElement("div");
+  c.className = "card"; c.tabIndex = 0; c.setAttribute("role", "button");
+  c.innerHTML = `
+    <div class="ph">${m.photos[0] ? `<img src="${esc(thumb(m.photos[0]))}" alt="" loading="lazy">` : ""}
+      <span class="tag">${esc(m.category)}</span>${isNew(m) ? '<span class="badge-new">Новинка</span>' : ""}
+      <button class="heart" data-no="${m.no}" aria-label="В избранное" aria-pressed="${FAV.has(m.no)}">${HEART}</button></div>
+    <div class="body">
+      <h3>${esc(m.title)}</h3>
+      <div class="meta">Размер: ${esc((m.size || "по желанию").toLowerCase())} · Цвет на выбор</div>
+      <div class="row"><span class="price ${m.price == null ? "ask" : ""}">${fmt(m.price)}</span><span class="more">Подробнее →</span></div>
+    </div>`;
+  c.querySelector(".heart").onclick = e => { e.stopPropagation(); toggleFav(m.no); };
+  c.onclick = () => openModel(m);
+  c.onkeydown = e => { if (e.key === "Enter") openModel(m); };
+  return c;
+}
+function miniEl(m, label, rank){
+  const b = document.createElement("button");
+  b.className = "mini";
+  b.innerHTML = `<div class="ph">${m.photos[0] ? `<img src="${esc(thumb(m.photos[0]))}" alt="" loading="lazy">` : ""}${rank ? `<span class="rank">#${rank}</span>` : ""}</div>
+    <div class="t">${esc(m.title)}<small>${label || fmt(m.price)}</small></div>`;
+  b.onclick = () => openModel(m);
+  return b;
 }
 
 function renderChips(){
@@ -378,7 +624,7 @@ function renderChips(){
     .sort((a,b) => (CATEGORY_ORDER.indexOf(a)+1 || 99) - (CATEGORY_ORDER.indexOf(b)+1 || 99));
   ["Все", ...present].forEach(c => {
     const b = document.createElement("button");
-    b.className = "chip"; b.textContent = c;
+    b.className = "chip"; b.textContent = c + (c === "Все" ? "" : ` ${CATALOG.filter(m => m.category === c).length}`);
     b.setAttribute("aria-pressed", c === activeCat);
     b.onclick = () => { activeCat = c; renderChips(); renderGrid(); };
     box.appendChild(b);
@@ -387,96 +633,136 @@ function renderChips(){
 
 function renderGrid(){
   const q = $("#q").value.trim().toLowerCase();
-  const list = CATALOG.filter(m =>
+  const [lo, hi] = ($("#priceSel").value || "-").split("-").map(x => x === "" ? null : +x);
+  let list = CATALOG.filter(m =>
     (activeCat === "Все" || m.category === activeCat) &&
-    (!q || (m.title + " " + m.category + " " + (m.tags||"") + " " + (m.desc||"")).toLowerCase().includes(q))
+    (!q || (m.title + " " + m.category + " " + (m.tags||"") + " " + (m.desc||"") + " " + m.no).toLowerCase().includes(q)) &&
+    (lo == null && hi == null || (m.price != null && (lo == null || m.price >= lo) && (hi == null || m.price < hi)))
   );
+  const s = $("#sort").value;
+  const P = m => m.price == null ? Infinity : m.price;
+  if (s === "new") list.sort((a,b) => (b.ts||0) - (a.ts||0));
+  if (s === "pop") list.sort((a,b) => popScore(b) - popScore(a));
+  if (s === "cheap") list.sort((a,b) => P(a) - P(b));
+  if (s === "dear") list.sort((a,b) => (b.price ?? -1) - (a.price ?? -1));
+  $("#count").textContent = list.length ? `Найдено: ${list.length}` : "";
   const g = $("#grid"); g.innerHTML = "";
   if (!list.length){
     g.innerHTML = `<div class="empty" style="grid-column:1/-1">Ничего не нашлось. <a href="#find">Напишите мне</a> — найду модель под заказ.</div>`;
     return;
   }
-  list.forEach(m => {
-    const c = document.createElement("button");
-    c.className = "card";
-    c.innerHTML = `
-      <div class="ph">${m.photos[0] ? `<img src="${m.photos[0]}" alt="" loading="lazy">` : ""}<span class="tag">${m.category}</span></div>
-      <div class="body">
-        <h3>${m.title}</h3>
-        <div class="meta">Размер: ${(m.size||'по желанию').toLowerCase()} · Цвет на выбор</div>
-        <div class="row"><span class="price ${m.price==null?'ask':''}">${fmt(m.price)}</span><span class="more">Подробнее →</span></div>
-      </div>`;
-    c.onclick = () => openModel(m);
-    g.appendChild(c);
-  });
+  list.forEach(m => g.appendChild(cardEl(m)));
 }
 
-function openModel(m){
+function renderStrips(){
+  const sorted = [...CATALOG].sort((a,b) => (b.ts||0) - (a.ts||0));
+  let fresh = sorted.filter(isNew);
+  if (!fresh.length) { fresh = sorted.filter(m => m.ts).slice(0, 8); $("#newSub").textContent = "Последнее в канале"; }
+  else $("#newSub").textContent = `Добавлено за последние ${C.newDays || 7} дней`;
+  $("#newStrip").innerHTML = ""; fresh.slice(0, 12).forEach(m => $("#newStrip").appendChild(miniEl(m)));
+  $("#new").hidden = !fresh.length;
+
+  const hasWeek = CATALOG.some(m => m.views_week > 0);
+  const pop = CATALOG.filter(m => m.views).sort((a,b) => hasWeek ? (b.views_week||0) - (a.views_week||0) : b.views - a.views).slice(0, 8);
+  $("#popTitle").textContent = hasWeek ? "Популярное за неделю" : "Популярное";
+  $("#popStrip").innerHTML = ""; pop.forEach((m,k) => $("#popStrip").appendChild(miniEl(m, fmt(m.price), k+1)));
+  $("#popular").hidden = pop.length < 3;
+}
+
+function renderReviews(){
+  $("#reviews").hidden = $("#navReviews").hidden = !REVIEWS.length;
+  $("#revGrid").innerHTML = REVIEWS.map(r => `<div class="rev">${r.photos && r.photos[0] ? `<img src="${esc(thumb(r.photos[0]))}" alt="" loading="lazy">` : ""}
+    <div><p>${esc(r.text)}</p><small>${new Date(r.ts).toLocaleDateString("ru-RU")}${r.url ? ` · <a href="${esc(r.url)}" target="_blank" rel="noopener">в канале</a>` : ""}</small></div></div>`).join("");
+}
+
+/* ---------- карточка товара ---------- */
+function openModel(m, fromHash){
   current = m;
+  $("#mNo").textContent = "№" + m.no + (isNew(m) ? " · Новинка" : "");
   $("#mTitle").textContent = m.title;
-  const p = $("#mPrice"); p.textContent = fmt(m.price); p.className = "price" + (m.price==null?" ask":"");
+  const p = $("#mPrice"); p.textContent = fmt(m.price); p.className = "price" + (m.price == null ? " ask" : "");
   $("#mDesc").textContent = m.desc || "";
-  const pl = $("#mPost"); if (m.url){ pl.href = m.url; pl.style.display = ""; } else pl.style.display = "none";
-  $("#mSize").textContent = m.size;
-  $("#mColor").textContent = m.color;
+  $("#mSize").textContent = m.size || "По желанию";
+  $("#mColor").textContent = m.color || "Согласовываем в ЛС";
+  const pl = $("#mPost"); pl.hidden = !m.url; if (m.url) pl.href = m.url;
   $("#mMsg").textContent = orderText(m);
-  $("#mBig").src = m.photos[0] || ""; $("#mBig").style.display = m.photos[0] ? "" : "none"; $("#mBig").alt = m.title;
+  $("#mFav").setAttribute("aria-pressed", FAV.has(m.no));
+  const big = $("#mBig"); big.src = m.photos[0] || ""; big.hidden = !m.photos[0]; big.alt = m.title;
   const th = $("#mThumbs"); th.innerHTML = "";
-  if (m.photos.length > 1) m.photos.forEach((src,i) => {
+  if (m.photos.length > 1) m.photos.forEach((src, i) => {
     const b = document.createElement("button");
-    b.setAttribute("aria-current", i===0);
-    b.innerHTML = `<img src="${src}" alt="Фото ${i+1}">`;
-    b.onclick = () => { $("#mBig").src = src; th.querySelectorAll("button").forEach(x=>x.setAttribute("aria-current", x===b)); };
+    b.setAttribute("aria-current", i === 0);
+    b.innerHTML = `<img src="${esc(thumb(src))}" alt="Фото ${i+1}">`;
+    b.onclick = () => { big.src = src; th.querySelectorAll("button").forEach(x => x.setAttribute("aria-current", x === b)); };
     th.appendChild(b);
   });
+  const sim = CATALOG.filter(x => x.category === m.category && x.no !== m.no).sort((a,b) => popScore(b) - popScore(a)).slice(0, 8);
+  $("#mSimilarWrap").hidden = !sim.length;
+  $("#mSimilar").innerHTML = ""; sim.forEach(x => $("#mSimilar").appendChild(miniEl(x)));
   $("#modal").classList.add("open");
+  $("#modal .sheet").scrollTop = 0;
   document.body.style.overflow = "hidden";
-  $("#mClose").focus();
+  if (!fromHash) history.replaceState(null, "", "#m" + m.no);
+  goal("open_model", { no: m.no, title: m.title });
 }
-function closeModel(){ $("#modal").classList.remove("open"); document.body.style.overflow = ""; }
-
-/* Ссылка открывается сама (обычный <a>), а по клику копируем текст заказа */
-function orderVia(name){
+function closeModel(){
+  $("#modal").classList.remove("open"); document.body.style.overflow = ""; current = null;
+  if (/^#m\d+$/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search);
+}
+function orderVia(name, g){
+  goal(g, { no: current.no, title: current.title });
   copy(orderText(current)).then(ok =>
     toast(ok ? `Текст заказа скопирован — вставьте его в чат ${name}` : `Напишите в ${name} название модели: ${current.title}`));
 }
-
-/* wiring */
 $("#mClose").onclick = closeModel;
 $("#modal").addEventListener("click", e => { if (e.target.id === "modal") closeModel(); });
-document.addEventListener("keydown", e => { if (e.key === "Escape") closeModel(); });
-$("#mMax").href = CONTACTS.max; $("#mMax").onclick = () => orderVia("MAX");
-$("#mTg").href = tgUrl; $("#mTg").onclick = () => orderVia("Telegram");
-$("#mTel").href = "tel:" + CONTACTS.phone;
-$("#q").addEventListener("input", renderGrid);
+document.addEventListener("keydown", e => { if (e.key === "Escape") { closeModel(); closeFav(); } });
+$("#mMax").href = C.max; $("#mMax").onclick = () => orderVia("MAX", "order_max");
+$("#mTg").href = tgUrl;  $("#mTg").onclick = () => orderVia("Telegram", "order_tg");
+$("#mTel").href = "tel:" + C.phone; $("#mTel").onclick = () => goal("order_call", { no: current.no });
+$("#mFav").onclick = () => toggleFav(current.no);
+$("#mShare").onclick = async () => {
+  const url = pageUrl(current), title = `${current.title} — ${fmt(current.price)}`;
+  goal("share", { no: current.no });
+  if (navigator.share) { try { await navigator.share({ title, url }); return; } catch(e){ if (e.name === "AbortError") return; } }
+  toast(await copy(url) ? "Ссылка на модель скопирована" : url);
+};
 
-["#headerOrder","#findOrder","#ctMax"].forEach(s => $(s).href = CONTACTS.max);
-["#findTg","#ctTg"].forEach(s => $(s).href = tgUrl);
-$("#ctTel").href = "tel:" + CONTACTS.phone;
-document.querySelectorAll("[data-phone]").forEach(el => el.textContent = CONTACTS.phonePretty);
-$("#tgHandle").textContent = "@" + CONTACTS.telegram;
-$("#chLink").href = CONTACTS.channel;
-["#chMax","#heroCh","#navCh"].forEach(sel => $(sel).href = CONTACTS.channel);
-if (CONTACTS.tgChannel) $("#chTg").href = CONTACTS.tgChannel; else $("#chTg").style.display = "none";
+/* ---------- контакты из config.js ---------- */
+$$("[data-maxprofile]").forEach(a => a.href = C.max);
+$$("[data-tg]").forEach(a => a.href = tgUrl);
+$$("[data-tel]").forEach(a => a.href = "tel:" + C.phone);
+$$("[data-channel]").forEach(a => a.href = C.channel);
+$$("[data-tgchannel]").forEach(a => C.tgChannel ? a.href = C.tgChannel : a.hidden = true);
+$$("[data-phonetext]").forEach(el => el.textContent = C.phonePretty);
+$("#tgHandle").textContent = "@" + C.telegram;
 $("#year").textContent = new Date().getFullYear();
+["#q"].forEach(s => $(s).addEventListener("input", renderGrid));
+["#sort","#priceSel"].forEach(s => $(s).addEventListener("change", renderGrid));
 
-/* загрузка каталога */
+function openFromHash(){
+  const m = /^#m(\d+)$/.exec(location.hash);
+  if (!m) return;
+  const item = CATALOG.find(x => x.no === +m[1]);
+  if (item) openModel(item, true);
+}
+window.addEventListener("hashchange", openFromHash);
+
+/* ---------- загрузка каталога ---------- */
 const norm = t => (t||"").toLowerCase().replace(/[^a-zа-яё0-9]/g, "");
 $("#grid").innerHTML = '<div class="empty" style="grid-column:1/-1">Загружаю каталог…</div>';
 fetch("catalog.json?v=" + Date.now())
   .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
   .then(data => {
-    const items = Array.isArray(data) ? data : (data.items || []);
+    const items = (Array.isArray(data) ? data : (data.items || [])).filter(i => !i.hidden);
+    REVIEWS = data.reviews || [];
     const fromMax = new Set(items.filter(i => i.source === "max").map(i => norm(i.title)));
-    // ручной товар скрываем, если такой же уже пришёл из канала
-    CATALOG = items.filter(i => i.source === "max" || !fromMax.has(norm(i.title)))
-                   .map(i => ({ photos: [], ...i }));
-    renderChips(); renderGrid();
-    // в шапку — фото трёх последних моделей из канала
-    const fresh = CATALOG.filter(i => i.photos && i.photos[0]).slice(0, 3);
-    document.querySelectorAll(".hero-pics img").forEach((img, k) => {
-      if (fresh[k]) { img.src = fresh[k].photos[0]; img.alt = fresh[k].title; }
-    });
+    CATALOG = items.filter(i => i.source === "max" || !fromMax.has(norm(i.title))).map(i => ({ photos: [], ...i }));
+    $("#factCount").textContent = CATALOG.length;
+    renderChips(); renderGrid(); renderStrips(); renderReviews(); syncFav();
+    const fresh = [...CATALOG].sort((a,b) => (b.ts||0) - (a.ts||0)).filter(i => i.photos[0]).slice(0, 3);
+    $$("#heroPics img").forEach((img, k) => { if (fresh[k]) { img.src = fresh[k].photos[0]; img.alt = fresh[k].title; img.onclick = () => openModel(fresh[k]); } });
+    openFromHash();
   })
   .catch(() => {
     $("#grid").innerHTML = '<div class="empty" style="grid-column:1/-1">Не удалось загрузить каталог. Обновите страницу или <a href="#contacts">напишите мне</a>.</div>';
