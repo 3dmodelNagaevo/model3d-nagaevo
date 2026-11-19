@@ -214,13 +214,26 @@
   footer .wrap{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between}
 
   /* ---------- карточка товара ---------- */
-  .modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(20,23,45,.55)}
+  .modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(20,23,45,0);transition:background .25s ease}
   .modal.open{display:flex}
-  .sheet{background:var(--sheet);border-radius:26px;max-width:920px;width:100%;max-height:92vh;overflow:auto;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+  .modal.show{background:rgba(20,23,45,.55)}
+  .sheet{background:var(--sheet);border-radius:26px;max-width:920px;width:100%;max-height:92vh;overflow:auto;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);
+    opacity:0;transform:translateY(28px) scale(.97);transition:transform .32s cubic-bezier(.2,.8,.2,1),opacity .22s ease}
+  .modal.show .sheet{opacity:1;transform:none}
   .sheet > *{min-width:0}
-  @media (max-width:760px){.modal{padding:0;align-items:flex-end}.sheet{grid-template-columns:minmax(0,1fr);border-radius:22px 22px 0 0;max-height:94vh}}
+  .sheet.swap > .gallery,.sheet.swap > .detail{animation:swapin .3s ease}
+  @keyframes swapin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @media (max-width:760px){.modal{padding:0;align-items:flex-end}.sheet{grid-template-columns:minmax(0,1fr);border-radius:22px 22px 0 0;max-height:94vh;transform:translateY(60%)}}
+  @media (prefers-reduced-motion:reduce){.modal,.sheet,.gallery .big{transition:none!important}.sheet.swap > *{animation:none}}
+  /* стрелка «назад» поверх фото — остаётся на месте при прокрутке карточки */
+  .back-wrap{grid-column:1/-1;position:sticky;top:0;height:0;z-index:6}
+  .back{position:absolute;left:24px;top:24px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.94);
+    box-shadow:0 2px 12px rgba(20,23,45,.25);display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+  .back svg{width:22px;height:22px}
+  .back:hover{background:#fff}
   .gallery{background:#e3e6ee;padding:14px;display:flex;flex-direction:column;gap:10px}
-  .gallery .big{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:16px;display:block;background:#d7dbe5}
+  .gallery .big{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:16px;display:block;background:#d7dbe5;transition:opacity .18s ease}
+  .gallery .big.fade{opacity:0}
   .thumbs{display:flex;gap:8px;flex-wrap:wrap}
   .thumbs button{border:2px solid transparent;border-radius:10px;padding:0;overflow:hidden;cursor:pointer;width:60px;height:60px;background:none}
   .thumbs button[aria-current="true"]{border-color:var(--cobalt)}
@@ -233,7 +246,7 @@
   .icon-btn[aria-pressed="true"] svg{fill:currentColor}
   .no{font-size:14px;color:var(--muted);display:flex;align-items:center;gap:8px}
   .no .dot{width:10px;height:10px;border-radius:50%;background:var(--c,#94a3b8)}
-  .detail h3{margin:0;font-family:var(--display);font-weight:700;font-size:24px;letter-spacing:-.025em;line-height:1.15;padding-right:140px}
+  .detail h3{margin:0;font-family:var(--display);font-weight:700;font-size:24px;letter-spacing:-.025em;line-height:1.15;padding-right:96px}
   @media (max-width:760px){.top-actions{position:static;order:-1;justify-content:flex-end;margin:-8px -8px 0 0}.detail h3{padding-right:0}}
   @media (max-width:560px){.facts{gap:8px}.fact{padding:8px 12px}}
   .detail .price{font-size:22px;color:var(--orange)}
@@ -490,6 +503,7 @@
 <!-- Карточка товара -->
 <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
   <div class="sheet">
+    <div class="back-wrap"><button class="back" id="mClose" aria-label="Назад к каталогу"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button></div>
     <div class="gallery">
       <img class="big" id="mBig" alt="">
       <div class="thumbs" id="mThumbs"></div>
@@ -498,7 +512,6 @@
       <div class="top-actions">
         <button class="icon-btn" id="mFav" aria-label="В избранное" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 5.3 3.1 1.7-1.9 3.2-3.1 5.3-3.1 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></svg></button>
         <button class="icon-btn" id="mShare" aria-label="Поделиться"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg></button>
-        <button class="icon-btn" id="mClose" aria-label="Закрыть" style="font-size:22px">×</button>
       </div>
       <span class="no" id="mNo"></span>
       <h3 id="mTitle"></h3>
@@ -633,8 +646,20 @@ function renderFav(){
     box.appendChild(r);
   });
 }
-function openFav(){ renderFav(); $("#favModal").classList.add("open"); document.body.style.overflow = "hidden"; }
-function closeFav(){ $("#favModal").classList.remove("open"); document.body.style.overflow = ""; }
+/* плавное появление и закрытие окон */
+function showLayer(el){
+  clearTimeout(el._t);
+  el.classList.add("open");
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("show")));
+  document.body.style.overflow = "hidden";
+}
+function hideLayer(el){
+  if (!el.classList.contains("open")) return;
+  el.classList.remove("show");
+  el._t = setTimeout(() => { el.classList.remove("open"); if (!$$(".modal.open").some(m => m !== el)) document.body.style.overflow = ""; }, 260);
+}
+function openFav(){ renderFav(); showLayer($("#favModal")); }
+function closeFav(){ hideLayer($("#favModal")); }
 $("#favOpen").onclick = openFav;
 $("#favClose").onclick = closeFav;
 $("#favModal").addEventListener("click", e => { if (e.target.id === "favModal") closeFav(); });
@@ -743,26 +768,34 @@ function openModel(m, fromHash){
   const pl = $("#mPost"); pl.hidden = !m.url; if (m.url) pl.href = m.url;
   $("#mMsg").textContent = orderText(m);
   $("#mFav").setAttribute("aria-pressed", FAV.has(m.no));
-  const big = $("#mBig"); big.src = m.photos[0] || ""; big.hidden = !m.photos[0]; big.alt = m.title;
+  const big = $("#mBig"); big.classList.remove("fade"); big.src = m.photos[0] || ""; big.hidden = !m.photos[0]; big.alt = m.title;
   const th = $("#mThumbs"); th.innerHTML = "";
   if (m.photos.length > 1) m.photos.forEach((src, i) => {
     const b = document.createElement("button");
     b.setAttribute("aria-current", i === 0);
     b.innerHTML = `<img src="${esc(thumb(src))}" alt="Фото ${i+1}">`;
-    b.onclick = () => { big.src = src; th.querySelectorAll("button").forEach(x => x.setAttribute("aria-current", x === b)); };
+    b.onclick = () => {
+      th.querySelectorAll("button").forEach(x => x.setAttribute("aria-current", x === b));
+      big.classList.add("fade");
+      setTimeout(() => { big.src = src; big.onload = () => big.classList.remove("fade"); if (big.complete) big.classList.remove("fade"); }, 150);
+    };
     th.appendChild(b);
   });
   const sim = CATALOG.filter(x => x.category === m.category && x.no !== m.no).sort((a,b) => popScore(b) - popScore(a)).slice(0, 8);
   $("#mSimilarWrap").hidden = !sim.length;
   $("#mSimilar").innerHTML = ""; sim.forEach(x => $("#mSimilar").appendChild(miniEl(x)));
-  $("#modal").classList.add("open");
-  $("#modal .sheet").scrollTop = 0;
-  document.body.style.overflow = "hidden";
+  const modal = $("#modal"), sheet = $("#modal .sheet");
+  if (modal.classList.contains("show")) {           // переход к другой модели внутри карточки
+    sheet.classList.remove("swap"); void sheet.offsetWidth; sheet.classList.add("swap");
+  } else {
+    showLayer(modal);
+  }
+  sheet.scrollTop = 0;
   // кнопка «Назад» на телефоне закрывает карточку
   if (!fromHash && location.hash !== "#m" + m.no) history.pushState({ fromSite: true }, "", "#m" + m.no);
   goal("open_model", { no: m.no, title: m.title });
 }
-function hideModel(){ $("#modal").classList.remove("open"); document.body.style.overflow = ""; current = null; }
+function hideModel(){ hideLayer($("#modal")); current = null; }
 function closeModel(){
   if (!$("#modal").classList.contains("open")) return;
   hideModel();

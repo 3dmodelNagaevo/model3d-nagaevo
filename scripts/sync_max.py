@@ -268,7 +268,7 @@ def fetch_photos(item_or_review, old=None):
                 continue
         out.append(f"photos/{fname}")
     if not out and old:
-        out = old.get("photos", [])
+        out = old.get("photos_orig") or old.get("photos", [])
     return out
 
 
@@ -327,7 +327,14 @@ def sync(messages, old_items, old_reviews, state, whole_history, ov=None):
     ov = ov or {}
     hidden = set(ov.get("hidden", []))
     prices = ov.get("price", {})
+    covers = ov.get("cover", {})
     for it in list(fresh.values()) + manual:
+        k = covers.get(str(it.get("no")))
+        base = it.pop("photos_orig", None) or it.get("photos") or []   # порядок как в посте
+        it["photos"] = list(base)
+        if isinstance(k, int) and 1 < k <= len(base):   # выбранное фото — первым (обложка)
+            it["photos"] = [base[k - 1]] + base[:k - 1] + base[k:]
+            it["photos_orig"] = base
         it.pop("hidden", None)
         if it.get("no") in hidden:
             it["hidden"] = True
