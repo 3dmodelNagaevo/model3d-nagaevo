@@ -52,6 +52,7 @@ HASHTAG_CATEGORIES = {
     "геймерам": "Для геймеров", "игры": "Для геймеров",
 }
 KEYWORD_CATEGORIES = [
+    ("Наборы", r"\bнабор|комплект"),
     ("Авто", r"bmw|бмв|mercedes|мерседес|audi|ауди|porsche|порш|toyota|nissan|lada|лада|машин|автомобил|\bавто"),
     ("Для геймеров", r"геймпад|джойстик|playstation|xbox|nintendo|геймер|контроллер"),
     ("Игрушки и антистресс", r"антистресс|спиннер|spinner|фиджет|fidget|игрушк|волчок|катан|меч|дракон|ящериц|осьминог|слизень|балансир"),
@@ -63,6 +64,8 @@ DEFAULT_CATEGORY = "Разное"
 HIDE_TAGS = {"нетнасайте", "скрыть", "несайт"}
 REVIEW_TAGS = {"отзыв", "отзывы"}
 
+# цена прямо в заголовке: «Логопедический набор 3D — 1000 руб»
+TITLE_PRICE_RE = re.compile(r"\s*[—–\-:|]?\s*(?:от\s*)?(\d[\d\s]{0,6}\d|\d)\s*(?:₽|руб(?:лей|\.)?|р\.?)(?=\s|$|[!.,)])", re.I)
 FIELD_RE = re.compile(r"^(размер|цвет|стоимость|цена|материал)\s*[:\-—–]\s*(.*)$", re.I)
 HASHTAG_RE = re.compile(r"#([\wё]+)", re.I)
 BULLET_RE = re.compile(r"^[\s\-–—•*·▪️▫️🔹🔸✅➖➡️👉]+")
@@ -226,6 +229,12 @@ def classify(msg):
     views = (msg.get("stat") or {}).get("views")
     if REVIEW_TAGS & set(tags):
         return "review", {**base, "text": " ".join(rest)[:800], "_photo_urls": base["_photo_urls"][:1]}
+    # нет строки «Стоимость:», но цена есть в первой строке и есть фото — это тоже товар (наборы и т.п.)
+    if "price" not in fields and rest and base["_photo_urls"]:
+        m = TITLE_PRICE_RE.search(rest[0])
+        if m:
+            fields["price"] = m.group(1)
+            rest[0] = (rest[0][:m.start()] + rest[0][m.end():]).strip(" —–-:|")
     is_product = "каталог" in tags or "catalog" in tags or "price" in fields
     if not is_product or not rest:
         if rest and base["_photo_urls"] and ({"size", "color"} & set(fields)):

@@ -94,8 +94,17 @@
   .fact{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 14px;font-size:14px;color:var(--muted)}
   .fact b{color:var(--ink);font-weight:700;margin-right:4px}
   .hero-pics{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .hero-pics img{width:100%;height:100%;object-fit:cover;border-radius:var(--r-lg);display:block;aspect-ratio:1/1;background:#dfe2ea;cursor:pointer}
-  .hero-pics img:first-child{grid-column:1/-1;aspect-ratio:16/10}
+  .hero-pics{position:relative}
+  .hero-pics figure{margin:0;position:relative;border-radius:var(--r-lg);overflow:hidden;cursor:pointer;background:#dfe2ea}
+  .hero-pics figure:first-child{grid-column:1/-1}
+  .hero-pics img{width:100%;height:100%;object-fit:cover;display:block;aspect-ratio:1/1}
+  .hero-pics figure:first-child img{aspect-ratio:16/10}
+  .hero-pics figcaption{position:absolute;left:10px;right:10px;bottom:10px;background:rgba(255,255,255,.94);border-radius:12px;padding:8px 12px;
+    font-size:14px;font-weight:600;line-height:1.3;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+  .hero-pics figcaption:empty{display:none}
+  .hero-pics figcaption b{font-family:var(--display);color:var(--orange);font-size:14px;white-space:nowrap}
+  .hero-pics figcaption span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hero-note{position:absolute;left:12px;top:12px;background:var(--ink);color:#fff;font-size:13px;font-weight:600;padding:5px 11px;border-radius:999px}
   @media (max-width:880px){.hero{padding-top:28px}.hero .cta .btn{flex:1 1 100%}}
 
   /* ---------- секции ---------- */
@@ -322,9 +331,10 @@
         </div>
       </div>
       <div class="hero-pics" id="heroPics">
-        <img src="img/bmw1.jpg" alt="">
-        <img src="img/spinner.jpg" alt="">
-        <img src="img/stand.jpg" alt="">
+        <figure><img src="img/bmw1.jpg" alt=""><figcaption></figcaption></figure>
+        <figure><img src="img/spinner.jpg" alt=""><figcaption></figcaption></figure>
+        <figure><img src="img/stand.jpg" alt=""><figcaption></figcaption></figure>
+        <span class="hero-note">Последнее в канале</span>
       </div>
     </div>
   </div>
@@ -574,9 +584,9 @@ const fmt = p => p == null ? "Цена по запросу" : "от " + p.toLoca
 const thumb = p => p && p.startsWith("photos/") ? p.replace("photos/", "photos/t/") : p;
 const tgUrl = "https://t.me/" + (C.telegram || "");
 const NEW_MS = (C.newDays || 7) * 86400000;
-const CATEGORY_ORDER = ["Игрушки и антистресс", "Фигурки и декор", "Авто", "Для геймеров", "Для дома", "Подарки", "Разное"];
+const CATEGORY_ORDER = ["Игрушки и антистресс", "Фигурки и декор", "Наборы", "Авто", "Для геймеров", "Для дома", "Подарки", "Разное"];
 // у каждой категории свой «цвет катушки»
-const CAT_COLOR = { "Игрушки и антистресс":"#FF6B2C", "Фигурки и декор":"#8B5CF6", "Авто":"#E11D48",
+const CAT_COLOR = { "Игрушки и антистресс":"#FF6B2C", "Фигурки и декор":"#8B5CF6", "Наборы":"#F59E0B", "Авто":"#E11D48",
   "Для геймеров":"#10B981", "Для дома":"#0EA5A4", "Подарки":"#EC4899", "Разное":"#94A3B8" };
 const catColor = c => CAT_COLOR[c] || "#94A3B8";
 const HEART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 5.3 3.1 1.7-1.9 3.2-3.1 5.3-3.1 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></svg>';
@@ -588,7 +598,7 @@ const isNew = m => NEW_SET.has(m.no);
 // популярность: сначала продажи за неделю, потом просмотры за неделю, потом всего
 const popScore = m => (m.sold_week || 0) * 1e12 + (m.views_week || 0) * 1e8 + (m.sold || 0) * 1e5 + (m.views || 0);
 const times = n => (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? "раза" : "раз";
-const soldText = m => m.sold ? `Купили ${m.sold} ${times(m.sold)}` : "";
+const soldText = m => m.sold ? `Продано: ${m.sold} шт.` : "";
 
 /* ---------- хранилище (может быть недоступно) ---------- */
 const store = {
@@ -755,7 +765,7 @@ function renderStrips(){
   const pop = CATALOG.filter(m => m.views || m.sold).sort((a,b) => popScore(b) - popScore(a)).slice(0, 8);
   $("#popTitle").textContent = hasSales ? "Хиты недели" : hasWeek ? "Популярное за неделю" : "Популярное";
   $("#popSub").textContent = hasSales ? "По покупкам и просмотрам в канале" : "По просмотрам в канале";
-  $("#popStrip").innerHTML = ""; pop.forEach((m,k) => $("#popStrip").appendChild(miniEl(m, m.sold_week ? `${fmt(m.price)}, купили ${m.sold_week} ${times(m.sold_week)}` : fmt(m.price), k+1)));
+  $("#popStrip").innerHTML = ""; pop.forEach((m,k) => $("#popStrip").appendChild(miniEl(m, m.sold_week ? `${fmt(m.price)}, продано ${m.sold_week} шт.` : fmt(m.price), k+1)));
   $("#popular").hidden = pop.length < 3;
 }
 
@@ -868,7 +878,12 @@ fetch("catalog.json?v=" + Date.now())
     $("#factCount").textContent = CATALOG.length;
     renderChips(); renderGrid(); renderStrips(); renderReviews(); syncFav();
     const fresh = [...CATALOG].sort((a,b) => (b.ts||0) - (a.ts||0)).filter(i => i.photos[0]).slice(0, 3);
-    $$("#heroPics img").forEach((img, k) => { if (fresh[k]) { img.src = fresh[k].photos[0]; img.alt = fresh[k].title; img.onclick = () => openModel(fresh[k]); } });
+    $$("#heroPics figure").forEach((fig, k) => {
+      const m = fresh[k]; if (!m) return;
+      const img = fig.querySelector("img"); img.src = m.photos[0]; img.alt = m.title;
+      fig.querySelector("figcaption").innerHTML = `<span>${esc(m.title)}</span><b>${esc(fmt(m.price))}</b>`;
+      fig.onclick = () => openModel(m);
+    });
     openFromHash();
   })
   .catch(() => {
