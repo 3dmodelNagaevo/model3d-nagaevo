@@ -43,7 +43,7 @@ jobs:
         run: |
           git config user.name "catalog-bot"
           git config user.email "catalog-bot@users.noreply.github.com"
-          git add catalog.json photos
+          git add catalog.json photos channel_id.txt 2>/dev/null || git add catalog.json photos
           git commit -m "Каталог: обновление из канала MAX"
           git push
 

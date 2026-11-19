@@ -119,17 +119,49 @@ def download(url, dest):
 
 # ---------------------------------------------------------------- MAX
 
+CHANNEL_FILE = ROOT / "channel_id.txt"
+
+
 def find_channel(token):
-    data = api_get("/chats", {"count": 100}, token)
-    chats = data.get("chats") or []
-    channels = [c for c in chats if c.get("type") == "channel"]
-    if not channels:
-        raise ApiError("Бот не видит ни одного канала. Добавьте бота в подписчики канала и назначьте администратором.")
-    for c in channels:
-        log(f"  канал: {c.get('title')!r}  id={c.get('chat_id')}")
-    if len(channels) > 1:
-        log("  ! бот состоит в нескольких каналах — беру первый. Чтобы выбрать точно, задайте MAX_CHANNEL_ID.")
-    return channels[0]["chat_id"]
+    """Ищет id канала. GET /chats с июня 2026 не работает, поэтому:
+    1) MAX_CHANNEL_ID из настроек GitHub; 2) сохранённый channel_id.txt;
+    3) события бота (GET /updates): добавление в канал и новые посты."""
+    env = os.environ.get("MAX_CHANNEL_ID", "").strip()
+    if env:
+        return int(env)
+    if CHANNEL_FILE.exists():
+        saved = CHANNEL_FILE.read_text().strip()
+        if saved:
+            return int(saved)
+
+    data = api_get("/updates", {"limit": 100, "timeout": 0}, token)
+    found = {}
+    for u in data.get("updates") or []:
+        msg = u.get("message") or {}
+        rec = msg.get("recipient") or {}
+        if rec.get("chat_type") == "channel" and rec.get("chat_id"):
+            found[rec["chat_id"]] = "пост в канале"
+        if u.get("update_type") in ("bot_added", "chat_title_changed") and u.get("chat_id"):
+            if u.get("is_channel", True):
+                found.setdefault(u["chat_id"], u.get("update_type"))
+    if not found:
+        raise ApiError(
+            "Не удалось определить канал. Выложите в канал любой пост (можно удалить потом) "
+            "и запустите снова — или укажите id канала в переменной MAX_CHANNEL_ID.")
+    for cid, why in found.items():
+        log(f"  найден чат {cid} ({why})")
+    # проверяем, что это канал и бот в нём админ
+    for cid in found:
+        try:
+            info = api_get(f"/chats/{cid}", {}, token)
+        except ApiError as e:
+            log(f"  ! {cid}: {e}")
+            continue
+        if info.get("type") == "channel":
+            log(f"  канал: {info.get('title')!r} id={cid}")
+            CHANNEL_FILE.write_text(f"{cid}\n")
+            return cid
+    raise ApiError("Бот видит чаты, но не канал. Проверьте, что бот — администратор канала.")
 
 
 def fetch_posts(token, chat_id):
@@ -302,9 +334,9 @@ def main():
     if not token:
         log("Нет MAX_TOKEN. Добавьте токен бота в Settings → Secrets and variables → Actions.")
         return 1
+    had_channel_file = CHANNEL_FILE.exists()
     try:
-        chat_id = os.environ.get("MAX_CHANNEL_ID", "").strip()
-        chat_id = int(chat_id) if chat_id else find_channel(token)
+        chat_id = find_channel(token)
         log(f"Читаю посты канала {chat_id}…")
         messages = fetch_posts(token, chat_id)
     except ApiError as e:
@@ -323,6 +355,8 @@ def main():
     log(f"Готово. Товаров на сайте: {len(items)} (из канала: {sum(1 for i in items if i.get('source') == 'max')}). "
         f"{'Каталог обновлён.' if changed else 'Изменений нет.'}")
 
+    if not had_channel_file and CHANNEL_FILE.exists():
+        changed = True  # сохранить найденный id канала, чтобы не искать заново
     out = os.environ.get("GITHUB_OUTPUT")
     if out:
         with open(out, "a") as f:
