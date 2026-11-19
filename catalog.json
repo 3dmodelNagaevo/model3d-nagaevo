@@ -1,5 +1,5 @@
 {
-  "updated": 1795085582,
+  "updated": 1795088577,
   "items": [
     {
       "mid": "mid.ffffb8167a965fcf01a1f3445fed058e",
@@ -829,7 +829,10 @@
       "source": "max",
       "no": 38,
       "views_week": 0,
-      "views_month": 0
+      "views_month": 0,
+      "sold": 1,
+      "sold_week": 1,
+      "sold_month": 1
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b33c282831bb",
