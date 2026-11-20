@@ -17,6 +17,16 @@ def norm_code(c):
     return re.sub(r"[\s\-_]", "", (c or "").upper().replace("Ё", "Е")).translate(_LAT2CYR)
 
 
+def plural_act(n):
+    n = int(n)
+    w = "активация" if n % 10 == 1 and n % 100 != 11 else (
+        "активации" if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14 else "активаций")
+    return f"{n} {w}"
+
+
+CODE_WORDS = ["ПОДАРОК", "ПЕЧАТЬ", "МОДЕЛЬ", "ДРАКОН", "КОТИК", "СЮРПРИЗ", "РАДОСТЬ", "НАГАЕВО", "ФИГУРКА", "УДАЧА"]
+
+
 def fmt_disc(c):
     return f"{c['value']}%" if c.get("kind") == "%" else f"{c['value']} ₽"
 
@@ -25,8 +35,10 @@ def post_text(c, site_url):
     until = time.strftime("%d.%m", time.gmtime(c["until"] + TZ)) if c.get("until") else ""
     return (f"🎁 Промокод: {c['code']}\n\n"
             f"Скидка {fmt_disc(c)} на любой заказ.\n"
-            + (f"Всего {c['limit']} шт." if c.get("limit") else "")
-            + (f", действует до {until} включительно." if until else "")
+            + (f"⚡️ Количество ограничено: всего {plural_act(c['limit'])}"
+               + (f", осталось {c['limit'] - c.get('used', 0)}" if c.get("used") else "")
+               + " — скидку получат первые, кто назовёт промокод.\n" if c.get("limit") else "")
+            + (f"Действует до {until} включительно." if until else "")
             + f"\n\nНазовите промокод, когда пишете заказ. Каталог: {site_url}\n#промокод")
 
 
@@ -84,10 +96,10 @@ def run(doc, token, chat_id, notifier, site_url, now=None):
                 c = queued[0]
             else:
                 have = {norm_code(x["code"]) for x in codes}
-                code = "НАГ" + str(random.randint(100, 999))
+                code = random.choice(CODE_WORDS) + str(random.randint(10, 99))
                 while code in have:
-                    code = "НАГ" + str(random.randint(100, 999))
-                c = {"code": code, "kind": sch["kind"], "value": sch["value"], "limit": sch.get("limit", 10),
+                    code = random.choice(CODE_WORDS) + str(random.randint(10, 99))
+                c = {"code": code, "kind": sch["kind"], "value": sch["value"], "limit": sch.get("limit", 3),
                      "days": sch.get("days", 7), "used": 0, "created": int(now), "auto": True}
                 codes.append(c)
             c["status"], c["start"] = "active", int(now)
@@ -97,7 +109,7 @@ def run(doc, token, chat_id, notifier, site_url, now=None):
             try:
                 c["mid"] = _post(token, chat_id, c, site_url)
                 notifier.send(f"📣 Автовыкладка: опубликовал промокод {c['code']} — {fmt_disc(c)}, "
-                              f"{c.get('limit') or '∞'} шт., до {time.strftime('%d.%m', time.gmtime(c['until'] + TZ)) if c.get('until') else '—'}.")
+                              f"{plural_act(c['limit']) if c.get('limit') else 'без ограничения'}, до {time.strftime('%d.%m', time.gmtime(c['until'] + TZ)) if c.get('until') else '—'}.")
             except Exception as e:
                 notifier.send(f"⚠️ Промокод {c['code']} включён, но пост в канал не вышел: {e}")
     return changed

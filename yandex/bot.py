@@ -561,17 +561,27 @@ WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
 EVERY = ["каждый понедельник", "каждый вторник", "каждую среду", "каждый четверг", "каждую пятницу",
          "каждую субботу", "каждое воскресенье"]
 PROMO_HELP_NEW = ("🎟 Новый промокод. Напишите одной строкой:\nКОД  СКИДКА  КОЛИЧЕСТВО  ДНЕЙ\n\n"
-                  "Например: ЗИМА15 15% 10 7\n— код ЗИМА15, скидка 15%, 10 штук, действует 7 дней после публикации.\n\n"
+                  "Например: ЗИМА15 15% 3 7\n— код ЗИМА15, скидка 15%, 3 активации, действует 7 дней после публикации.\n\n"
                   "Скидка — в процентах (15%) или рублях (100₽). Вместо кода напишите «авто» — придумаю сам.")
 PROMO_HELP_SCHED = ("📅 Автовыкладка промокодов в канал. Напишите:\nДЕНЬ  ВРЕМЯ  СКИДКА  КОЛИЧЕСТВО  ДНЕЙ\n\n"
-                    "Например: пт 18:00 10% 10 7\n— каждую пятницу в 18:00 (по Уфе) в канале выходит новый промокод: "
-                    "скидка 10%, 10 штук, действует 7 дней.\n\nЕсли в очереди есть ваши коды — беру их по порядку, "
+                    "Например: пт 18:00 10% 3 7\n— каждую пятницу в 18:00 (по Уфе) в канале выходит новый промокод: "
+                    "скидка 10%, 3 активации, действует 7 дней.\n\nЕсли в очереди есть ваши коды — беру их по порядку, "
                     "если нет — придумываю код сам. Выключить: стоп")
 _LAT2CYR = str.maketrans("ABCEHKMOPTXY", "АВСЕНКМОРТХУ")
 
 
 def norm_code(c):
     return re.sub(r"[\s\-_]", "", (c or "").upper().replace("Ё", "Е")).translate(_LAT2CYR)
+
+
+def plural_act(n):
+    n = int(n)
+    w = "активация" if n % 10 == 1 and n % 100 != 11 else (
+        "активации" if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14 else "активаций")
+    return f"{n} {w}"
+
+
+CODE_WORDS = ["ПОДАРОК", "ПЕЧАТЬ", "МОДЕЛЬ", "ДРАКОН", "КОТИК", "СЮРПРИЗ", "РАДОСТЬ", "НАГАЕВО", "ФИГУРКА", "УДАЧА"]
 
 
 def fmt_disc(c):
@@ -611,15 +621,17 @@ def promo_post_text(c):
     until = time.strftime("%d.%m", time.gmtime(c["until"] + TZ)) if c.get("until") else ""
     return (f"🎁 Промокод: {c['code']}\n\n"
             f"Скидка {fmt_disc(c)} на любой заказ.\n"
-            + (f"Всего {c['limit']} шт." if c.get("limit") else "")
-            + (f", действует до {until} включительно." if until else "")
+            + (f"⚡️ Количество ограничено: всего {plural_act(c['limit'])}"
+               + (f", осталось {c['limit'] - c.get('used', 0)}" if c.get("used") else "")
+               + " — скидку получат первые, кто назовёт промокод.\n" if c.get("limit") else "")
+            + (f"Действует до {until} включительно." if until else "")
             + f"\n\nНазовите промокод, когда пишете заказ. Каталог: {SITE_URL}\n#промокод")
 
 
 def gen_code(existing):
     import random
     while True:
-        c = "НАГ" + str(random.randint(100, 999))
+        c = random.choice(CODE_WORDS) + str(random.randint(10, 99))
         if c not in existing:
             return c
 
@@ -722,7 +734,7 @@ def promo_cmd(uid, text):
             return send(uid, "❌ " + res["err"])
         c = res["c"]
         return send(uid, f"📝 Создал промокод {c['code']}: скидка {fmt_disc(c)}, "
-                         f"{c['limit'] or 'без ограничения'} шт., действует {c['days']} дн. после публикации.\n\nЧто с ним сделать?",
+                         f"{plural_act(c['limit']) if c['limit'] else 'без ограничения активаций'}, действует {c['days']} дн. после публикации.\n\nЧто с ним сделать?",
                     menu=False, buttons=promo_buttons(c))
 
     if act in ("расписание", "автовыкладка", "авто"):
@@ -737,7 +749,7 @@ def promo_cmd(uid, text):
             hh, mm = map(int, p[1].replace(".", ":").split(":"))
             assert 0 <= hh < 24 and 0 <= mm < 60
             disc = parse_disc(p[2]); assert disc
-            limit = int(p[3]) if len(p) > 3 else 10
+            limit = int(p[3]) if len(p) > 3 else 3
             days = int(p[4]) if len(p) > 4 else 7
         except Exception:
             return send(uid, "Не понял. " + PROMO_HELP_SCHED, menu=False)
@@ -784,7 +796,9 @@ def promo_cmd(uid, text):
                 c.setdefault("uses", []).append({"ts": int(time.time()), "by": uid})
                 if c.get("limit") and c["used"] >= c["limit"]:
                     c["status"] = "ended"; c["ended"] = int(time.time())
-                    promo_end_post(c, "все промокоды использованы")
+                    promo_end_post(c, "все активации использованы")
+                else:
+                    res["refresh"] = True
             elif act == "вернуть":
                 c["used"] = max(0, c.get("used", 0) - 1)
                 if c.get("uses"):
@@ -804,6 +818,11 @@ def promo_cmd(uid, text):
             except Exception as e:
                 return send(uid, f"⚠️ Промокод {c['code']} включён, но пост в канал не вышел: {e}\n"
                                  "Опубликуйте его в канале вручную.")
+        if res.get("refresh") and c.get("mid"):           # в посте — сколько активаций осталось
+            try:
+                max_api("PUT", "/messages", {"message_id": c["mid"]}, {"text": promo_post_text(c)})
+            except Exception as e:
+                print("promo refresh:", e)
         msg = {"опубликовать": f"📣 Опубликовал промокод {c['code']} в канале.",
                "тихо": f"🤫 Промокод {c['code']} включён без поста — можно выдавать лично.",
                "очередь": f"📅 {c['code']} в очереди — выйдет в канале при следующей автовыкладке.",
@@ -811,7 +830,7 @@ def promo_cmd(uid, text):
                "удалить": f"🗑 Промокод {c['code']} удалён.",
                "стоп": f"⛔️ Промокод {c['code']} остановлен.",
                "списать": f"✅ Списал 1 шт. {c['code']}: использовано {c.get('used')} из {c.get('limit') or '∞'}."
-                          + (" Это был последний — промокод закрыт." if c["status"] == "ended" else ""),
+                          + (" Это была последняя активация — промокод закрыт, в посте канала это отмечено." if c["status"] == "ended" else ""),
                "вернуть": f"↩️ Вернул 1 шт. {c['code']}: использовано {c.get('used')}."}[act]
         btns = [] if act == "удалить" else promo_buttons(c)
         if act == "списать":
