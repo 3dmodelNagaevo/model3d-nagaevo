@@ -40,6 +40,8 @@ def main():
     token = os.environ.get("MAX_TOKEN", "").strip()
     state = json.loads((ROOT / "state.json").read_text(encoding="utf-8"))
     to = state.get("chief") or state.get("owners") or []
+    if os.environ.get("BACKUP_TO", "").strip().isdigit():          # запросили из бота — только ему
+        to = [int(os.environ["BACKUP_TO"])]
     date = dt.datetime.now(TZ).strftime("%Y-%m-%d")
     out = pathlib.Path(f"/tmp/backup_3dnagaevo_{date}.zip")
     nice = build(out)

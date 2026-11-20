@@ -3,7 +3,12 @@ name: Резервная копия → в MAX
 on:
   schedule:
     - cron: "17 15 * * 0"     # каждое воскресенье ~20:17 по Уфе
-  workflow_dispatch:          # кнопка «Run workflow» — сделать копию сейчас
+  workflow_dispatch:          # кнопка «Run workflow» или «🗄 Резервная копия» в боте
+    inputs:
+      to:
+        description: "Кому прислать (id в MAX); пусто — всем владельцам"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -26,4 +31,5 @@ jobs:
       - name: Собрать архив и отправить владельцам в бота
         env:
           MAX_TOKEN: ${{ secrets.MAX_TOKEN }}
+          BACKUP_TO: ${{ github.event.inputs.to }}
         run: python scripts/backup.py
