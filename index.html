@@ -852,7 +852,7 @@ function toast(t){
   clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove("show"), 3200);
 }
 async function copy(text){ try { await navigator.clipboard.writeText(text); return true; } catch(e){ return false; } }
-const promoVal = () => ($("#mPromo")?.value || "").trim().toUpperCase();
+const promoVal = () => (($("#mPromo") || {}).value || "").trim().toUpperCase();
 const orderText = m => `Здравствуйте! Хочу заказать с сайта: ${m.title} (№${m.no}). Размер: …, цвет: …` + (promoVal() ? `, промокод: ${promoVal()}` : "");
 const pageUrl = m => new URL("m/" + m.no + ".html", location.href.split("#")[0].split("?")[0]).href;
 

@@ -95,7 +95,15 @@
 <div class="loading" id="bar"></div>
 <header><h1>Управление</h1><small id="who">3D модели Нагаево</small></header>
 
-<main id="gate" class="gate" hidden></main>
+<main id="gate" class="gate"><h1>Загружаю…</h1><p class="muted">Секунду, собираю данные магазина.</p></main>
+<script>
+  window.onerror = function (msg, src, line, col) {
+    var g = document.getElementById("gate");
+    if (g) { g.hidden = false; g.innerHTML = "<h1>Ошибка в приложении</h1><p class='muted'>" + String(msg).replace(/</g, "&lt;") +
+      " (строка " + line + ":" + col + ")</p><p class='muted'>Пришлите этот экран.</p>"; }
+  };
+  window.addEventListener("unhandledrejection", function (e) { window.onerror("Promise: " + (e.reason && e.reason.message || e.reason), "", 0, 0); });
+</script>
 
 <main id="appMain" hidden>
   <!-- Сводка -->
@@ -214,7 +222,7 @@
 const C = window.SITE_CONFIG || {};
 const API = (C.reviewApi || "").replace(/review=1/, "app=1");
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const thumb = p => p && p.startsWith("photos/") ? p.replace("photos/", "photos/t/") : p;
 const rub = n => n == null ? "—" : n.toLocaleString("ru-RU") + " ₽";
 const day = ts => new Date(ts).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
@@ -266,7 +274,7 @@ const goTab = t => $(`nav button[data-t="${t}"]`).click();
 /* ---------- данные ---------- */
 const item = no => D.items.find(i => i.no === no);
 const soldOf = no => D.sales.filter(s => s.no === no).reduce((a, s) => a + (+s.qty || 1), 0);
-const priceOf = i => (D.overrides.price || {})[String(i.no)] ?? i.price;
+const priceOf = i => { const v = (D.overrides.price || {})[String(i.no)]; return v != null ? v : i.price; };
 
 async function load(first){
   if (first) gate("Загружаю…", "Секунду, собираю данные магазина.");
@@ -334,7 +342,7 @@ function rowItem(i, right){
   return `<div class="row ${i.hidden ? "dim" : ""}" data-no="${i.no}">
     <img src="${esc(thumb((i.photos || [])[0]) || "")}" alt="" loading="lazy">
     <div class="t"><b>${esc(i.title)}</b><small>№${i.no} · ${esc(i.category || "")}${i.hidden ? " · <span class='pill o'>скрыт</span>" : ""}</small></div>
-    <div class="r">${right ?? rub(priceOf(i))}</div></div>`;
+    <div class="r">${right != null ? right : rub(priceOf(i))}</div></div>`;
 }
 function bindRows(sel){ $$(sel + " .row[data-no]").forEach(r => r.onclick = () => openItem(+r.dataset.no)); }
 function renderItems(){
@@ -364,7 +372,7 @@ function openItem(no){
       <div class="card kpi"><b>${soldOf(no)} шт.</b><span>продано всего</span></div>
     </div>
     <div class="card form">
-      <label>Цена на сайте, ₽ ${ov != null ? "<span class='pill b'>задана вручную</span>" : ""}<input id="iPrice" inputmode="numeric" value="${esc(priceOf(i) ?? "")}"></label>
+      <label>Цена на сайте, ₽ ${ov != null ? "<span class='pill b'>задана вручную</span>" : ""}<input id="iPrice" inputmode="numeric" value="${esc(priceOf(i))}"></label>
       <div class="btns full"><button class="btn" id="iPriceSave">💰 Сохранить цену</button>${ov != null ? `<button class="btn ghost" data-cmd="/цена ${no} сброс">↩️ Цена из поста</button>` : ""}</div>
     </div>
     <div class="card form" style="margin-top:10px">
