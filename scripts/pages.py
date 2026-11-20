@@ -114,6 +114,9 @@ def make_qr(site_url):
         "flyer.png": site_url + "?utm_source=flyer&utm_medium=qr",
         "channel.png": site_url + "?utm_source=max_channel&utm_medium=post",
         "site.png": site_url,
+        # для печатной листовки
+        "tg.png": "https://t.me/model3Dnagaevo1",
+        "max.png": "https://max.ru/channel_model3Dnagaevo",
     }
     for name, url in codes.items():
         path = QR_DIR / name
