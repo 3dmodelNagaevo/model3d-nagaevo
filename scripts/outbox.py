@@ -21,16 +21,34 @@ def run(doc, token, chat_id, notifier, site_url):
     for p in doc.get("posts", []):
         if p.get("done"):
             continue
-        imgs = [site_url + i for i in p.get("images", [])]
-        if not all(_url_ok(u) for u in imgs):
-            print(f"  пост «{p['id']}»: жду, пока картинки появятся на сайте")
-            continue
-        atts = [{"type": "image", "payload": {"url": u}} for u in imgs]
+        atts = []
+        try:
+            for i in p.get("images", []):           # картинки загружаем в MAX файлом (по ссылке MAX их не берёт)
+                atts.append({"type": "image", "payload": maxapi.upload_image(maxapi.ROOT / i, token)})
+        except Exception as e:
+            print(f"  ! пост «{p['id']}»: картинки не загрузились: {e}")
+            p["tries"] = p.get("tries", 0) + 1
+            if p["tries"] < 3:                          # попробуем при следующей синхронизации
+                changed = True
+                continue
+            atts = []
         if p.get("buttons"):
             atts.append({"type": "inline_keyboard", "payload": {"buttons": [
                 [{"type": "link", "text": t, "url": u} for t, u in row] for row in p["buttons"]]}})
+        r = None
+        for attempt in range(3):                       # MAX иногда не успевает обработать картинку — пробуем ещё
+            try:
+                r = maxapi.post("/messages", {"chat_id": chat_id}, token, {"text": p["text"], "attachments": atts})
+                break
+            except Exception as e:
+                if "attachment.not.ready" in str(e) and attempt < 2:
+                    import time; time.sleep(3)
+                    continue
+                r = e
+                break
         try:
-            r = maxapi.post("/messages", {"chat_id": chat_id}, token, {"text": p["text"], "attachments": atts})
+            if isinstance(r, Exception):
+                raise r
             p["done"] = True
             p["mid"] = ((r.get("message") or {}).get("body") or {}).get("mid")
             notifier.send(f"📣 Опубликовал в канале пост «{p.get('title') or p['id']}».")

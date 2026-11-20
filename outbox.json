@@ -22,9 +22,7 @@
             "https://max.ru/se15070545_bot?start=skidka"
           ]
         ]
-      ],
-      "error": "MAX ответил 400 на POST /messages: {\"code\":\"proto.payload\",\"message\":\"Failed to upload image.\"}",
-      "done": true
+      ]
     }
   ]
 }

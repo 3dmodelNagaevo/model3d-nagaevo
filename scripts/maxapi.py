@@ -82,3 +82,23 @@ def download(url):
     if len(data) < 200:
         raise ValueError("слишком маленький файл")
     return data
+
+
+def upload_image(path, token):
+    """Загрузить картинку в MAX (POST /uploads → файл на выданный адрес). Возвращает payload для вложения."""
+    import uuid
+    info = _request("POST", "/uploads", {"type": "image"}, token)
+    url = info["url"]
+    data = pathlib.Path(path).read_bytes()
+    boundary = uuid.uuid4().hex
+    body = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"data\"; filename=\"{pathlib.Path(path).name}\"\r\n"
+            f"Content-Type: image/jpeg\r\n\r\n").encode() + data + f"\r\n--{boundary}--\r\n".encode()
+    req = urllib.request.Request(url, data=body, method="POST", headers={
+        "Content-Type": f"multipart/form-data; boundary={boundary}", "Authorization": token, **UA})
+    with urllib.request.urlopen(req, timeout=60, context=CTX) as r:
+        res = json.loads(r.read().decode("utf-8") or "{}")
+    if res.get("token"):
+        return {"token": res["token"]}
+    if res.get("photos"):
+        return {"photos": res["photos"]}
+    return res
