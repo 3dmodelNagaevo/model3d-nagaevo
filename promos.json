@@ -1,0 +1,15 @@
+{
+  "codes": [
+    {
+      "code": "3DNAGAEVO",
+      "kind": "%",
+      "value": 10,
+      "limit": 3,
+      "days": 7,
+      "used": 0,
+      "status": "draft",
+      "created": 1795192361,
+      "by": 479018271
+    }
+  ]
+}
