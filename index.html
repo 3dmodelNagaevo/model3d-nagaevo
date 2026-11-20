@@ -100,6 +100,9 @@
   .formats span{background:var(--ink);color:#fff;border-radius:10px;padding:7px 12px;font-weight:700;font-size:14px}
   .formats span.ok2{background:#fff;color:var(--ink);border:1px solid var(--line)}
   .own .note{font-size:14px;color:var(--muted);margin:8px 0 0}
+  .model-svc{margin-top:16px;border-left:4px solid var(--orange,#FF6B2C);background:var(--sheet);border-radius:0 14px 14px 0;padding:12px 16px}
+  .model-svc b{display:block;font-size:16px;margin-bottom:4px}
+  .model-svc p{margin:0;font-size:15px;line-height:1.5}
   @media (max-width:420px){.nav{gap:8px}.logo{font-size:13px}.spool{width:30px;height:30px}.nav .btn{padding:9px 12px;font-size:13px}.fav-btn .lbl,.hide-sm{display:none}}
 
   /* ---------- кнопки ---------- */
@@ -458,12 +461,15 @@
     <div class="wrap own">
       <div>
         <h2>Есть своя модель?</h2>
-        <p class="sub">Пришлите файл в MAX или Telegram — посмотрю, проверю, что модель напечатается, и назову цену.</p>
+        <p class="sub">Пришлите файл в MAX или Telegram — посмотрю, проверю, что модель напечатается, и назову цену. Нет файла — смоделирую.</p>
         <div class="formats" aria-label="Форматы файлов">
           <span>STL</span><span>3MF</span><span class="ok2">OBJ</span><span class="ok2">STEP</span>
         </div>
         <p class="note">Лучше всего STL или 3MF. Ссылка на модель с Thingiverse, Printables или MakerWorld тоже подойдёт. Другой формат — присылайте, разберёмся.</p>
-        <p class="note">Если модели нет, а есть только чертёж или фото — смогу смоделировать сам, это оплачивается отдельно.</p>
+        <div class="model-svc">
+          <b>Нет готовой модели? Смоделирую сам</b>
+          <p>Пришлите чертёж, эскиз, фото или сломанную деталь с размерами — создам 3D-модель и напечатаю её. Моделирование оплачивается отдельно от печати, цена зависит от сложности модели. Назову её, когда посмотрю задачу.</p>
+        </div>
         <div class="cta" style="margin-top:16px">
           <a class="btn btn-primary" data-maxprofile target="_blank" rel="noopener" data-goal="own_max">Отправить модель в MAX</a>
           <a class="btn btn-ghost" data-tg target="_blank" rel="noopener" data-goal="own_tg">Telegram</a>
@@ -494,6 +500,7 @@
       <details><summary>Можно сделать другой размер?</summary><p>Да. Почти любую модель можно увеличить или уменьшить — напишите, какой размер нужен, и я скажу итоговую цену.</p></details>
       <details><summary>Какие есть цвета?</summary><p>Цвет согласовываем в личных сообщениях — подскажу, какие цвета пластика есть сейчас. Цвет на фото может немного отличаться от реального.</p></details>
       <details><summary>Можно заказать несколько моделей сразу?</summary><p>Конечно. Отметьте их ♥ в каталоге, откройте «Избранное» и нажмите «Отправить список» — я получу все модели одним сообщением.</p></details>
+      <details><summary>Можете сделать 3D-модель с нуля?</summary><p>Да. По чертежу, эскизу, фото или образцу детали смоделирую и напечатаю. Моделирование оплачивается отдельно от печати, цена зависит от сложности — назову её, когда посмотрю задачу.</p></details>
       <details><summary>Нет нужной модели в каталоге — что делать?</summary><p>Пришлите фото, ссылку или описание — помогу найти подходящую 3D-модель и напечатаю её.</p></details>
       <details><summary>Как получить заказ?</summary><p>Самовывоз или передача на ТК33. Только в Нагаево.</p></details>
       <details><summary>Подходит ли для детей и для еды?</summary><p>Изделия не предназначены для детей до 3 лет — есть мелкие детали. PLA-пластик не подходит для контакта с пищей и нагрева выше 50 °C.</p></details>
