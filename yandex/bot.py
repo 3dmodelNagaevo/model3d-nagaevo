@@ -484,7 +484,7 @@ def metrika_data(days=30):
         for g, n in zip(goals, vals):
             nm = g.get("name") or ""
             for key, ru in GOAL_NAMES.items():
-                if key in nm or key in str((g.get("conditions") or [{}])[0].get("url", "")):
+                if nm == key or key in str((g.get("conditions") or [{}])[0].get("url", "")) or (key in nm and not re.search(r"[а-яё]", nm.lower())):
                     nm = ru
                     break
             named.append([nm, int(n)])

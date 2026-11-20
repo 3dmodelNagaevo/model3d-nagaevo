@@ -104,6 +104,7 @@
   .kpi3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
   .kpi3 .card{padding:10px}
   .kpi3 b{font-size:18px}
+  .hint{font-size:13px;color:var(--muted);margin:-4px 0 8px}
   .loading{position:fixed;top:0;left:0;height:3px;background:var(--orange);z-index:30;width:0;transition:width .3s}
 </style>
 </head>
@@ -508,7 +509,11 @@ $("#metrBtn").onclick = () => goTab("metr");
 
 /* ---------- Метрика ---------- */
 let mDays = 30; const MC = {};
-const UTM = { flyer: "Листовка (QR-код)", max_channel: "Пост в канале MAX", bot: "Бот", promo: "Пост с промокодом", channel_post: "Пост про сайт" };
+const UTM = { flyer: "Листовка (QR-код)", max_channel: "Посты в канале MAX", bot: "Бот", promo: "Пост с промокодом", channel_post: "Пост про сайт", qr: "QR-код" };
+const SRC = { "Direct traffic": "Прямые заходы", "Link traffic": "Переходы по ссылкам", "Search engine traffic": "Из поиска", "Social network traffic": "Из соцсетей",
+  "Internal traffic": "Внутри сайта", "Messenger traffic": "Из мессенджеров", "Cached page traffic": "Из сохранённых копий", "Recommendation system traffic": "Из рекомендаций",
+  "Переходы из мессенджеров": "Из мессенджеров (MAX, Telegram)", "Прямые заходы": "Прямые заходы (адрес, QR-код, закладки)", "Внутренние переходы": "Переходы внутри сайта",
+  "Переходы из поисковых систем": "Из поиска (Яндекс, Google)", "Переходы по ссылкам на сайтах": "По ссылкам с других сайтов", "Переходы из социальных сетей": "Из соцсетей" };
 $$("#mSeg button").forEach(b => b.onclick = () => { $$("#mSeg button").forEach(x => x.classList.toggle("on", x === b)); mDays = +b.dataset.d; loadMetrika(); });
 $$('nav button[data-t="metr"]').forEach(b => b.addEventListener("click", () => { if (!MC[mDays]) loadMetrika(); }));
 async function loadMetrika(){
@@ -545,24 +550,29 @@ function renderMetrika(m){
   const best = [...hours].sort((a, b) => b.v - a.v)[0];
   $("#mBody").innerHTML = `
     <div class="kpi3">
-      <div class="card kpi"><b>${t.users}</b><span>посетителей</span></div>
-      <div class="card kpi"><b>${t.visits}</b><span>визитов</span></div>
-      <div class="card kpi"><b>${t.pageviews}</b><span>просмотров</span></div>
-      <div class="card kpi"><b>${t.new}%</b><span>новых</span></div>
-      <div class="card kpi"><b>${t.bounce}%</b><span>отказов</span></div>
-      <div class="card kpi"><b>${mmss(t.duration)}</b><span>время на сайте</span></div>
+      <div class="card kpi"><b>${t.users}</b><span>человек зашло</span></div>
+      <div class="card kpi"><b>${t.visits}</b><span>заходов всего</span></div>
+      <div class="card kpi"><b>${t.pageviews}</b><span>открыто страниц</span></div>
+      <div class="card kpi"><b>${t.new}%</b><span>пришли впервые</span></div>
+      <div class="card kpi"><b>${t.bounce}%</b><span>сразу ушли</span></div>
+      <div class="card kpi"><b>${mmss(t.duration)}</b><span>мин:сек на сайте</span></div>
     </div>
+    <p class="hint" style="margin-top:8px">«Человек» — разные посетители, «заходов» — сколько раз заходили (один человек может зайти несколько раз). «Сразу ушли» — закрыли сайт меньше чем за 15 секунд.</p>
     <h2>Посетители по дням</h2>
     <div class="card">${cols("cDay", daily)}</div>
     <h2>Что делали на сайте</h2>
+    <p class="hint">Сколько раз нажимали кнопки: открыть модель, заказать, позвонить, поделиться…</p>
     <div class="card">${hbars(m.goals)}</div>
     <h2>Какие модели открывали</h2>
+    <p class="hint">Самые интересные покупателям модели — сколько раз открывали карточку.</p>
     <div class="card">${hbars(m.models)}</div>
     <h2>Откуда пришли</h2>
-    <div class="card">${hbars(m.sources)}</div>
-    <h2>Сайты, поисковики и соцсети</h2>
+    <p class="hint">«Из мессенджеров» — по ссылке из MAX или Telegram, «прямые» — набрали адрес или с QR-кода, «из поиска» — через Яндекс/Google.</p>
+    <div class="card">${hbars(m.sources, SRC)}</div>
+    <h2>С каких сайтов и приложений</h2>
     <div class="card">${hbars(m.engines)}</div>
-    <h2>Наши ссылки (листовка, канал, бот)</h2>
+    <h2>Наши ссылки</h2>
+    <p class="hint">Сколько заходов принесли листовка, посты в канале и бот.</p>
     <div class="card">${hbars(m.utm, UTM)}</div>
     <h2>Когда заходят (по часам)</h2>
     <div class="card">${cols("cHour", hours)}<div class="muted" style="margin-top:6px">${best && best.v ? "Больше всего заходов около " + best.label + " — хорошее время для постов." : ""}</div></div>
