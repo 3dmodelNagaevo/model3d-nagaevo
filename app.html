@@ -60,7 +60,7 @@
   .bars small{font-size:11px;color:var(--muted);white-space:nowrap}
   .bars em{font-style:normal;font-size:11px;font-weight:700}
   [hidden]{display:none !important}
-  nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(6,1fr);padding:4px 2px calc(4px + env(safe-area-inset-bottom))}
+  nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(7,1fr);padding:4px 2px calc(4px + env(safe-area-inset-bottom))}
   nav button{border:0;background:none;display:grid;justify-items:center;gap:1px;padding:6px 0;font-size:11px;color:var(--muted);cursor:pointer;position:relative}
   nav button span{font-size:20px;line-height:1}
   nav button.on{color:var(--cobalt);font-weight:700}
@@ -88,6 +88,22 @@
   .gate{padding:40px 20px;text-align:center}
   .gate h1{font-family:var(--display);font-size:20px}
   pre.metr{white-space:pre-wrap;font:inherit;margin:0}
+  .hbars{display:grid;gap:9px}
+  .hb{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;font-size:14px}
+  .hb span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hb b{font-variant-numeric:tabular-nums}
+  .hb i{grid-column:1/-1;height:8px;border-radius:4px;background:var(--plate);overflow:hidden;display:block}
+  .hb i u{display:block;height:100%;background:var(--cobalt);border-radius:4px}
+  .cols{display:flex;align-items:flex-end;gap:2px;height:130px;margin-top:6px;touch-action:pan-y}
+  .cols div{flex:1;height:100%;display:flex;align-items:flex-end;cursor:pointer;min-width:0}
+  .cols div i{display:block;width:100%;background:var(--cobalt);border-radius:4px 4px 0 0;min-height:2px;opacity:.9}
+  .cols div.on i,.cols div:hover i{background:var(--orange);opacity:1}
+  .axis{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px}
+  .readout{font-size:13px;color:var(--muted);min-height:20px}
+  .readout b{color:var(--ink)}
+  .kpi3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .kpi3 .card{padding:10px}
+  .kpi3 b{font-size:18px}
   .loading{position:fixed;top:0;left:0;height:3px;background:var(--orange);z-index:30;width:0;transition:width .3s}
 </style>
 </head>
@@ -117,7 +133,7 @@
     <div class="btns full">
       <button class="btn ghost" data-cmd="/обновить">🔄 Обновить сайт</button>
       <button class="btn ghost" data-cmd="/копия">🗄 Резервная копия</button>
-      <button class="btn ghost" id="metrBtn">📈 Метрика</button>
+      <button class="btn ghost" id="metrBtn">📈 Статистика сайта</button>
       <a class="btn ghost" id="siteLink" target="_blank" rel="noopener">🌐 Открыть сайт</a>
     </div>
     <div class="card" id="metr" hidden style="margin-top:10px"><pre class="metr"></pre></div>
@@ -196,6 +212,12 @@
     <div class="list" id="revs"></div>
   </section>
 
+  <!-- Метрика -->
+  <section class="tab" id="t-metr">
+    <div class="seg" id="mSeg"><button data-d="7">7 дней</button><button data-d="30" class="on">30 дней</button><button data-d="90">90 дней</button><button data-d="365">Год</button></div>
+    <div id="mBody"><div class="empty">Загружаю статистику…</div></div>
+  </section>
+
   <!-- Ещё -->
   <section class="tab" id="t-more">
     <h2 style="margin-top:4px">Доступ к боту</h2>
@@ -211,6 +233,7 @@
   <button data-t="items"><span>🧩</span>Товары</button>
   <button data-t="sales"><span>🧾</span>Продажи</button>
   <button data-t="promo"><span>🎟</span>Промо</button>
+  <button data-t="metr"><span>📈</span>Метрика</button>
   <button data-t="rev"><span>💬</span>Отзывы<i class="dot" id="revDot" hidden></i></button>
   <button data-t="more"><span>⋯</span>Ещё</button>
 </nav>
@@ -481,10 +504,78 @@ function renderLinks(){
     || `<div class="empty">${D.links.length ? "Ничего не нашлось" : "Ссылок пока нет"}</div>`;
 }
 
-$("#metrBtn").onclick = async () => {
-  try { const d = await api({ action: "metrika", days: 7 }); $("#metr").hidden = false; $(".metr").textContent = d.text; }
-  catch (e) { toast("❌ " + e.message); }
-};
+$("#metrBtn").onclick = () => goTab("metr");
+
+/* ---------- Метрика ---------- */
+let mDays = 30; const MC = {};
+const UTM = { flyer: "Листовка (QR-код)", max_channel: "Пост в канале MAX", bot: "Бот", promo: "Пост с промокодом", channel_post: "Пост про сайт" };
+$$("#mSeg button").forEach(b => b.onclick = () => { $$("#mSeg button").forEach(x => x.classList.toggle("on", x === b)); mDays = +b.dataset.d; loadMetrika(); });
+$$('nav button[data-t="metr"]').forEach(b => b.addEventListener("click", () => { if (!MC[mDays]) loadMetrika(); }));
+async function loadMetrika(){
+  if (MC[mDays]) return renderMetrika(MC[mDays]);
+  $("#mBody").innerHTML = `<div class="empty">Загружаю статистику…</div>`;
+  try {
+    const d = await api({ action: "metrika_data", days: mDays });
+    if (d.data.error) { $("#mBody").innerHTML = `<div class="card">${esc(d.data.error)}</div>`; return; }
+    MC[mDays] = d.data; renderMetrika(d.data);
+  } catch (e) { $("#mBody").innerHTML = `<div class="card">Не удалось загрузить: ${esc(e.message)}</div>`; }
+}
+function hbars(rows, map){
+  if (!rows || !rows.length) return `<div class="muted">Пока нет данных</div>`;
+  const mx = Math.max(...rows.map(r => r[1]), 1);
+  return `<div class="hbars">${rows.map(([n, v]) => `<div class="hb"><span title="${esc(n)}">${esc(map ? (map[n] || n) : n)}</span><b>${v}</b><i><u style="width:${Math.max(2, Math.round(v / mx * 100))}%"></u></i></div>`).join("")}</div>`;
+}
+function cols(id, rows, fmt){
+  const mx = Math.max(...rows.map(r => r.v), 1);
+  return `<div class="readout" id="${id}R">Нажмите на столбик, чтобы увидеть значение</div>
+    <div class="cols" id="${id}">${rows.map((r, k) => `<div data-k="${k}"><i style="height:${Math.max(1.5, r.v / mx * 100)}%"></i></div>`).join("")}</div>
+    <div class="axis"><span>${esc(rows.length ? rows[0].label : "")}</span><span>${esc(rows.length ? rows[rows.length - 1].label : "")}</span></div>`;
+}
+function bindCols(id, rows, fmt){
+  const box = $("#" + id); if (!box) return;
+  const show = el => { if (!el || !el.dataset.k) return; $$("#" + id + " div").forEach(x => x.classList.toggle("on", x === el)); $("#" + id + "R").innerHTML = fmt(rows[+el.dataset.k]); };
+  box.addEventListener("pointerover", e => show(e.target.closest("[data-k]")));
+  box.addEventListener("click", e => show(e.target.closest("[data-k]")));
+}
+const mmss = s => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+function renderMetrika(m){
+  const t = m.totals;
+  const daily = m.daily.map(([d, u, v]) => ({ v: u, visits: v, label: d.slice(8, 10) + "." + d.slice(5, 7) }));
+  const hours = Array.from({ length: 24 }, (_, h) => { const r = m.hours.find(x => x[0] === h); return { v: r ? r[1] : 0, label: h + ":00" }; });
+  const best = [...hours].sort((a, b) => b.v - a.v)[0];
+  $("#mBody").innerHTML = `
+    <div class="kpi3">
+      <div class="card kpi"><b>${t.users}</b><span>посетителей</span></div>
+      <div class="card kpi"><b>${t.visits}</b><span>визитов</span></div>
+      <div class="card kpi"><b>${t.pageviews}</b><span>просмотров</span></div>
+      <div class="card kpi"><b>${t.new}%</b><span>новых</span></div>
+      <div class="card kpi"><b>${t.bounce}%</b><span>отказов</span></div>
+      <div class="card kpi"><b>${mmss(t.duration)}</b><span>время на сайте</span></div>
+    </div>
+    <h2>Посетители по дням</h2>
+    <div class="card">${cols("cDay", daily)}</div>
+    <h2>Что делали на сайте</h2>
+    <div class="card">${hbars(m.goals)}</div>
+    <h2>Какие модели открывали</h2>
+    <div class="card">${hbars(m.models)}</div>
+    <h2>Откуда пришли</h2>
+    <div class="card">${hbars(m.sources)}</div>
+    <h2>Сайты, поисковики и соцсети</h2>
+    <div class="card">${hbars(m.engines)}</div>
+    <h2>Наши ссылки (листовка, канал, бот)</h2>
+    <div class="card">${hbars(m.utm, UTM)}</div>
+    <h2>Когда заходят (по часам)</h2>
+    <div class="card">${cols("cHour", hours)}<div class="muted" style="margin-top:6px">${best && best.v ? "Больше всего заходов около " + best.label + " — хорошее время для постов." : ""}</div></div>
+    <h2>Устройства</h2>
+    <div class="card">${hbars(m.devices)}</div>
+    <h2>Города</h2>
+    <div class="card">${hbars(m.cities)}</div>
+    <h2>Что искали в поисковиках</h2>
+    <div class="card">${hbars(m.phrases)}</div>
+    <p class="muted" style="font-size:13px">Данные Яндекс Метрики, обновляются с задержкой до нескольких минут. Время — по часовому поясу счётчика.</p>`;
+  bindCols("cDay", daily, r => `<b>${esc(r.label)}</b>: ${r.v} посетителей, ${r.visits} визитов`);
+  bindCols("cHour", hours, r => `<b>${esc(r.label)}</b>: ${r.v} визитов`);
+}
 
 /* ---------- старт ---------- */
 try { WA && WA.ready && WA.ready(); } catch(e){}

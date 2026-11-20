@@ -416,6 +416,84 @@ def metrika_text(days=7):
     return "\n".join(lines)
 
 
+GOAL_NAMES = {"order_max": "Заказ в MAX", "order_tg": "Заказ в Telegram", "order_call": "Звонок", "fav_send_max": "Список из избранного",
+              "fav_send_tg": "Список в Telegram", "open_model": "Открыли карточку", "share": "Поделились", "channel_max": "Перешли в канал",
+              "contact_max": "Написать в MAX", "find_max": "Найти под заказ", "own_max": "Своя модель", "get_discount": "Получить скидку",
+              "promo_check": "Проверка промокода", "review_sent": "Отзыв отправлен", "open_post": "Пост в канале"}
+
+
+def metrika_data(days=30):
+    """Метрика для приложения: графики по дням, источники, устройства, города, цели, метки, часы, поисковые фразы."""
+    from concurrent.futures import ThreadPoolExecutor
+    mid = os.environ.get("METRIKA_ID", "").strip() or METRIKA_DEFAULT_ID
+    tok = os.environ.get("METRIKA_TOKEN", "").strip()
+    if not tok:
+        return {"error": "Не задан токен Метрики (METRIKA_TOKEN в настройках функции в Яндекс Облаке)."}
+    per = {"date1": f"{days - 1}daysAgo", "date2": "today", "ids": mid, "accuracy": "full", "lang": "ru"}
+
+    def q(params):
+        try:
+            return _metrika("/stat/v1/data", {**per, **params}, tok)
+        except Exception as e:
+            print("metrika:", params.get("dimensions"), e)
+            return None
+
+    def top(dim, limit=8, metric="ym:s:visits", filters=None):
+        p = {"metrics": metric, "dimensions": dim, "sort": "-" + metric, "limit": limit}
+        if filters:
+            p["filters"] = filters
+        d = q(p)
+        return [[(r["dimensions"][0].get("name") or "—"), int(r["metrics"][0])] for r in (d or {}).get("data", []) if r["metrics"][0]]
+
+    jobs = {
+        "totals": lambda: q({"metrics": "ym:s:users,ym:s:visits,ym:s:pageviews,ym:s:bounceRate,ym:s:avgVisitDurationSeconds,ym:s:percentNewVisitors"}),
+        "daily": lambda: q({"metrics": "ym:s:users,ym:s:visits", "dimensions": "ym:s:date", "sort": "ym:s:date", "limit": 400}),
+        "sources": lambda: top("ym:s:lastTrafficSource", 6),
+        "engines": lambda: top("ym:s:lastSourceEngine", 8),
+        "devices": lambda: top("ym:s:deviceCategory", 4),
+        "cities": lambda: top("ym:s:regionCity", 8),
+        "utm": lambda: top("ym:s:UTMSource", 8),
+        "phrases": lambda: top("ym:s:lastSearchPhrase", 8),
+        "hours": lambda: q({"metrics": "ym:s:visits", "dimensions": "ym:s:hour", "sort": "ym:s:hour", "limit": 24}),
+        "models": lambda: top("ym:s:paramsLevel2", 10, "ym:s:visits", "ym:s:paramsLevel1=='title'"),
+        "goals": lambda: _metrika(f"/management/v1/counter/{mid}/goals", {}, tok).get("goals", []),
+    }
+    with ThreadPoolExecutor(12) as ex:
+        futs = {k: ex.submit(f) for k, f in jobs.items()}
+        res = {}
+        for k, f in futs.items():
+            try:
+                res[k] = f.result()
+            except Exception as e:
+                print("metrika job", k, e)
+                res[k] = None
+    t = (res.get("totals") or {}).get("totals") or [0] * 6
+    out = {"days": days,
+           "totals": {"users": int(t[0]), "visits": int(t[1]), "pageviews": int(t[2]), "bounce": round(t[3], 1),
+                      "duration": int(t[4]), "new": round(t[5], 1)},
+           "daily": [[r["dimensions"][0]["name"], int(r["metrics"][0]), int(r["metrics"][1])] for r in (res.get("daily") or {}).get("data", [])],
+           "hours": [[int(r["dimensions"][0]["name"].split(":")[0]) if r["dimensions"][0].get("name") else 0, int(r["metrics"][0])]
+                     for r in (res.get("hours") or {}).get("data", [])]}
+    for k in ("sources", "engines", "devices", "cities", "utm", "phrases", "models"):
+        out[k] = res.get(k) or []
+    goals = [g for g in (res.get("goals") or []) if g.get("id")][:20]
+    if goals:
+        d = q({"metrics": ",".join(f"ym:s:goal{g['id']}reaches" for g in goals)})
+        vals = (d or {}).get("totals") or []
+        named = []
+        for g, n in zip(goals, vals):
+            nm = g.get("name") or ""
+            for key, ru in GOAL_NAMES.items():
+                if key in nm or key in str((g.get("conditions") or [{}])[0].get("url", "")):
+                    nm = ru
+                    break
+            named.append([nm, int(n)])
+        out["goals"] = sorted(named, key=lambda x: -x[1])
+    else:
+        out["goals"] = []
+    return out
+
+
 def stats_text(items, sales=None):
     week = 7 * 86400 * 1000
     now = time.time() * 1000
@@ -1327,6 +1405,8 @@ def site_app(event, headers):
             return out(200, ok=True, data=app_dash(uid))
         if act == "metrika":
             return out(200, ok=True, text=metrika_text(int(req.get("days") or 7)))
+        if act == "metrika_data":
+            return out(200, ok=True, data=metrika_data(max(1, min(365, int(req.get("days") or 30)))))
         if act == "cmd":
             text = str(req.get("text") or "")[:3000]
             if not text.startswith("/") or text.startswith("/обложка") and len(text.split()) < 3:
