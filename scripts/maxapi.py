@@ -84,21 +84,31 @@ def download(url):
     return data
 
 
-def upload_image(path, token):
-    """Загрузить картинку в MAX (POST /uploads → файл на выданный адрес). Возвращает payload для вложения."""
+def upload_image(path, token, kind="image", ctype="image/jpeg"):
+    """Загрузить файл в MAX (POST /uploads → файл на выданный адрес). Возвращает payload для вложения."""
     import uuid
-    info = _request("POST", "/uploads", {"type": "image"}, token)
+    info = _request("POST", "/uploads", {"type": kind}, token)
     url = info["url"]
     data = pathlib.Path(path).read_bytes()
     boundary = uuid.uuid4().hex
     body = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"data\"; filename=\"{pathlib.Path(path).name}\"\r\n"
-            f"Content-Type: image/jpeg\r\n\r\n").encode() + data + f"\r\n--{boundary}--\r\n".encode()
+            f"Content-Type: {ctype}\r\n\r\n").encode() + data + f"\r\n--{boundary}--\r\n".encode()
     req = urllib.request.Request(url, data=body, method="POST", headers={
         "Content-Type": f"multipart/form-data; boundary={boundary}", "Authorization": token, **UA})
-    with urllib.request.urlopen(req, timeout=60, context=CTX) as r:
-        res = json.loads(r.read().decode("utf-8") or "{}")
+    with urllib.request.urlopen(req, timeout=300, context=CTX) as r:
+        raw = r.read().decode("utf-8", "replace")
+    try:
+        res = json.loads(raw or "{}")
+    except ValueError:
+        res = {}
+    if info.get("token") and not res.get("token") and not res.get("photos"):
+        return {"token": info["token"]}             # для файлов/видео токен выдаётся сразу в /uploads
     if res.get("token"):
         return {"token": res["token"]}
     if res.get("photos"):
         return {"photos": res["photos"]}
     return res
+
+
+def upload_file(path, token):
+    return upload_image(path, token, kind="file", ctype="application/zip")

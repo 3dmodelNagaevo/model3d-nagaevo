@@ -1,0 +1,29 @@
+name: Резервная копия → в MAX
+
+on:
+  schedule:
+    - cron: "17 15 * * 0"     # каждое воскресенье ~20:17 по Уфе
+  workflow_dispatch:          # кнопка «Run workflow» — сделать копию сейчас
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0       # вся история — для полной копии
+
+      - name: Сертификаты Минцифры (нужны для API MAX)
+        run: |
+          mkdir -p .certs
+          curl -fsS --retry 3 https://gu-st.ru/content/lending/russian_trusted_root_ca_pem.crt -o .certs/russian_root.crt || echo "нет"
+          curl -fsS --retry 3 https://gu-st.ru/content/lending/russian_trusted_sub_ca_pem.crt -o .certs/russian_sub.crt || echo "нет"
+
+      - name: Собрать архив и отправить владельцам в бота
+        env:
+          MAX_TOKEN: ${{ secrets.MAX_TOKEN }}
+        run: python scripts/backup.py
