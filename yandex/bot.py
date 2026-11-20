@@ -226,12 +226,19 @@ HELP = """🤖 Бот сайта. Кнопки — под этим сообще�
 
 def keyboard():
     rows = [[{"type": "message", "text": t} for t in r] for r in MENU_ROWS]
-    rows.append([{"type": "link", "text": "🌐 Открыть сайт", "url": SITE_URL}])
+    rows.append([{"type": "link", "text": "🛠 Приложение управления", "url": BOT_URL + "?startapp=admin"},
+                 {"type": "link", "text": "🌐 Сайт", "url": SITE_URL}])
     return {"type": "inline_keyboard", "payload": {"buttons": rows}}
+
+
+_capture = []          # приложение управления: ответы бота собираем в ответ API, а не шлём в чат
 
 
 def send(uid, text, menu=True, buttons=None):
     """buttons — ряды кнопок-действий [[("✅ Опубликовать", "/одобрить 5"), …], …]: нажал — и команда выполнена."""
+    if _capture and _capture[-1].get("uid") == uid:
+        _capture[-1]["texts"].append(text)
+        return
     body = {"text": text[:3900]}
     rows = [[{"type": "callback", "text": lbl[:60], "payload": cmd[:1000]} for lbl, cmd in row] for row in (buttons or []) if row]
     if menu:
@@ -1223,6 +1230,117 @@ def owner_reply(uid, text):
         return send(uid, f"❌ Не получилось отправить: {e}")
     return send(uid, "✅ Отправил покупателю. Его ответ придёт сюда.", menu=False,
                 buttons=[[("💬 Написать ещё", f"/ответ {cid}")]])
+
+
+# ---------------------------------------------------------------- приложение управления (мини-приложение MAX)
+
+def webapp_user(init_data):
+    """Проверка подписи initData мини-приложения MAX → id пользователя или None."""
+    import hashlib, hmac
+    try:
+        pairs = urllib.parse.parse_qsl(init_data or "", keep_blank_values=True, strict_parsing=True)
+    except ValueError:
+        return None
+    keys = [k for k, _ in pairs]
+    if keys.count("hash") != 1 or len(keys) != len(set(keys)):
+        return None
+    got = dict(pairs).pop("hash")
+    rest = sorted((k, v) for k, v in pairs if k != "hash")
+    check = "\n".join(f"{k}={v}" for k, v in rest)
+    secret = hmac.new(b"WebAppData", MAX_TOKEN.encode(), hashlib.sha256).digest()
+    if not hmac.compare_digest(hmac.new(secret, check.encode(), hashlib.sha256).hexdigest(), got):
+        return None
+    d = dict(rest)
+    try:
+        if time.time() - int(d.get("auth_date", "0")) / (1000 if int(d.get("auth_date", "0")) > 10**11 else 1) > 86400:
+            return None
+        return int(json.loads(d.get("user") or "{}").get("id"))
+    except Exception:
+        return None
+
+
+def app_dash(uid):
+    cfg = config()
+    items = catalog_items()
+    sd, _ = gh_file("sales.json")
+    rv, _ = gh_file("reviews.json")
+    pr, _ = gh_file("promos.json")
+    ov, _ = gh_file("overrides.json")
+    ln, _ = gh_file("links.json")
+    cat, _ = gh_file("catalog.json")
+    codes = []
+    pers = []
+    for c in (pr or {}).get("codes", []):
+        st, why = promo_status(c)
+        if c.get("personal"):
+            pers.append({"status": st, "used": c.get("used", 0), "value": c.get("value"), "kind": c.get("kind"),
+                         "start": c.get("start"), "until": c.get("until")})
+            continue
+        codes.append({k: c.get(k) for k in ("code", "kind", "value", "limit", "used", "days", "until", "start", "mid")}
+                     | {"status": st, "why": why})
+    admins = [{"k": k, "name": a["name"], "id": a["id"],
+               "role": "owner" if a["owner"] and a["id"] in cfg.get("real", ()) else
+                       "full" if a["id"] in cfg.get("full", ()) else
+                       "on" if a["id"] in cfg["owners"] else "off"}
+              for k, a in enumerate(cfg.get("admins", []), 1)]
+    hidden = set((ov or {}).get("hidden", []))
+    return {
+        "me": uid, "chief": uid in cfg["chief"], "site": SITE_URL,
+        "items": [{k: i.get(k) for k in ("no", "title", "price", "category", "views", "views_week", "views_month",
+                                         "sold", "photos", "photos_orig", "url", "ts", "hidden")}
+                  | {"hidden": i.get("no") in hidden} for i in items],
+        "hiddenNos": sorted(hidden),
+        "overrides": ov or {},
+        "sales": (sd or {}).get("sales", []),
+        "reviews": (cat or {}).get("reviews", []),
+        "reviewsBot": (rv or {}).get("reviews", []),
+        "pending": (rv or {}).get("pending", []),
+        "promos": codes, "personal": pers,
+        "schedule": (pr or {}).get("schedule") or {}, "sub": (pr or {}).get("sub") or {},
+        "admins": admins,
+        "links": (ln or {}).get("links", [])[-300:] if isinstance(ln, dict) else [],
+    }
+
+
+def site_app(event, headers):
+    cors = _cors(headers.get("origin", ""))
+    if (event.get("httpMethod") or "").upper() == "OPTIONS":
+        return {"statusCode": 204, "headers": cors, "body": ""}
+    def out(code, **kw):
+        return {"statusCode": code, "headers": {**cors, "Content-Type": "application/json"},
+                "body": json.dumps(kw, ensure_ascii=False)}
+    try:
+        raw = event.get("body") or "{}"
+        if event.get("isBase64Encoded"):
+            raw = base64.b64decode(raw).decode()
+        req = json.loads(raw)
+    except Exception:
+        return out(400, error="bad request")
+    uid = webapp_user(req.get("initData"))
+    if not uid:
+        return out(401, error="Откройте приложение из бота в MAX")
+    if uid not in config()["owners"]:
+        return out(403, error="Нет доступа к управлению")
+    act = req.get("action")
+    try:
+        if act == "dash":
+            return out(200, ok=True, data=app_dash(uid))
+        if act == "metrika":
+            return out(200, ok=True, text=metrika_text(int(req.get("days") or 7)))
+        if act == "cmd":
+            text = str(req.get("text") or "")[:3000]
+            if not text.startswith("/") or text.startswith("/обложка") and len(text.split()) < 3:
+                return out(400, error="Неверная команда")
+            _capture.append({"uid": uid, "texts": []})
+            try:
+                handle_owner(uid, text, [])
+            finally:
+                got = _capture.pop()["texts"]
+            return out(200, ok=True, texts=got)
+    except Exception as e:
+        print("app:", repr(e))
+        return out(500, error=f"Ошибка: {e}")
+    return out(400, error="Неизвестное действие")
 
 
 # ---------------------------------------------------------------- обработка событий
@@ -2270,6 +2388,8 @@ def handler(event, context):
         return site_review(event, headers)
     if "promo" in q:
         return site_promo_check(event, headers)
+    if "app" in q:
+        return site_app(event, headers)
 
     # настройка из браузера: ?setup=SECRET (подключить), ?off=SECRET (отключить), ?check=SECRET
     for action in ("setup", "off", "check"):
