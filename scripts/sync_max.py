@@ -28,12 +28,14 @@ import time
 import maxapi
 from maxapi import ApiError, log, ROOT
 import photos as photolib
+import promo
 
 CATALOG = ROOT / "catalog.json"
 STATE = ROOT / "state.json"
 OVERRIDES = ROOT / "overrides.json"   # /скрыть и /цена из бота (правят и GitHub, и Yandex Cloud)
 SALES = ROOT / "sales.json"           # отметки «/продано» из бота
 REVIEWS = ROOT / "reviews.json"       # отзывы, присланные боту (/отзыв)
+PROMOS = ROOT / "promos.json"         # промокоды (управление — в боте)
 PHOTOS = ROOT / "photos"
 CHANNEL_FILE = ROOT / "channel_id.txt"
 SITE_URL = (os.environ.get("SITE_URL") or "https://3dnagaevo.ru/").rstrip("/") + "/"
@@ -63,7 +65,7 @@ KEYWORD_CATEGORIES = [
     ("Подарки", r"подар|сувенир|брелок|магнит"),
 ]
 DEFAULT_CATEGORY = "Разное"
-HIDE_TAGS = {"нетнасайте", "скрыть", "несайт"}
+HIDE_TAGS = {"нетнасайте", "скрыть", "несайт", "промокод"}
 REVIEW_TAGS = {"отзыв", "отзывы"}
 
 # цена прямо в заголовке: «Логопедический набор 3D — 1000 руб»
@@ -530,6 +532,15 @@ def main():
             log(f"  ! ответ на команду: {e}")
     bot.notify_events(notifier, events, SITE_URL)
     bot.maybe_weekly_report(notifier, items, state, SITE_URL, sales_doc.get("sales", []))
+
+    # 5) промокоды по расписанию
+    if PROMOS.exists():
+        try:
+            pd = load_json(PROMOS, {})
+            if promo.run(pd, token, chat_id, notifier, SITE_URL):
+                dump_json(PROMOS, pd)
+        except Exception as e:
+            log(f"  ! промокоды: {e}")
 
     dump_json(STATE, state)
     visible = [i for i in items if not i.get("hidden")]

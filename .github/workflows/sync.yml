@@ -6,7 +6,7 @@ on:
   workflow_dispatch:          # кнопка «Run workflow» — запустить вручную
   push:
     branches: [main]          # вы поменяли файлы сайта — сразу выкладываем
-    paths-ignore: ["links.json"]   # библиотека ссылок сайт не меняет
+    paths-ignore: ["links.json", "promos.json"]   # библиотека ссылок сайт не меняет
 
 permissions:
   contents: write
@@ -52,7 +52,7 @@ jobs:
         run: |
           git config user.name "catalog-bot"
           git config user.email "catalog-bot@users.noreply.github.com"
-          for p in catalog.json state.json access.json overrides.json sales.json reviews.json reviews channel_id.txt photos m qr sitemap.xml robots.txt; do if [ -e "$p" ]; then git add -A "$p"; fi; done
+          for p in catalog.json state.json promos.json access.json overrides.json sales.json reviews.json reviews channel_id.txt photos m qr sitemap.xml robots.txt; do if [ -e "$p" ]; then git add -A "$p"; fi; done
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
