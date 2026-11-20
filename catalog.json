@@ -1,6 +1,30 @@
 {
-  "updated": 1795161090,
+  "updated": 1795163464,
   "items": [
+    {
+      "mid": "mid.ffffb8167a965fcf01a1f8143b3702a2",
+      "ts": 1795163437879,
+      "url": "",
+      "title": "Сенсорный слайм-куб \"Твердое течение\"",
+      "category": "Разное",
+      "price": null,
+      "size": "По желанию",
+      "color": "Согласовывать в ЛС",
+      "material": "",
+      "desc": "3x3-50\n5x5-150\n10x10-400",
+      "tags": "",
+      "views": 2,
+      "photos": [
+        "photos/mid_ffffb8167a965fcf01a1f8143b3702a2_0.jpg",
+        "photos/mid_ffffb8167a965fcf01a1f8143b3702a2_1.jpg",
+        "photos/mid_ffffb8167a965fcf01a1f8143b3702a2_2.jpg",
+        "photos/mid_ffffb8167a965fcf01a1f8143b3702a2_3.jpg"
+      ],
+      "source": "max",
+      "no": 47,
+      "views_week": 2,
+      "views_month": 2
+    },
     {
       "mid": "mid.ffffb8167a965fcf01a1f7f0039d6020",
       "ts": 1795161064349,
