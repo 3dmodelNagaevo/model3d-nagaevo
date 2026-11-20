@@ -89,7 +89,7 @@
       "mid.ffffb8167a965fcf01a0b33c282831bb": 97
     }
   },
-  "commands_v": 1,
+  "commands_v": 2,
   "admins": [
     {
       "id": 479018271,
@@ -111,5 +111,6 @@
     149796551,
     150322993,
     479018271
-  ]
+  ],
+  "bot_link": "https://max.ru/se15070545_bot"
 }
