@@ -52,7 +52,7 @@ jobs:
         run: |
           git config user.name "catalog-bot"
           git config user.email "catalog-bot@users.noreply.github.com"
-          for p in catalog.json state.json overrides.json sales.json reviews.json reviews channel_id.txt photos m qr; do if [ -e "$p" ]; then git add -A "$p"; fi; done
+          for p in catalog.json state.json overrides.json sales.json reviews.json reviews channel_id.txt photos m qr sitemap.xml robots.txt; do if [ -e "$p" ]; then git add -A "$p"; fi; done
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
@@ -85,6 +85,7 @@ jobs:
         run: |
           mkdir _site
           cp index.html config.js privacy.html catalog.json _site/
+          for f in sitemap.xml robots.txt yandex_*.html google*.html; do if [ -f "$f" ]; then cp "$f" _site/; fi; done
           for d in img photos m qr; do [ -d "$d" ] && cp -r "$d" _site/; done
           [ -f CNAME ] && cp CNAME _site/ || true
       - uses: actions/upload-pages-artifact@v3

@@ -3,6 +3,7 @@
 в каталог с открытой карточкой товара."""
 import html
 import pathlib
+import re
 
 from maxapi import ROOT, log
 
@@ -80,6 +81,26 @@ def generate(items, site_url):
     for f in OUT.glob("*.html"):
         if f.name not in keep:
             f.unlink()
+    write_sitemap(items, site_url)
+
+
+def write_sitemap(items, site_url):
+    """sitemap.xml и robots.txt — чтобы Яндекс и Google быстрее нашли все страницы."""
+    import datetime as dt
+    urls = [(site_url, "1.0")] + [(f"{site_url}m/{it['no']}.html", "0.7")
+                                  for it in items if not it.get("hidden") and it.get("no")]
+    today = dt.date.today().isoformat()
+    body = "\n".join(f"  <url><loc>{html.escape(u)}</loc><lastmod>{today}</lastmod><priority>{p}</priority></url>"
+                     for u, p in urls)
+    xml = f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{body}\n</urlset>\n'
+    path = ROOT / "sitemap.xml"
+    old = path.read_text("utf-8") if path.exists() else ""
+    if re.sub(r"<lastmod>[^<]+</lastmod>", "", old) != re.sub(r"<lastmod>[^<]+</lastmod>", "", xml):
+        path.write_text(xml, "utf-8")
+    robots = f"User-agent: *\nAllow: /\nDisallow: /privacy.html\n\nSitemap: {site_url}sitemap.xml\n"
+    rp = ROOT / "robots.txt"
+    if not rp.exists() or rp.read_text("utf-8") != robots:
+        rp.write_text(robots, "utf-8")
 
 
 def make_qr(site_url):
