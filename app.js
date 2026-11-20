@@ -271,7 +271,7 @@ function renderLinks(){
 $("#metrBtn").onclick = () => goTab("metr");
 
 /* ---------- Метрика ---------- */
-let mDays = 30; const MC = {};
+let mDays = 7; const MC = {};
 const UTM = { flyer: "Листовка (QR-код)", max_channel: "Посты в канале MAX", bot: "Бот", promo: "Пост с промокодом", channel_post: "Пост про сайт", qr: "QR-код" };
 const SRC = { "Direct traffic": "Прямые заходы", "Link traffic": "Переходы по ссылкам", "Search engine traffic": "Из поиска", "Social network traffic": "Из соцсетей",
   "Internal traffic": "Внутри сайта", "Messenger traffic": "Из мессенджеров", "Cached page traffic": "Из сохранённых копий", "Recommendation system traffic": "Из рекомендаций",
