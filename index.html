@@ -678,7 +678,7 @@
         <input class="hp" id="rfWeb" tabindex="-1" autocomplete="off" aria-hidden="true">
         <p class="err" id="rfErr" hidden></p>
         <button class="btn btn-primary" id="rfSend" type="submit">Отправить отзыв</button>
-        <p class="hint">Имя увидят на сайте. Отзыв появится после проверки.</p>
+        <p class="hint">Имя увидят на сайте. Отзывы со ссылками, телефонами и грубыми словами публикуются после проверки.</p>
       </form>
       <div class="rdone" id="mRevDone" hidden>Спасибо! Отзыв появится на сайте после проверки.</div>
     </div>
@@ -927,6 +927,9 @@ $("#mRevForm").addEventListener("submit", async e => {
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) throw new Error(data.error || "Не получилось отправить");
     try { localStorage.setItem("rev_name", name); } catch(e){}
+    $("#mRevDone").textContent = data.published
+      ? "Спасибо! Ваш отзыв опубликован — он появится на сайте через 1–2 минуты."
+      : "Спасибо! Отзыв появится на сайте после проверки.";
     $("#mRevForm").hidden = true; $("#mRevDone").hidden = false;
     goal("review_sent", { no: current.no, stars: rfStars });
   } catch (x) {

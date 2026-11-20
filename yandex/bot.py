@@ -705,6 +705,48 @@ def _cors(origin):
             "Access-Control-Allow-Headers": "Content-Type", "Vary": "Origin"}
 
 
+# автопроверка отзывов: нормальные — сразу на сайт, сомнительные — админам, мусор — отбрасываем
+_LAT = str.maketrans("aeopcxykmthb3ё", "аеорсхукмтнвзе")
+BAD_ANY = re.compile(r"пизд|ху[йияюе][^д]|хуё|залуп|гандон|пид[ао]?р|шлюх|манд[ао]в|муд[ао]к|мудил|долбо[её]б|[её]бан|[её]бну|[её]бал|въеб|выеб|заеб|отъеб|уеб|ебл[аои]|ебать|ебуч")
+BAD_WORD = re.compile(r"(?:^|[^а-я])(?:бля|сук[аиу]|ебл|еби|говн|дроч|срал|сран|жоп|урод|дебил|идиот|тупо[йе]|мраз|твар|лох|чмо|скотин)")
+URL_RE = re.compile(r"(https?://|www\.|\b[a-z0-9-]+\.(?:ru|com|net|org|su|рф|io|me|xyz|top|site|online|shop|store|info|biz|pro|club)\b|t\.me/|@[a-z0-9_]{4,})", re.I)
+PHONE_RE = re.compile(r"(?:\+?\d[\s\-()]*){10,}")
+EMAIL_RE = re.compile(r"\S+@\S+\.\S+")
+
+
+def review_check(name, text, stars, no, existing):
+    """→ ("ok" | "moderate" | "reject", причина)."""
+    low = (name + " " + text).lower().translate(_LAT)
+    letters = re.findall(r"[а-яa-z]", low)
+    links = len(URL_RE.findall(text)) + len(URL_RE.findall(name))
+    if links >= 2 or not re.search(r"[а-яa-z]{2}", text.lower()):
+        return "reject", "ссылки или бессмыслица"
+    if re.search(r"(.)\1{6,}", text) or (letters and len(set(letters)) < 4):
+        return "reject", "бессмыслица"
+    if any(r.get("text", "").strip().lower() == text.strip().lower() and r.get("no") == no for r in existing):
+        return "reject", "повтор"
+    why = []
+    if BAD_ANY.search(low) or BAD_WORD.search(low):
+        why.append("грубые слова")
+    if links:
+        why.append("ссылка")
+    if PHONE_RE.search(text) or EMAIL_RE.search(text):
+        why.append("телефон или почта")
+    if stars and stars <= 2:
+        why.append(f"низкая оценка ({stars}★)")
+    if re.search(r"\d", name) or len(name.split()) > 3:
+        why.append("странное имя")
+    caps = [c for c in text if c.isalpha()]
+    if len(caps) >= 12 and sum(c.isupper() for c in caps) / len(caps) > 0.6:
+        why.append("капс")
+    cyr = len(re.findall(r"[а-яё]", text.lower()))
+    if letters and cyr / max(1, len(re.findall(r"[a-zа-яё]", text.lower()))) < 0.5:
+        why.append("не по-русски")
+    if len(text) < 8:
+        why.append("слишком коротко")
+    return ("moderate", ", ".join(why)) if why else ("ok", "")
+
+
 def site_review(event, headers):
     """Отзыв с сайта → reviews.json (pending) → владельцу на проверку."""
     cors = _cors(headers.get("origin", ""))
@@ -742,28 +784,43 @@ def site_review(event, headers):
     item = _find(catalog_items(), no)
     if not item:
         return out(400, error="Модель не найдена")
-    entry = {}
+    entry, verdict = {}, {}
     def f(dd):
         pend = dd.setdefault("pending", [])
-        if len(pend) >= 50:
+        revs = dd.setdefault("reviews", [])
+        v, why = review_check(name, text, stars, no, revs + pend)
+        verdict.update(v=v, why=why)
+        if v == "reject":
+            return
+        if v == "moderate" and len(pend) >= 50:
             raise RuntimeError("очередь отзывов переполнена")
-        rid = max([r.get("id", 0) for r in dd.get("reviews", []) + pend] + [0]) + 1
+        rid = max([r.get("id", 0) for r in revs + pend] + [0]) + 1
         entry.update(id=rid, ts=int(now * 1000), no=no, name=name, stars=stars, text=text, raw=[], src="site")
-        pend.append(dict(entry))
+        if v == "ok":
+            revs.append(dict(entry, auto=True))
+        else:
+            pend.append(dict(entry, why=why))
     try:
-        update_json("reviews.json", f, f"Сайт: отзыв на проверку №{no}", {"reviews": []})
+        update_json("reviews.json", f, f"Сайт: отзыв о №{no}", {"reviews": []})
     except Exception as e:
         print("site review:", e)
         return out(503, error="Не получилось отправить. Попробуйте позже.")
-    msg = (f"⭐ Новый отзыв с сайта — на проверку\n\n№{no} «{item['title']}»\n"
-           f"{name}{'  ' + '★' * stars + '☆' * (5 - stars) if stars else ''}\n«{text}»\n\n"
-           f"Опубликовать: /одобрить {entry['id']}\nУдалить: /отклонить {entry['id']}")
+    if verdict.get("v") == "reject":
+        print("review rejected:", verdict.get("why"), name, text[:80])
+        return out(200, ok=True, published=False)       # спамеру не сообщаем, что отзыв отброшен
+    stars_txt = "  " + "★" * stars + "☆" * (5 - stars) if stars else ""
+    if verdict["v"] == "ok":
+        msg = (f"✅ Новый отзыв опубликован автоматически\n\n№{no} «{item['title']}»\n{name}{stars_txt}\n«{text}»\n\n"
+               f"Убрать с сайта: /удалить отзыв {entry['id']}")
+    else:
+        msg = (f"⭐ Отзыв с сайта — нужна проверка ({verdict['why']})\n\n№{no} «{item['title']}»\n{name}{stars_txt}\n«{text}»\n\n"
+               f"Опубликовать: /одобрить {entry['id']}\nУдалить: /отклонить {entry['id']}")
     for uid in config()["owners"]:
         try:
             send(uid, msg)
         except Exception as e:
             print("notify review:", e)
-    return out(200, ok=True)
+    return out(200, ok=True, published=verdict["v"] == "ok")
 
 
 def moderate_review(uid, text, approve):
@@ -795,7 +852,8 @@ def pending_reviews(uid):
     pend = (data or {}).get("pending", [])
     if not pend:
         return send(uid, "Отзывов на проверке нет.")
-    lines = [f"№{r['id']} — {r.get('name')} о №{r.get('no')}: {(r.get('text') or '')[:70]}" for r in pend[-15:]]
+    lines = [f"№{r['id']} — {r.get('name')} о №{r.get('no')}: {(r.get('text') or '')[:70]}"
+             + (f" ({r['why']})" if r.get("why") else "") for r in pend[-15:]]
     return send(uid, "⭐ Отзывы с сайта на проверке:\n" + "\n".join(lines) +
                 "\n\nОпубликовать: /одобрить 5\nУдалить: /отклонить 5")
 
