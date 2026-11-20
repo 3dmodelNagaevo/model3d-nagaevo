@@ -39,6 +39,7 @@ MAX_HOSTS = ["https://platform-api2.max.ru", "https://platform-api.max.ru"]
 UPDATE_TYPES = ["message_created", "message_edited", "message_removed", "bot_started", "message_callback"]
 UA = "model3d-bot-yandex"
 CHANNEL_URL = os.environ.get("CHANNEL_URL", "https://max.ru/channel_model3Dnagaevo")
+BOT_URL = os.environ.get("BOT_URL", "https://max.ru/se15070545_bot")
 MASTER_URL = os.environ.get("MASTER_URL", "https://max.ru/u/f9LHodD0cOIASIo07UGTqsR7Fx0LPNcqKwAi9GFiTlXqkxZ281BEJNmiZK0")
 
 # ---------------------------------------------------------------- HTTP
@@ -681,7 +682,7 @@ def promo_kb(code, copy=True):
     rows = []
     if copy:
         rows.append([{"type": "clipboard", "text": f"📋 Скопировать промокод {code}", "payload": code}])
-    rows.append([{"type": "link", "text": "✍️ Заказать у мастера", "url": MASTER_URL},
+    rows.append([{"type": "link", "text": "✍️ Заказать", "url": BOT_URL},
                  {"type": "link", "text": "🛍 Каталог", "url": SITE_URL + "?utm_source=promo"}])
     return {"type": "inline_keyboard", "payload": {"buttons": rows}}
 
@@ -942,7 +943,7 @@ def customer_keyboard(extra=None):
     rows += [[{"type": "callback", "text": "🎁 Получить скидку", "payload": "/скидка"}],
              [{"type": "link", "text": "🛍 Каталог с ценами", "url": SITE_URL + "?utm_source=bot"}],
              [{"type": "link", "text": "📣 Канал", "url": CHANNEL_URL},
-              {"type": "link", "text": "✍️ Написать мастеру", "url": MASTER_URL}]]
+              {"type": "callback", "text": "✍️ Написать мастеру", "payload": "/написать"}]]
     return {"type": "inline_keyboard", "payload": {"buttons": rows}}
 
 
@@ -1051,7 +1052,7 @@ def give_sub_discount(uid, name):
                     print("promo to customer:", e)
             return send_customer(uid, "Сейчас действуют промокоды:\n\n" + "\n".join(lines) +
                                  "\n\n👉 Чтобы получить скидку, выберите модель и напишите мастеру заказ, добавив в сообщение промокод. "
-                                 "Количество активаций ограничено: промокод засчитывается, когда заказ выполнен — успейте!", links=[("✍️ Написать заказ мастеру", MASTER_URL)])
+                                 "Количество активаций ограничено: промокод засчитывается, когда заказ выполнен — успейте!")
         return send_customer(uid, "Сейчас свободных промокодов нет 🙁\nНовые выходят в нашем канале — подпишитесь, чтобы не пропустить!",
                              links=[("📣 Подписаться на канал", CHANNEL_URL)])
     uh = uid_hash(uid)
@@ -1101,9 +1102,9 @@ def give_sub_discount(uid, name):
         print("personal code msg:", e)
     send_customer(uid, f"🎉 Спасибо за подписку! Ваш личный промокод:\n\n{res['code']}\n\n"
                        f"Скидка {disc} на один заказ, действует до {until} включительно.\n\n"
-                       "👉 Как получить скидку: выберите модель в каталоге и напишите мастеру заказ, "
-                       "добавив в сообщение этот промокод.",
-                  links=[("✍️ Написать заказ мастеру", MASTER_URL)])
+                       "👉 Как получить скидку: выберите модель в каталоге и нажмите «Заказать в MAX» "
+                       "(промокод впишите в поле на сайте) — или просто напишите заказ с промокодом сюда, в этот чат.",
+                  extra=[[("✍️ Оформить заказ здесь", "/написать")]])
     for o in config()["owners"]:
         try:
             send(o, f"🎁 {name or 'Покупатель'} подписался на канал и получил личный промокод на {disc} (до {until}).", menu=False)
@@ -1115,6 +1116,9 @@ def handle_customer(uid, text, name=""):
     low = (text or "").strip().lower()
     if low in ("/скидка", "скидка", "/skidka", "получить скидку", "🎁 получить скидку", "/discount"):
         return give_sub_discount(uid, name)
+    if low in ("/написать", "написать"):
+        return send_customer(uid, "✍️ Напишите сюда ваш вопрос или заказ (можно с фото) — я сразу передам мастеру, "
+                                  "он ответит в этом чате.")
     return send_customer(uid, CUSTOMER_HELLO)
 
 
@@ -1183,8 +1187,8 @@ def new_order(uid, user, nos, promo):
         btns.append([(f"🎟 Активировать {pc['code']} (после продажи)", f"/промо списать {pc['code']}")])
     notify_owners("🛒 Новый заказ с сайта\n\n" + lines
                   + (f"\n\n🎟 Промокод: {ptxt}" if ptxt else "")
-                  + f"\n\n👤 {name}" + (f"\n{link}" if link else "")
-                  + "\n\nЧто покупатель напишет боту — придёт сюда.", btns)
+                  + f"\n\n👤 {name}"
+                  + "\n\nОтвечайте кнопкой «💬 Ответить» — сообщение уйдёт от бота, ваш аккаунт писать не нужно.", btns)
 
 
 def forward_to_owners(uid, user, msg):
@@ -1193,7 +1197,7 @@ def forward_to_owners(uid, user, msg):
     body = msg.get("body") or {}
     text = (body.get("text") or "").strip()
     has_media = bool(body.get("attachments"))
-    notify_owners(f"💬 {name} пишет боту:" + (f"\n\n«{text[:1500]}»" if text else "") + (f"\n{link}" if link else ""),
+    notify_owners(f"💬 {name} пишет боту:" + (f"\n\n«{text[:1500]}»" if text else ""),
                   [[("💬 Ответить", f"/ответ {uid}")]])
     if has_media and body.get("mid"):
         for o in config()["owners"]:

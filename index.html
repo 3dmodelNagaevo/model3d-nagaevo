@@ -1247,7 +1247,9 @@ async function checkPromo(force){
 function setBotLinks(url, gift){
   if (!url) return;
   BOT_URL = url;
-  $("#mViaBot").hidden = false; $("#mDirect").hidden = false;
+  $("#mViaBot").hidden = false;
+  // все «написать в MAX» ведут в бота: мастеру не нужно писать покупателям со своего аккаунта
+  $$("[data-maxprofile]").forEach(a => a.href = url);
   if (gift) {                                    // скидка за подписку включена в боте
     const v = gift.kind === "%" ? gift.value + "%" : gift.value + " ₽";
     $("#giftTitle").textContent = `🎁 Скидка ${v} подписчикам канала`;

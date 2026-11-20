@@ -43,6 +43,7 @@ def post_text(c, site_url):
               f"Каталог: {site_url}\n#промокод")
 
 
+BOT_URL = "https://max.ru/se15070545_bot"
 MASTER_URL = "https://max.ru/u/f9LHodD0cOIASIo07UGTqsR7Fx0LPNcqKwAi9GFiTlXqkxZ281BEJNmiZK0"
 
 
@@ -50,7 +51,7 @@ def kb(code, site_url, copy=True):
     rows = []
     if copy:
         rows.append([{"type": "clipboard", "text": f"📋 Скопировать промокод {code}", "payload": code}])
-    rows.append([{"type": "link", "text": "✍️ Заказать у мастера", "url": MASTER_URL},
+    rows.append([{"type": "link", "text": "✍️ Заказать", "url": BOT_URL},
                  {"type": "link", "text": "🛍 Каталог", "url": site_url + "?utm_source=promo"}])
     return {"type": "inline_keyboard", "payload": {"buttons": rows}}
 
