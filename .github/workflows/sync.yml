@@ -84,7 +84,7 @@ jobs:
       - name: Собрать файлы сайта
         run: |
           mkdir _site
-          cp index.html app.html config.js privacy.html catalog.json _site/
+          cp index.html app.html app.js config.js privacy.html catalog.json _site/
           for f in sitemap.xml robots.txt yandex_*.html google*.html; do if [ -f "$f" ]; then cp "$f" _site/; fi; done
           for d in img photos m qr; do [ -d "$d" ] && cp -r "$d" _site/; done
           [ -f CNAME ] && cp CNAME _site/ || true

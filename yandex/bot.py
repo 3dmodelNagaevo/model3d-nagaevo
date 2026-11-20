@@ -380,7 +380,7 @@ def metrika_text(days=7):
     tok = os.environ.get("METRIKA_TOKEN", "").strip()
     if not tok:
         return ""
-    period = {"date1": f"{days}daysAgo", "date2": "today", "ids": mid, "accuracy": "full"}
+    period = {"date1": f"{days}daysAgo", "date2": "today", "ids": mid, "accuracy": "full", "lang": "ru"}
     lines = []
     try:
         d = _metrika("/stat/v1/data", {**period, "metrics": "ym:s:users,ym:s:visits,ym:s:pageviews"}, tok)
