@@ -374,13 +374,32 @@ def _metrika(path, params, tok):
         return json.loads(r.read())
 
 
+def metrika_from():
+    """Дата, с которой считать статистику (кнопка «Считать с сегодняшнего дня»)."""
+    try:
+        d, _ = gh_file("settings.json")
+        return (d or {}).get("metrika_from") or ""
+    except Exception:
+        return ""
+
+
+def metrika_period(days):
+    import datetime as _dt
+    start = (_dt.datetime.utcnow() + _dt.timedelta(hours=5)).date() - _dt.timedelta(days=days - 1)
+    f = metrika_from()
+    if f and f > start.isoformat():
+        return f, f
+    return start.isoformat(), ""
+
+
 def metrika_text(days=7):
     """Сводка Метрики: посетители, визиты, источники, цели (нажатия «Заказать» и т.п.)."""
     mid = os.environ.get("METRIKA_ID", "").strip() or METRIKA_DEFAULT_ID
     tok = os.environ.get("METRIKA_TOKEN", "").strip()
     if not tok:
         return ""
-    period = {"date1": f"{days}daysAgo", "date2": "today", "ids": mid, "accuracy": "full", "lang": "ru"}
+    d1, _f = metrika_period(days)
+    period = {"date1": d1, "date2": "today", "ids": mid, "accuracy": "full", "lang": "ru"}
     lines = []
     try:
         d = _metrika("/stat/v1/data", {**period, "metrics": "ym:s:users,ym:s:visits,ym:s:pageviews"}, tok)
@@ -429,7 +448,8 @@ def metrika_data(days=30):
     tok = os.environ.get("METRIKA_TOKEN", "").strip()
     if not tok:
         return {"error": "Не задан токен Метрики (METRIKA_TOKEN в настройках функции в Яндекс Облаке)."}
-    per = {"date1": f"{days - 1}daysAgo", "date2": "today", "ids": mid, "accuracy": "full", "lang": "ru"}
+    d1, cut = metrika_period(days)
+    per = {"date1": d1, "date2": "today", "ids": mid, "accuracy": "full", "lang": "ru"}
 
     def q(params):
         try:
@@ -468,7 +488,7 @@ def metrika_data(days=30):
                 print("metrika job", k, e)
                 res[k] = None
     t = (res.get("totals") or {}).get("totals") or [0] * 6
-    out = {"days": days,
+    out = {"days": days, "from": cut or metrika_from(),
            "totals": {"users": int(t[0]), "visits": int(t[1]), "pageviews": int(t[2]), "bounce": round(t[3], 1),
                       "duration": int(t[4]), "new": round(t[5], 1)},
            "daily": [[r["dimensions"][0]["name"], int(r["metrics"][0]), int(r["metrics"][1])] for r in (res.get("daily") or {}).get("data", [])],
@@ -1926,6 +1946,17 @@ def handle_owner(uid, text, images):
             return send(uid, f"❌ Не получилось запустить копию: {e}")
         return send(uid, "🗄 Собираю резервную копию — пришлю архив сюда через 1–3 минуты.\n"
                          "(Автоматически копия приходит каждое воскресенье.)")
+    if low.startswith("/метрика"):
+        import datetime as _dt
+        if "сброс" in low:
+            today = (_dt.datetime.utcnow() + _dt.timedelta(hours=5)).date().isoformat()
+            update_json("settings.json", lambda d: d.update(metrika_from=today), "Бот: статистика с сегодняшнего дня", {})
+            return send(uid, f"🧹 Статистика сайта теперь считается с {today[8:10]}.{today[5:7]}.{today[:4]}. "
+                             "Прошлые данные в Метрике сохранились — их можно снова показать: /метрика всё")
+        if "всё" in low or "все" in low:
+            update_json("settings.json", lambda d: d.pop("metrika_from", None), "Бот: статистика за весь период", {})
+            return send(uid, "📈 Статистика снова показывается за весь выбранный период.")
+        return send(uid, "/метрика сброс — считать статистику сайта с сегодняшнего дня\n/метрика всё — показывать всё")
     if re.match(r"^/?ответ\b", low):
         return owner_reply(uid, text)
     if re.match(r"^/?промо", low):

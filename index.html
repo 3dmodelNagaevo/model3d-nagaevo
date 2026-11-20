@@ -819,8 +819,16 @@ const store = {
 
 /* ---------- Метрика ---------- */
 function goal(name, params){ try { if (C.metrikaId && window.ym) ym(C.metrikaId, "reachGoal", name, params || {}); } catch(e){} }
+function isAdminDevice(){
+  // ссылка ?nometrika=1 (или открытие приложения управления) помечает устройство: его заходы не считаются
+  try {
+    if (/[?&]nometrika=1/.test(location.search)) { localStorage.setItem("nometrika", "1"); document.cookie = "nometrika=1; max-age=315360000; path=/"; }
+    if (/[?&]nometrika=0/.test(location.search)) { localStorage.removeItem("nometrika"); document.cookie = "nometrika=; max-age=0; path=/"; }
+    return localStorage.getItem("nometrika") === "1" || document.cookie.indexOf("nometrika=1") >= 0;
+  } catch (e) { return document.cookie.indexOf("nometrika=1") >= 0; }
+}
 function loadMetrika(){
-  if (!C.metrikaId || window.ym) return;
+  if (!C.metrikaId || window.ym || isAdminDevice()) return;
   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();
   k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
   (window,document,"script","https://mc.yandex.ru/metrika/tag.js?id=" + C.metrikaId,"ym");

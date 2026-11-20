@@ -6,7 +6,7 @@ on:
   workflow_dispatch:          # кнопка «Run workflow» — запустить вручную
   push:
     branches: [main]          # вы поменяли файлы сайта — сразу выкладываем
-    paths-ignore: ["links.json", "promos.json"]   # библиотека ссылок сайт не меняет
+    paths-ignore: ["links.json", "promos.json", "settings.json"]   # библиотека ссылок сайт не меняет
 
 permissions:
   contents: write
