@@ -375,21 +375,45 @@ def _metrika(path, params, tok):
 
 
 def metrika_from():
-    """Дата, с которой считать статистику (кнопка «Считать с сегодняшнего дня»)."""
+    """Момент, с которого считать статистику (кнопка «Начать отсчёт с этого момента») — unix-время или 0."""
     try:
         d, _ = gh_file("settings.json")
-        return (d or {}).get("metrika_from") or ""
+        return int((d or {}).get("metrika_from_ts") or 0)
     except Exception:
-        return ""
+        return 0
 
 
-def metrika_period(days):
+_mtz = {}
+
+
+def metrika_tz(mid, tok):
+    """Часовой пояс счётчика (даты в отчётах Метрики — в нём)."""
+    if "tz" not in _mtz:
+        try:
+            c = _metrika(f"/management/v1/counter/{mid}", {}, tok).get("counter") or {}
+            _mtz["tz"] = c.get("time_zone_name") or "Europe/Moscow"
+        except Exception:
+            _mtz["tz"] = "Europe/Moscow"
+    return _mtz["tz"]
+
+
+def metrika_period(days, mid="", tok=""):
+    """→ (date1, фильтр по времени или "", подпись «с какого момента» или "")."""
     import datetime as _dt
-    start = (_dt.datetime.utcnow() + _dt.timedelta(hours=5)).date() - _dt.timedelta(days=days - 1)
-    f = metrika_from()
-    if f and f > start.isoformat():
-        return f, f
-    return start.isoformat(), ""
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo(metrika_tz(mid, tok)) if tok else _dt.timezone(_dt.timedelta(hours=3))
+    except Exception:
+        tz = _dt.timezone(_dt.timedelta(hours=3))
+    now = _dt.datetime.now(tz)
+    start = now.date() - _dt.timedelta(days=days - 1)
+    ts = metrika_from()
+    if ts:
+        cut = _dt.datetime.fromtimestamp(ts, tz)
+        if cut.date() >= start:
+            label = (_dt.datetime.fromtimestamp(ts, _dt.timezone(_dt.timedelta(hours=5)))).strftime("%d.%m.%Y %H:%M")
+            return cut.date().isoformat(), f"ym:s:dateTime>='{cut.strftime('%Y-%m-%d %H:%M:%S')}'", label
+    return start.isoformat(), "", ""
 
 
 def metrika_text(days=7):
@@ -398,8 +422,10 @@ def metrika_text(days=7):
     tok = os.environ.get("METRIKA_TOKEN", "").strip()
     if not tok:
         return ""
-    d1, _f = metrika_period(days)
+    d1, cutf, _l = metrika_period(days, mid, tok)
     period = {"date1": d1, "date2": "today", "ids": mid, "accuracy": "full", "lang": "ru"}
+    if cutf:
+        period["filters"] = cutf
     lines = []
     try:
         d = _metrika("/stat/v1/data", {**period, "metrics": "ym:s:users,ym:s:visits,ym:s:pageviews"}, tok)
@@ -415,7 +441,7 @@ def metrika_text(days=7):
         if src:
             lines.append("↪️ Откуда: " + ", ".join(src))
         d = _metrika("/stat/v1/data", {**period, "metrics": "ym:s:visits",
-                                       "filters": "ym:s:UTMSource=='flyer'"}, tok)
+                                       "filters": "ym:s:UTMSource=='flyer'" + (f" AND {cutf}" if cutf else "")}, tok)
         fl = int(d["totals"][0]) if d.get("totals") else 0
         if fl:
             lines.append(f"📄 С листовки (QR): {fl} визитов")
@@ -448,12 +474,28 @@ def metrika_data(days=30):
     tok = os.environ.get("METRIKA_TOKEN", "").strip()
     if not tok:
         return {"error": "Не задан токен Метрики (METRIKA_TOKEN в настройках функции в Яндекс Облаке)."}
-    d1, cut = metrika_period(days)
+    d1, cutf, label = metrika_period(days, mid, tok)
     per = {"date1": d1, "date2": "today", "ids": mid, "accuracy": "full", "lang": "ru"}
+    approx = []
 
     def q(params):
+        p = {**per, **params}
+        if cutf:                                       # «с этого момента» — фильтр по времени визита
+            p["filters"] = f"({params['filters']}) AND {cutf}" if params.get("filters") else cutf
         try:
-            return _metrika("/stat/v1/data", {**per, **params}, tok)
+            return _metrika("/stat/v1/data", p, tok)
+        except urllib.error.HTTPError as e:
+            if cutf and e.code == 400:                  # Метрика не приняла фильтр по времени — считаем с начала дня
+                approx.append(1)
+                p.pop("filters", None)
+                if params.get("filters"):
+                    p["filters"] = params["filters"]
+                try:
+                    return _metrika("/stat/v1/data", p, tok)
+                except Exception as e2:
+                    print("metrika:", e2)
+            print("metrika:", params.get("dimensions"), e)
+            return None
         except Exception as e:
             print("metrika:", params.get("dimensions"), e)
             return None
@@ -488,7 +530,7 @@ def metrika_data(days=30):
                 print("metrika job", k, e)
                 res[k] = None
     t = (res.get("totals") or {}).get("totals") or [0] * 6
-    out = {"days": days, "from": cut or metrika_from(),
+    out = {"days": days, "from": label, "approx": bool(approx),
            "totals": {"users": int(t[0]), "visits": int(t[1]), "pageviews": int(t[2]), "bounce": round(t[3], 1),
                       "duration": int(t[4]), "new": round(t[5], 1)},
            "daily": [[r["dimensions"][0]["name"], int(r["metrics"][0]), int(r["metrics"][1])] for r in (res.get("daily") or {}).get("data", [])],
@@ -1949,12 +1991,15 @@ def handle_owner(uid, text, images):
     if low.startswith("/метрика"):
         import datetime as _dt
         if "сброс" in low:
-            today = (_dt.datetime.utcnow() + _dt.timedelta(hours=5)).date().isoformat()
-            update_json("settings.json", lambda d: d.update(metrika_from=today), "Бот: статистика с сегодняшнего дня", {})
-            return send(uid, f"🧹 Статистика сайта теперь считается с {today[8:10]}.{today[5:7]}.{today[:4]}. "
+            now = int(time.time())
+            update_json("settings.json", lambda d: (d.pop("metrika_from", None), d.update(metrika_from_ts=now)),
+                        "Бот: статистика с этого момента", {})
+            when = (_dt.datetime.utcfromtimestamp(now) + _dt.timedelta(hours=5)).strftime("%d.%m.%Y %H:%M")
+            return send(uid, f"🧹 Статистика сайта теперь считается с {when} (по Уфе) — всё, что было раньше, не учитывается. "
                              "Прошлые данные в Метрике сохранились — их можно снова показать: /метрика всё")
         if "всё" in low or "все" in low:
-            update_json("settings.json", lambda d: d.pop("metrika_from", None), "Бот: статистика за весь период", {})
+            update_json("settings.json", lambda d: (d.pop("metrika_from", None), d.pop("metrika_from_ts", None)),
+                        "Бот: статистика за весь период", {})
             return send(uid, "📈 Статистика снова показывается за весь выбранный период.")
         return send(uid, "/метрика сброс — считать статистику сайта с сегодняшнего дня\n/метрика всё — показывать всё")
     if re.match(r"^/?ответ\b", low):

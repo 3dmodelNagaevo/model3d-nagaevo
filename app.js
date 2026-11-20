@@ -347,14 +347,14 @@ function renderMetrika(m){
     <div class="card">${hbars(m.phrases)}</div>
     <h2>Начать отсчёт заново</h2>
     <div class="card form">
-      <div class="muted">${m.from ? "Статистика считается с <b>" + esc(m.from.split("-").reverse().join(".")) + "</b>." : "Статистика считается за весь выбранный период."}
-        Сами данные в Метрике не удаляются — здесь просто не показывается то, что было раньше этой даты (например, ваши тестовые заходы).</div>
-      <div class="btns full"><button class="btn red" id="mReset">🧹 Считать с сегодняшнего дня</button>${m.from ? `<button class="btn ghost" id="mAll">Показывать всё</button>` : ""}</div>
+      <div class="muted">${m.from ? "Статистика считается с <b>" + esc(m.from) + "</b> (по Уфе)." + (m.approx ? " Метрика не дала отсечь по минутам — показано с начала этого дня." : "") : "Статистика считается за весь выбранный период."}
+        Сами данные в Метрике не удаляются — здесь просто не показывается то, что было раньше (например, ваши тестовые заходы).</div>
+      <div class="btns full"><button class="btn red" id="mReset">🧹 Начать отсчёт с этого момента</button>${m.from ? `<button class="btn ghost" id="mAll">Показывать всё</button>` : ""}</div>
     </div>
     <p class="muted" style="font-size:13px">Ваши заходы и заходы админов с телефона, где открыто это приложение, больше не считаются. Данные Яндекс Метрики обновляются с задержкой до нескольких минут.</p>`;
-  $("#mReset").onclick = () => sheet(`<div class="top"><h3>Начать отсчёт заново?</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
-    <p>Во вкладке «Метрика» и в статистике бота будут только данные с сегодняшнего дня. Вернуть показ прошлых данных можно кнопкой «Показывать всё».</p>
-    <div class="btns full"><button class="btn red" id="mResetYes">🧹 Да, с сегодняшнего дня</button><button class="btn ghost" onclick="__appCloseSheet()">Отмена</button></div>`)
+  $("#mReset").onclick = () => sheet(`<div class="top"><h3>Начать отсчёт с этого момента?</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+    <p>Во вкладке «Метрика» и в статистике бота будут только заходы начиная с этой минуты — сейчас все цифры станут нулями. Вернуть показ прошлых данных можно кнопкой «Показывать всё».</p>
+    <div class="btns full"><button class="btn red" id="mResetYes">🧹 Да, с этого момента</button><button class="btn ghost" onclick="__appCloseSheet()">Отмена</button></div>`)
     || ($("#mResetYes").onclick = () => { closeSheet(); for (const k in MC) delete MC[k]; cmd("/метрика сброс", false).then(loadMetrika); });
   if ($("#mAll")) $("#mAll").onclick = () => { for (const k in MC) delete MC[k]; cmd("/метрика всё", false).then(loadMetrika); };
   bindCols("cDay", daily, r => `<b>${esc(r.label)}</b>: ${r.v} посетителей, ${r.visits} визитов`);
