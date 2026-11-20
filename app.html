@@ -219,6 +219,8 @@
 <div class="toast" id="toast"></div>
 
 <script>
+(function () {   // всё внутри функции: скрипт MAX объявляет свои глобальные имена, не пересекаемся с ними
+"use strict";
 const C = window.SITE_CONFIG || {};
 const API = (C.reviewApi || "").replace(/review=1/, "app=1");
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -294,7 +296,7 @@ function gate(title, text, site, retry){
   $("#appMain").hidden = true; $("#nav").hidden = true;
   $("#gate").hidden = false;
   $("#gate").innerHTML = `<h1>${esc(title)}</h1><p class="muted">${esc(text)}</p>`
-    + (retry ? `<p><button class="btn" onclick="load(true)">🔄 Повторить</button></p>` : "")
+    + (retry ? `<p><button class="btn" onclick="__appLoad(true)">🔄 Повторить</button></p>` : "")
     + (site ? `<p><a class="btn" href="index.html">Перейти в каталог</a></p>` : "");
 }
 
@@ -365,7 +367,7 @@ function openItem(no){
   const ov = (D.overrides.price || {})[String(no)];
   const base = i.photos_orig || i.photos || [];
   const cover = (D.overrides.cover || {})[String(no)] || 1;
-  sheet(`<div class="top"><h3>№${no} ${esc(i.title)}</h3><button class="x" onclick="closeSheet()">×</button></div>
+  sheet(`<div class="top"><h3>№${no} ${esc(i.title)}</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
     ${base[0] ? `<img src="${esc(base[cover - 1] || base[0])}" alt="" style="width:100%;border-radius:16px;aspect-ratio:4/3;object-fit:cover">` : ""}
     <div class="grid2" style="margin:10px 0">
       <div class="card kpi"><b>${i.views || 0}</b><span>просмотров поста · ${i.views_week || 0} за неделю</span></div>
@@ -486,8 +488,6 @@ $("#metrBtn").onclick = async () => {
 
 /* ---------- старт ---------- */
 try { WA && WA.ready && WA.ready(); } catch(e){}
-const u = WA && WA.initDataUnsafe && WA.initDataUnsafe.user;
-if (u) $("#who").textContent = "Здравствуйте, " + (u.first_name || "") + "!";
 (async () => {
   for (let k = 0; !INIT && k < 20; k++) {             // мост MAX иногда отдаёт данные не сразу
     await new Promise(r => setTimeout(r, 150));
@@ -497,6 +497,9 @@ if (u) $("#who").textContent = "Здравствуйте, " + (u.first_name || "
   if (u) $("#who").textContent = "Здравствуйте, " + (u.first_name || "") + "!";
   if (!INIT) gate("Откройте из бота", "Это приложение управления работает внутри MAX — откройте его кнопкой в чате с ботом.", true);
   else load(true);
+})();
+
+window.__appCloseSheet = closeSheet; window.__appLoad = load;   // для кнопок в разметке
 })();
 </script>
 </body>
