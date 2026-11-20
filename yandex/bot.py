@@ -434,7 +434,9 @@ def config():
         print("admins:", e)
     access, _ = gh_file("access.json")
     allowed = set((access or {}).get("allowed", []))
+    full = set((access or {}).get("full", []))     # админы с полными правами — как у владельца
     chief = {a["id"] for a in admins if a["owner"]}
+    real = set(chief)
     if not admins:                                 # MAX не ответил — берём последний известный список
         owners = set((state or {}).get("owners", []))
         chief = set((state or {}).get("chief", [])) or owners
@@ -442,8 +444,13 @@ def config():
         chief = {a["id"] for a in admins}
         owners = chief
     else:
-        owners = chief | (allowed & {a["id"] for a in admins})
-    _cache.update(ts=time.time(), owners=owners, chief=chief, admins=admins, allowed=allowed, channel=ch)
+        ids = {a["id"] for a in admins}
+        chief = chief | (full & ids)
+        owners = chief | (allowed & ids)
+    if not admins:
+        chief |= full; owners |= full | allowed
+    _cache.update(ts=time.time(), owners=owners, chief=chief, real=real, full=full,
+                  admins=admins, allowed=allowed, channel=ch)
     return _cache
 
 
@@ -453,20 +460,22 @@ _asked = {}
 def access_text(cfg):
     lines = []
     for k, a in enumerate(cfg["admins"], 1):
-        mark = "👑 владелец" if a["id"] in cfg["chief"] and a["owner"] else (
+        mark = "👑 владелец" if a["owner"] and a["id"] in cfg.get("real", ()) else (
+            "⭐ полные права" if a["id"] in cfg.get("full", ()) else
             "✅ есть доступ" if a["id"] in cfg["owners"] else "🚫 нет доступа")
         lines.append(f"{k}. {a['name']} — {mark}")
     if not lines:
         return "Не удалось получить список админов канала. Попробуйте позже."
     return ("👥 Админы канала и доступ к боту:\n" + "\n".join(lines) +
             "\n\nДать доступ: /разрешить 2\nЗабрать: /запретить 2\n(число — номер в этом списке)\n\n"
+            "⭐ Полные права — всё как у владельца, включая выдачу доступа.\n"
             "Без доступа админ не может пользоваться ботом: команды, продажи, цены, отзывы.")
 
 
 def change_access(uid, text, allow):
     cfg = config()
     if uid not in cfg["chief"]:
-        return send(uid, "Выдавать доступ может только владелец канала.")
+        return send(uid, "Выдавать доступ может только владелец канала или админ с полными правами.")
     n = num(text)
     target = None
     if n and 1 <= n <= len(cfg["admins"]):
@@ -475,12 +484,16 @@ def change_access(uid, text, allow):
         target = next((a for a in cfg["admins"] if a["id"] == n), None)
     if not target:
         return send(uid, "Не нашёл такого админа. Посмотрите номера: /доступ")
-    if target["id"] in cfg["chief"] and target["owner"]:
+    if target["owner"] and target["id"] in cfg.get("real", ()):
         return send(uid, "У владельца доступ есть всегда.")
+    if not allow and target["id"] in cfg.get("full", ()) and uid not in cfg.get("real", ()):
+        return send(uid, "Снять полные права может только владелец канала.")
     def f(d):
         s = set(d.get("allowed", []))
         (s.add if allow else s.discard)(target["id"])
         d["allowed"] = sorted(s)
+        if not allow:
+            d["full"] = sorted(set(d.get("full", [])) - {target["id"]})
     update_json("access.json", f, f"Бот: доступ {'выдан' if allow else 'снят'}", {"allowed": []})
     _cache.clear()
     try:
@@ -685,7 +698,7 @@ def handle_owner(uid, text, images):
     if low in ("/доступ", "доступ", "/admins"):
         cfg = config()
         if uid not in cfg["chief"]:
-            return send(uid, "Список доступов видит только владелец канала.")
+            return send(uid, "Список доступов видит только владелец канала и админы с полными правами.")
         return send(uid, access_text(cfg))
     if low.startswith("/разрешить"):
         return change_access(uid, text, True)

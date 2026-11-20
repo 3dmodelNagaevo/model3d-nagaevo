@@ -116,7 +116,9 @@ def get_owners(token, chat_id, state):
     if env:
         return env
     import sync_max as sm
-    allowed = set(sm.load_json(sm.ROOT / "access.json", {}).get("allowed", []))
+    acc = sm.load_json(sm.ROOT / "access.json", {})
+    allowed = set(acc.get("allowed", []))
+    full = set(acc.get("full", []))
     no_names = any("name" not in a for a in state.get("admins") or [])
     if time.time() - state.get("owners_ts", 0) >= 3600 or "admins" not in state or no_names:
         try:
@@ -135,6 +137,7 @@ def get_owners(token, chat_id, state):
         log("  ! MAX не сообщил владельца канала — доступ у всех админов")
         chief = [a["id"] for a in admins]
     ids = {a["id"] for a in admins}
+    chief = sorted(set(chief) | (full & ids))
     owners = sorted(set(chief) | (allowed & ids)) if admins else state.get("owners", [])
     state["owners"], state["chief"] = owners, sorted(set(chief))
     return owners
