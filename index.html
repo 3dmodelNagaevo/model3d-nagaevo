@@ -97,7 +97,12 @@
   .hero-pics{position:relative}
   .hero-pics figure{margin:0;position:relative;border-radius:var(--r-lg);overflow:hidden;cursor:pointer;background:#dfe2ea}
   .hero-pics figure:first-child{grid-column:1/-1}
-  .hero-pics img{width:100%;height:100%;object-fit:cover;display:block;aspect-ratio:1/1}
+  .hero-pics img{width:100%;height:100%;object-fit:cover;display:block;aspect-ratio:1/1;opacity:0;transition:opacity .35s ease}
+  .hero-pics img.ready{opacity:1}
+  .hero-pics figure{background:linear-gradient(100deg,#dfe2ea 30%,#eceef3 50%,#dfe2ea 70%) 0 0/300% 100%;animation:shimmer 1.4s linear infinite}
+  .hero-pics figure.done{animation:none;background:#dfe2ea}
+  @keyframes shimmer{to{background-position:-150% 0}}
+  @media (prefers-reduced-motion:reduce){.hero-pics figure{animation:none}}
   .hero-pics figure:first-child img{aspect-ratio:16/10}
   .hero-pics figcaption{position:absolute;left:10px;right:10px;bottom:10px;background:rgba(255,255,255,.94);border-radius:12px;padding:8px 12px;
     font-size:14px;font-weight:600;line-height:1.3;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
@@ -336,9 +341,9 @@
         </div>
       </div>
       <div class="hero-pics" id="heroPics">
-        <figure><img src="img/bmw1.jpg" alt=""><figcaption></figcaption></figure>
-        <figure><img src="img/spinner.jpg" alt=""><figcaption></figcaption></figure>
-        <figure><img src="img/stand.jpg" alt=""><figcaption></figcaption></figure>
+        <figure><img alt=""><figcaption></figcaption></figure>
+        <figure><img alt=""><figcaption></figcaption></figure>
+        <figure><img alt=""><figcaption></figcaption></figure>
         <span class="hero-note">Последнее в канале</span>
       </div>
     </div>
@@ -540,7 +545,7 @@
         <dt>Цвет</dt><dd id="mColor"></dd>
         <dt>Получение</dt><dd>Самовывоз / ТК33, Нагаево</dd>
       </dl>
-      <a id="mPost" class="post-link" target="_blank" rel="noopener">Открыть пост в канале MAX</a>
+
       <div class="msg"><b>Текст заказа (скопируется сам)</b><span id="mMsg"></span></div>
       <div class="order">
         <a class="btn btn-primary" id="mMax" target="_blank" rel="noopener">Заказать в MAX</a>
@@ -548,6 +553,7 @@
           <a class="btn btn-ghost btn-sm" id="mTg" target="_blank" rel="noopener">Telegram</a>
           <a class="btn btn-ghost btn-sm" id="mTel">Позвонить</a>
         </div>
+        <a class="btn btn-ghost btn-sm" id="mPost" target="_blank" rel="noopener" data-goal="open_post">📣 Посмотреть модель в канале</a>
       </div>
     </div>
     <div class="similar" id="mSimilarWrap">
@@ -576,7 +582,7 @@
 
 <div class="cookie" id="cookie">
   <span>Продолжая пользоваться сайтом, вы соглашаетесь на использование cookies и Яндекс Метрики. <a href="privacy.html">Подробнее</a></span>
-  <button class="btn btn-sm" id="cookieOk">Понятно</button>
+  <button class="btn btn-sm" id="cookieOk">ОК</button>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -623,8 +629,20 @@ function loadMetrika(){
 }
 if (C.metrikaId){
   loadMetrika();   // уведомление: продолжая пользоваться сайтом, посетитель соглашается
-  if (!store.get("cookie_ok", false)) $("#cookie").classList.add("show");
-  $("#cookieOk").onclick = () => { store.set("cookie_ok", true); $("#cookie").classList.remove("show"); };
+  // согласие запоминаем и в localStorage, и в cookie (во встроенных браузерах мессенджеров localStorage бывает недоступен)
+  const cookieOk = () => store.get("cookie_ok", false) || document.cookie.includes("cookie_ok=1");
+  const acceptCookies = () => {
+    store.set("cookie_ok", true);
+    try { document.cookie = "cookie_ok=1; max-age=31536000; path=/; SameSite=Lax"; } catch(e){}
+    $("#cookie").classList.remove("show");
+    window.removeEventListener("scroll", onScrollAccept);
+  };
+  const onScrollAccept = () => { if (window.scrollY > 600) acceptCookies(); };
+  if (!cookieOk()) {
+    $("#cookie").classList.add("show");
+    window.addEventListener("scroll", onScrollAccept, { passive: true });
+  }
+  $("#cookieOk").onclick = acceptCookies;
 }
 document.addEventListener("click", e => { const g = e.target.closest("[data-goal]"); if (g) goal(g.dataset.goal); });
 
@@ -796,7 +814,9 @@ function openModel(m, fromHash){
   $("#mSold").hidden = !m.sold; $("#mSold").textContent = soldText(m);
   $("#mSize").textContent = m.size || "По желанию";
   $("#mColor").textContent = m.color || "Согласовываем в ЛС";
-  const pl = $("#mPost"); pl.hidden = !m.url; if (m.url) pl.href = m.url;
+  // ссылка прямо на пост этой модели; если её нет — на канал
+  const pl = $("#mPost"); const postUrl = m.url || C.channel;
+  pl.hidden = !postUrl; if (postUrl) pl.href = postUrl;
   $("#mMsg").textContent = orderText(m);
   $("#mFav").setAttribute("aria-pressed", FAV.has(m.no));
   const big = $("#mBig"); big.classList.remove("fade"); big.src = m.photos[0] || ""; big.hidden = !m.photos[0]; big.alt = m.title;
@@ -891,7 +911,9 @@ fetch("catalog.json?v=" + Date.now())
     const fresh = [...CATALOG].sort((a,b) => (b.ts||0) - (a.ts||0)).filter(i => i.photos[0]).slice(0, 3);
     $$("#heroPics figure").forEach((fig, k) => {
       const m = fresh[k]; if (!m) return;
-      const img = fig.querySelector("img"); img.src = m.photos[0]; img.alt = m.title;
+      const img = fig.querySelector("img");
+      img.onload = () => { img.classList.add("ready"); fig.classList.add("done"); };
+      img.src = m.photos[0]; img.alt = m.title;
       fig.querySelector("figcaption").innerHTML = `<span>${esc(m.title)}</span><b>${esc(fmt(m.price))}</b>`;
       fig.onclick = () => openModel(m);
     });

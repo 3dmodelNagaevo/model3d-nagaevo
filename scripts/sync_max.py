@@ -240,7 +240,7 @@ def classify(msg):
     base = {
         "mid": str(body.get("mid")),
         "ts": int(msg.get("timestamp") or 0),
-        "url": (msg.get("stat") or {}).get("url") or "",
+        "url": msg.get("url") or (msg.get("stat") or {}).get("url") or "",   # публичная ссылка на пост
         "_photo_urls": image_urls(body)[:MAX_PHOTOS],
     }
     views = (msg.get("stat") or {}).get("views")
