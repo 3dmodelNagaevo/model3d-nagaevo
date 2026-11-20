@@ -1,5 +1,5 @@
 {
-  "updated": 1795205408,
+  "updated": 1795218004,
   "items": [
     {
       "mid": "mid.ffffb8167a965fcf01a1fa93248e14ff",
@@ -13,7 +13,7 @@
       "material": "",
       "desc": "Гаджет для ванной",
       "tags": "для_дома",
-      "views": 2,
+      "views": 6,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_0.jpg",
@@ -26,8 +26,8 @@
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_2.jpg"
       ],
-      "views_week": 2,
-      "views_month": 2
+      "views_week": 6,
+      "views_month": 6
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f9c74c373f85",
