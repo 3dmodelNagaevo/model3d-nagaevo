@@ -29,6 +29,7 @@ import maxapi
 from maxapi import ApiError, log, ROOT
 import photos as photolib
 import promo
+import outbox
 
 CATALOG = ROOT / "catalog.json"
 STATE = ROOT / "state.json"
@@ -542,7 +543,17 @@ def main():
     bot.notify_events(notifier, events, SITE_URL)
     bot.maybe_weekly_report(notifier, items, state, SITE_URL, sales_doc.get("sales", []))
 
-    # 5) промокоды по расписанию
+    # 5) разовые посты от бота (outbox.json)
+    ob = ROOT / "outbox.json"
+    if ob.exists():
+        try:
+            od = load_json(ob, {})
+            if outbox.run(od, token, chat_id, notifier, SITE_URL):
+                dump_json(ob, od)
+        except Exception as e:
+            log(f"  ! outbox: {e}")
+
+    # 6) промокоды по расписанию
     if PROMOS.exists():
         try:
             pd = load_json(PROMOS, {})

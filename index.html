@@ -58,6 +58,8 @@
     box-shadow:inset 0 0 0 3px var(--ink)}
   .nav-links{display:flex;gap:20px;margin-left:auto;font-size:15px;font-weight:500;color:var(--muted)}
   .nav-links a{text-decoration:none;white-space:nowrap}
+  @media (max-width:1400px){.nav-links{gap:16px}.nav-links [data-channel]{display:none}}
+  @media (max-width:1180px){.nav-links a[href="#own"]{display:none}}
   .nav-links a:hover{color:var(--ink)}
   .fav-btn{border:1px solid var(--line);background:var(--sheet);border-radius:var(--r-sm);height:40px;padding:0 12px;display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;font-size:14px;white-space:nowrap}
   .fav-btn .cnt{background:var(--heart);color:#fff;border-radius:999px;font-size:12px;min-width:20px;height:20px;display:grid;place-items:center;padding:0 6px}
