@@ -1,6 +1,31 @@
 {
-  "updated": 1795158308,
+  "updated": 1795161090,
   "items": [
+    {
+      "mid": "mid.ffffb8167a965fcf01a1f7f0039d6020",
+      "ts": 1795161064349,
+      "url": "",
+      "title": "подставка \"Книжный страж\"",
+      "category": "Для дома",
+      "price": 1500,
+      "size": "По желанию",
+      "color": "Согласовывать в ЛС",
+      "material": "",
+      "desc": "",
+      "tags": "",
+      "views": 3,
+      "photos": [
+        "photos/mid_ffffb8167a965fcf01a1f7f0039d6020_0.jpg",
+        "photos/mid_ffffb8167a965fcf01a1f7f0039d6020_1.jpg",
+        "photos/mid_ffffb8167a965fcf01a1f7f0039d6020_2.jpg",
+        "photos/mid_ffffb8167a965fcf01a1f7f0039d6020_3.jpg",
+        "photos/mid_ffffb8167a965fcf01a1f7f0039d6020_4.jpg"
+      ],
+      "source": "max",
+      "no": 46,
+      "views_week": 3,
+      "views_month": 3
+    },
     {
       "mid": "mid.ffffb8167a965fcf01a1f7c59bca0534",
       "ts": 1795158285258,
