@@ -38,6 +38,8 @@ SITE_URL = os.environ.get("SITE_URL", "https://3dnagaevo.ru/").rstrip("/") + "/"
 MAX_HOSTS = ["https://platform-api2.max.ru", "https://platform-api.max.ru"]
 UPDATE_TYPES = ["message_created", "message_edited", "message_removed", "bot_started", "message_callback"]
 UA = "model3d-bot-yandex"
+CHANNEL_URL = os.environ.get("CHANNEL_URL", "https://max.ru/channel_model3Dnagaevo")
+MASTER_URL = os.environ.get("MASTER_URL", "https://max.ru/u/f9LHodD0cOIASIo07UGTqsR7Fx0LPNcqKwAi9GFiTlXqkxZ281BEJNmiZK0")
 
 # ---------------------------------------------------------------- HTTP
 
@@ -568,6 +570,9 @@ PROMO_HELP_SCHED = ("📅 Автовыкладка промокодов в ка�
                     "скидка 10%, 3 активации, действует 7 дней.\n\nЕсли в очереди есть ваши коды — беру их по порядку, "
                     "если нет — придумываю код сам. Выключить: стоп")
 _LAT2CYR = str.maketrans("ABCEHKMOPTXY", "АВСЕНКМОРТХУ")
+PROMO_HELP_SUB = ("🎁 Скидка за подписку на канал.\nПокупатель жмёт на сайте «Получить скидку» → бот проверяет, что он подписан "
+                  "на канал → присылает ему личный промокод (одна активация, один код на человека).\n\n"
+                  "Напишите: СКИДКА  ДНЕЙ\nНапример: 10% 14 — скидка 10%, код действует 14 дней.\nВыключить: стоп")
 
 
 def norm_code(c):
@@ -623,9 +628,10 @@ def promo_post_text(c):
             f"Скидка {fmt_disc(c)} на любой заказ.\n"
             + (f"⚡️ Количество ограничено: всего {plural_act(c['limit'])}"
                + (f", осталось {c['limit'] - c.get('used', 0)}" if c.get("used") else "")
-               + " — скидку получат первые, кто назовёт промокод.\n" if c.get("limit") else "")
+               + f" — скидка достанется первым {c['limit']}, кто укажет промокод в заказе.\n" if c.get("limit") else "")
             + (f"Действует до {until} включительно." if until else "")
-            + f"\n\nНазовите промокод, когда пишете заказ. Каталог: {SITE_URL}\n#промокод")
+            + f"\n\n👉 Как получить скидку: выберите модель и напишите мастеру заказ, добавив в сообщение промокод. "
+              f"Каталог: {SITE_URL}\n#промокод")
 
 
 def gen_code(existing):
@@ -636,9 +642,31 @@ def gen_code(existing):
             return c
 
 
+def code_hash(code):
+    import hashlib, hmac
+    return hmac.new((SECRET or "salt").encode(), norm_code(code).encode(), hashlib.sha256).hexdigest()[:24]
+
+
 def find_code(d, code):
+    """Обычные коды хранятся как есть; личные (за подписку) — только хэшем, чтобы их не было видно на GitHub."""
     n = norm_code(code)
-    return next((c for c in d.get("codes", []) if norm_code(c["code"]) == n), None)
+    c = next((c for c in d.get("codes", []) if c.get("code") and norm_code(c["code"]) == n), None)
+    if c:
+        return c
+    h = code_hash(code)
+    c = next((c for c in d.get("codes", []) if c.get("h") == h), None)
+    if c:
+        c["code"] = n                                    # только в памяти; при сохранении убирается
+    return c
+
+
+def promo_update(fn, message):
+    def wrapped(d):
+        fn(d)
+        for c in d.get("codes", []):
+            if c.get("personal"):
+                c.pop("code", None)
+    return update_json("promos.json", wrapped, message, {"codes": []})
 
 
 def promo_publish(c):
@@ -654,7 +682,7 @@ def promo_post(code):
     r = max_api("POST", "/messages", {"chat_id": config()["channel"]}, {"text": promo_post_text(c)})
     mid = ((r.get("message") or {}).get("body") or {}).get("mid")
     if mid:
-        update_json("promos.json", lambda dd: find_code(dd, code).update(mid=mid), "Бот: пост промокода", {"codes": []})
+        promo_update(lambda dd: find_code(dd, code).update(mid=mid), "Бот: пост промокода")
 
 
 def promo_end_post(c, reason):
@@ -694,15 +722,21 @@ def promo_cmd(uid, text):
         lines = ["🎟 Промокоды\n"]
         if sch.get("on"):
             lines.append(f"📅 Автовыкладка: {EVERY[sch['wd']]} в {sch['hm']} (Уфа) — "
-                         f"{sch['value']}{'%' if sch['kind'] == '%' else ' ₽'}, {sch['limit']} шт., {sch['days']} дн.\n")
+                         f"{sch['value']}{'%' if sch['kind'] == '%' else ' ₽'}, {plural_act(sch['limit'])}, {sch['days']} дн.\n")
         else:
             lines.append("📅 Автовыкладка выключена.\n")
+        sub = d.get("sub") or {}
+        pers = [c for c in codes if c.get("personal")]
+        lines.append(("🎁 Скидка за подписку: " + (f"{sub['value']}{'%' if sub['kind'] == '%' else ' ₽'}, личный код на {sub['days']} дн."
+                      if sub.get("on") else "выключена")) + (f" — выдано {len(pers)}, использовано {sum(1 for c in pers if c.get('used'))}" if pers else "") + "\n")
+        codes = [c for c in codes if not c.get("personal")]
         show = [c for c in codes if promo_status(c)[0] != "ended"] + [c for c in codes if promo_status(c)[0] == "ended"][-3:]
         lines += [promo_line(c) for c in show] or ["Промокодов пока нет."]
         lines.append("\n🟢 действует  📅 в очереди  📝 черновик  ⚪️ закончился")
         return send(uid, "\n".join(lines), menu=False, buttons=[
             [("➕ Новый промокод", "/промо новый"), ("✅ Проверить код", "/код")],
-            [("📅 Автовыкладка", "/промо расписание")] + ([("⏸ Выключить", "/промо расписание стоп")] if sch.get("on") else [])])
+            [("📅 Автовыкладка", "/промо расписание")] + ([("⏸ Выключить", "/промо расписание стоп")] if sch.get("on") else []),
+            [("🎁 Скидка за подписку", "/промо подписка")]])
 
     if act in ("новый", "создать", "+"):
         p = arg.split()
@@ -729,7 +763,7 @@ def promo_cmd(uid, text):
                  "status": "draft", "created": int(time.time()), "by": uid}
             codes.append(c)
             res["c"] = c
-        update_json("promos.json", f, "Бот: новый промокод", {"codes": []})
+        promo_update(f, "Бот: новый промокод")
         if res.get("err"):
             return send(uid, "❌ " + res["err"])
         c = res["c"]
@@ -737,11 +771,27 @@ def promo_cmd(uid, text):
                          f"{plural_act(c['limit']) if c['limit'] else 'без ограничения активаций'}, действует {c['days']} дн. после публикации.\n\nЧто с ним сделать?",
                     menu=False, buttons=promo_buttons(c))
 
+    if act in ("подписка", "подписчикам"):
+        if not arg:
+            return send(uid, PROMO_HELP_SUB, menu=False, buttons=[[("⏸ Выключить", "/промо подписка стоп")]])
+        if arg.lower() in ("стоп", "выкл", "выключить", "off"):
+            promo_update(lambda d: d.setdefault("sub", {}).update(on=False), "Бот: скидка за подписку выключена")
+            return send(uid, "⏸ Скидка за подписку выключена. Покупатели увидят, что сейчас её нет.")
+        p = arg.split()
+        disc = parse_disc(p[0])
+        days = int(p[1]) if len(p) > 1 and p[1].isdigit() else 14
+        if not disc:
+            return send(uid, "Не понял. " + PROMO_HELP_SUB, menu=False)
+        promo_update(lambda d: d.setdefault("sub", {}).update(on=True, kind=disc[0], value=disc[1], days=days), "Бот: скидка за подписку")
+        return send(uid, f"🎁 Готово: подписчик канала получит у бота личный промокод на {disc[1]}{'%' if disc[0] == '%' else ' ₽'} "
+                         f"(одна активация, действует {days} дн.). Один промокод на человека.\n\n"
+                         "Когда покупатель назовёт такой код — проверяйте его как обычно: «✅ Проверить код».")
+
     if act in ("расписание", "автовыкладка", "авто"):
         if not arg:
             return send(uid, PROMO_HELP_SCHED, menu=False, buttons=[[("⏸ Выключить", "/промо расписание стоп")]])
         if arg.lower() in ("стоп", "выкл", "выключить", "off"):
-            update_json("promos.json", lambda d: d.setdefault("schedule", {}).update(on=False), "Бот: автовыкладка выключена", {"codes": []})
+            promo_update(lambda d: d.setdefault("schedule", {}).update(on=False), "Бот: автовыкладка выключена")
             return send(uid, "⏸ Автовыкладка промокодов выключена.")
         p = arg.lower().split()
         try:
@@ -754,7 +804,7 @@ def promo_cmd(uid, text):
         except Exception:
             return send(uid, "Не понял. " + PROMO_HELP_SCHED, menu=False)
         sch = {"on": True, "wd": wd, "hm": f"{hh:02d}:{mm:02d}", "kind": disc[0], "value": disc[1], "limit": limit, "days": days}
-        update_json("promos.json", lambda d: d.setdefault("schedule", {}).update(sch), "Бот: автовыкладка промокодов", {"codes": []})
+        promo_update(lambda d: d.setdefault("schedule", {}).update(sch), "Бот: автовыкладка промокодов")
         return send(uid, f"📅 Готово: {EVERY[wd]} в {sch['hm']} (по Уфе) в канале будет новый промокод — "
                          f"скидка {disc[1]}{'%' if disc[0] == '%' else ' ₽'}, {limit} шт., действует {days} дн.\n\n"
                          "Свои коды для следующих недель: «➕ Новый промокод» → «📅 В очередь». "
@@ -806,12 +856,13 @@ def promo_cmd(uid, text):
                 if c["status"] == "ended" and (not c.get("until") or time.time() < c["until"]):
                     c["status"] = "active"
         try:
-            update_json("promos.json", f, f"Бот: промокод {act} {arg}", {"codes": []})
+            promo_update(f, f"Бот: промокод {act}")
         except Exception as e:
             return send(uid, f"❌ Не получилось: {e}")
         if res.get("err"):
             return send(uid, "❌ " + res["err"])
         c = res["c"]
+        c.setdefault("code", norm_code(arg))            # личный код: в файле только хэш
         if act == "опубликовать":
             try:
                 promo_post(c["code"])
@@ -830,7 +881,8 @@ def promo_cmd(uid, text):
                "удалить": f"🗑 Промокод {c['code']} удалён.",
                "стоп": f"⛔️ Промокод {c['code']} остановлен.",
                "списать": f"✅ Списал 1 шт. {c['code']}: использовано {c.get('used')} из {c.get('limit') or '∞'}."
-                          + (" Это была последняя активация — промокод закрыт, в посте канала это отмечено." if c["status"] == "ended" else ""),
+                          + (" Это была последняя активация — промокод закрыт" + (", в посте канала это отмечено." if c.get("mid") else ".")
+                             if c["status"] == "ended" else ""),
                "вернуть": f"↩️ Вернул 1 шт. {c['code']}: использовано {c.get('used')}."}[act]
         btns = [] if act == "удалить" else promo_buttons(c)
         if act == "списать":
@@ -840,7 +892,7 @@ def promo_cmd(uid, text):
     return send(uid, PROMO_HELP_NEW)
 
 
-ASK.update({"/промо новый": PROMO_HELP_NEW, "/промо расписание": PROMO_HELP_SCHED,
+ASK.update({"/промо новый": PROMO_HELP_NEW, "/промо расписание": PROMO_HELP_SCHED, "/промо подписка": PROMO_HELP_SUB,
             "/код": "✅ Напишите промокод, который назвал покупатель."})
 
 
@@ -859,6 +911,110 @@ def check_code(uid, text):
     names = {"draft": "ещё не опубликован (черновик)", "queued": "ещё не опубликован (в очереди)", "ended": "больше не действует"}
     return send(uid, f"⛔️ {c['code']} {names.get(st, st)}" + (f": {why}" if why else "") + ".\n" + promo_line(c),
                 buttons=promo_buttons(c))
+
+
+# ---------------------------------------------------------------- покупатели: своё меню, скидка за подписку
+
+def customer_keyboard(extra=None):
+    rows = [[{"type": "callback", "text": lbl, "payload": cmd} for lbl, cmd in row] for row in (extra or [])]
+    rows += [[{"type": "callback", "text": "🎁 Получить скидку", "payload": "/скидка"}],
+             [{"type": "link", "text": "🛍 Каталог с ценами", "url": SITE_URL + "?utm_source=bot"}],
+             [{"type": "link", "text": "📣 Канал", "url": CHANNEL_URL},
+              {"type": "link", "text": "✍️ Написать мастеру", "url": MASTER_URL}]]
+    return {"type": "inline_keyboard", "payload": {"buttons": rows}}
+
+
+def send_customer(uid, text, links=None, extra=None):
+    """Сообщение покупателю — только с его меню (админское меню покупатель не увидит никогда)."""
+    kb = customer_keyboard(extra)
+    if links:
+        kb["payload"]["buttons"] = [[{"type": "link", "text": l, "url": u}] for l, u in links] + kb["payload"]["buttons"]
+    max_api("POST", "/messages", {"user_id": uid, "disable_link_preview": "true"}, {"text": text[:3900], "attachments": [kb]})
+
+
+CUSTOMER_HELLO = ("Здравствуйте! 👋 Это бот мастерской «3D модели в Нагаево».\n\n"
+                  "🎁 Подпишитесь на наш канал — и я пришлю личный промокод на скидку.\n"
+                  "🛍 Все модели с ценами — в каталоге на сайте.\n"
+                  "✍️ Заказ, вопросы, своя модель — пишите мастеру.")
+
+
+def is_subscribed(uid):
+    ch = config()["channel"]
+    r = max_api("GET", f"/chats/{ch}/members", {"user_ids": str(uid)})
+    return any((m.get("user_id") == uid) for m in (r.get("members") or []))
+
+
+def uid_hash(uid):
+    import hashlib, hmac
+    return hmac.new((SECRET or "salt").encode(), f"u{uid}".encode(), hashlib.sha256).hexdigest()[:24]
+
+
+_sub_tries = {}
+
+
+def give_sub_discount(uid, name):
+    d, _ = gh_file("promos.json")
+    sub = (d or {}).get("sub") or {}
+    if not sub.get("on"):
+        return send_customer(uid, "Сейчас скидки за подписку нет 🙁\nНо в канале регулярно выходят промокоды — подпишитесь, чтобы не пропустить!")
+    uh = uid_hash(uid)
+    old = next((c for c in (d or {}).get("codes", []) if c.get("personal") and c.get("u") == uh), None)
+    if old:
+        when = time.strftime("%d.%m.%Y", time.gmtime(old.get("start", 0) + TZ))
+        st, _ = promo_status(old)
+        return send_customer(uid, f"Вы уже получили личный промокод {when}"
+                             + (" и уже воспользовались им." if old.get("used") else
+                                ("." if st == "active" else ", но срок его действия закончился."))
+                             + "\nОдин промокод за подписку — на одного человека. Следите за промокодами в канале 😉")
+    if time.time() - _sub_tries.get(uid, 0) < 5:
+        return
+    _sub_tries[uid] = time.time()
+    try:
+        ok = is_subscribed(uid)
+    except Exception as e:
+        print("member check:", e)
+        return send_customer(uid, "Не получилось проверить подписку — попробуйте через пару минут.")
+    if not ok:
+        return send_customer(uid, "Чтобы получить скидку, подпишитесь на наш канал 👇\nПотом вернитесь сюда и нажмите «✅ Я подписался».",
+                             links=[("📣 Подписаться на канал", CHANNEL_URL)], extra=[[("✅ Я подписался", "/скидка")]])
+    res = {}
+    def f(dd):
+        codes = dd.setdefault("codes", [])
+        if any(c.get("personal") and c.get("u") == uh for c in codes):
+            return
+        have = {norm_code(c["code"]) for c in codes if c.get("code")}
+        hashes = {c.get("h") for c in codes}
+        while True:
+            code = gen_code(have)
+            if code_hash(code) not in hashes:
+                break
+        now = int(time.time())
+        res["code"] = code
+        res["until"] = now + sub["days"] * 86400
+        codes.append({"personal": True, "h": code_hash(code), "u": uh, "kind": sub["kind"], "value": sub["value"],
+                      "limit": 1, "used": 0, "days": sub["days"], "status": "active", "start": now, "until": res["until"]})
+    promo_update(f, "Бот: промокод за подписку")
+    if not res.get("code"):
+        return send_customer(uid, "Вы уже получили личный промокод 🙂")
+    disc = f"{sub['value']}%" if sub["kind"] == "%" else f"{sub['value']} ₽"
+    until = time.strftime("%d.%m", time.gmtime(res["until"] + TZ))
+    send_customer(uid, f"🎉 Спасибо за подписку! Ваш личный промокод:\n\n{res['code']}\n\n"
+                       f"Скидка {disc} на один заказ, действует до {until} включительно.\n\n"
+                       "👉 Как получить скидку: выберите модель в каталоге и напишите мастеру заказ, "
+                       "добавив в сообщение этот промокод.",
+                  links=[("✍️ Написать заказ мастеру", MASTER_URL)])
+    for o in config()["owners"]:
+        try:
+            send(o, f"🎁 {name or 'Покупатель'} подписался на канал и получил личный промокод на {disc} (до {until}).", menu=False)
+        except Exception as e:
+            print("notify sub:", e)
+
+
+def handle_customer(uid, text, name=""):
+    low = (text or "").strip().lower()
+    if low in ("/скидка", "скидка", "/skidka", "получить скидку", "🎁 получить скидку", "/discount"):
+        return give_sub_discount(uid, name)
+    return send_customer(uid, CUSTOMER_HELLO)
 
 
 # ---------------------------------------------------------------- обработка событий
@@ -1766,13 +1922,27 @@ def handle_update(u):
         if cuid in cfg["owners"] and cb.get("payload"):
             _await.pop(cuid, None)
             return handle_owner(cuid, cb["payload"], [])
+        if cuid and cb.get("payload"):
+            return handle_customer(cuid, cb["payload"], (cb.get("user") or {}).get("first_name") or "")
         return
 
     uid = (msg.get("sender") or u.get("user") or {}).get("user_id")
     if uid not in cfg["owners"]:
-        if uid in {a["id"] for a in cfg.get("admins", [])} and rec.get("chat_type") in (None, "dialog"):
-            deny(uid, cfg)
-        return  # посторонние — молчим (покупателей бот пока не обслуживает)
+        if not uid or rec.get("chat_type") not in (None, "dialog"):
+            return
+        user = msg.get("sender") or u.get("user") or {}
+        name = user.get("first_name") or user.get("name") or ""
+        if t == "bot_started":
+            if (u.get("payload") or "").lower() in ("skidka", "discount", "promo"):
+                return give_sub_discount(uid, name)
+            return send_customer(uid, CUSTOMER_HELLO)
+        if t != "message_created":
+            return
+        text = ((msg.get("body") or {}).get("text") or "").strip()
+        is_admin = uid in {a["id"] for a in cfg.get("admins", [])}
+        if is_admin and (text in MENU_BUTTONS or (text.startswith("/") and text.lower() not in ("/start", "/скидка", "/skidka"))):
+            return deny(uid, cfg)               # админ без доступа пробует команды
+        return handle_customer(uid, text, name)  # покупатели: только их меню
     if t == "bot_started":
         return send(uid, HELP)
     if t == "message_created" and rec.get("chat_type") == "dialog":

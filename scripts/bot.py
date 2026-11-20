@@ -82,10 +82,8 @@ TEMPLATE_HELP = ("📝 Шаблон поста — скопируйте след
                  "Строки «Размер» и «Цвет» можно оставить как есть. "
                  "Пост без строки «Стоимость» на сайт не попадёт, а с #нетнасайте — не попадёт специально.")
 
-BOT_COMMANDS = [
-    ("menu", "Меню"), ("status", "Статус сайта"), ("top", "Популярное за неделю"),
-    ("stats", "Статистика за неделю"), ("help", "Все команды"),
-]
+# список команд виден ВСЕМ (и покупателям) — поэтому только безопасные; админы управляют кнопками
+BOT_COMMANDS = [("start", "Начать"), ("skidka", "Получить скидку")]
 EN_ALIASES = {"/menu": "/меню", "/status": "/статус", "/top": "/топ", "/stats": "/стата", "/help": "/помощь"}
 
 
@@ -97,14 +95,20 @@ def menu_keyboard():
 
 def ensure_commands(token, state):
     """Список команд бота (кнопка «/» в чате). Ставим один раз."""
-    version = 1
-    if state.get("commands_v") == version:
+    version = 2
+    if state.get("commands_v") == version and state.get("bot_link"):
         return
     try:
         maxapi.patch("/me", {}, token, {"commands": [{"name": n, "description": d} for n, d in BOT_COMMANDS]})
         log("  список команд бота обновлён")
     except Exception as e:
         log(f"  ! не удалось задать список команд: {e}")
+    try:
+        me = maxapi.get("/me", {}, token)
+        if me.get("username"):
+            state["bot_link"] = f"https://max.ru/{me['username']}"
+    except Exception as e:
+        log(f"  ! /me: {e}")
     state["commands_v"] = version
 
 

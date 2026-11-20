@@ -37,9 +37,10 @@ def post_text(c, site_url):
             f"Скидка {fmt_disc(c)} на любой заказ.\n"
             + (f"⚡️ Количество ограничено: всего {plural_act(c['limit'])}"
                + (f", осталось {c['limit'] - c.get('used', 0)}" if c.get("used") else "")
-               + " — скидку получат первые, кто назовёт промокод.\n" if c.get("limit") else "")
+               + f" — скидка достанется первым {c['limit']}, кто укажет промокод в заказе.\n" if c.get("limit") else "")
             + (f"Действует до {until} включительно." if until else "")
-            + f"\n\nНазовите промокод, когда пишете заказ. Каталог: {site_url}\n#промокод")
+            + f"\n\n👉 Как получить скидку: выберите модель и напишите мастеру заказ, добавив в сообщение промокод. "
+              f"Каталог: {site_url}\n#промокод")
 
 
 def _post(token, chat_id, c, site_url):
@@ -80,6 +81,11 @@ def run(doc, token, chat_id, notifier, site_url, now=None):
 
     # 1) закрыть истёкшие
     for c in codes:
+        if c.get("personal"):                    # личные коды за подписку: срок проверяет бот, здесь только закрываем
+            if c.get("status") == "active" and c.get("until") and now > c["until"]:
+                c["status"] = "ended"
+                changed = True
+            continue
         if c.get("status") == "active" and c.get("until") and now > c["until"]:
             c["status"], c["ended"] = "ended", int(now)
             _close_post(token, c, "срок действия закончился", site_url)
@@ -95,7 +101,7 @@ def run(doc, token, chat_id, notifier, site_url, now=None):
             if queued:
                 c = queued[0]
             else:
-                have = {norm_code(x["code"]) for x in codes}
+                have = {norm_code(x["code"]) for x in codes if x.get("code")}
                 code = random.choice(CODE_WORDS) + str(random.randint(10, 99))
                 while code in have:
                     code = random.choice(CODE_WORDS) + str(random.randint(10, 99))

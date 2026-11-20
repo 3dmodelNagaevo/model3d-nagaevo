@@ -320,6 +320,16 @@
   .order{display:flex;flex-direction:column;gap:8px;margin-top:4px}
   .order .btn{width:100%}
   .alt{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .promo-in{display:flex;gap:8px;align-items:center;margin-top:-2px}
+  .promo-in input{flex:1;min-width:0;font:inherit;font-size:16px;border:1px dashed #b9c0d6;border-radius:12px;padding:9px 12px;background:#fff;color:var(--ink);text-transform:uppercase}
+  .promo-in input::placeholder{text-transform:none;color:#8a90a8}
+  .promo-get{font-size:14px;color:var(--muted);margin:2px 0 0}
+  .promo-get a{color:var(--cobalt);font-weight:600}
+  .gift{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;justify-content:space-between;background:#fff;border:2px dashed var(--orange);border-radius:22px;padding:18px 22px}
+  .gift b{display:block;font-family:var(--display);font-size:19px;margin-bottom:2px}
+  .gift span{color:var(--muted);font-size:15px}
+  .gift .btn{flex:0 0 auto}
+  #gift{padding-top:6px;padding-bottom:6px}
   .msg{background:var(--plate);border-radius:12px;padding:10px 12px;font-size:14px;color:#3d4262}
   .msg b{display:block;font-size:13px;color:var(--muted);font-weight:600;margin-bottom:2px}
   .similar{grid-column:1/-1;padding:4px 24px 24px;min-width:0}
@@ -421,6 +431,16 @@
       </div>
     </div>
   </div>
+
+  <section id="gift" hidden>
+    <div class="wrap">
+      <div class="gift">
+        <div><b id="giftTitle">🎁 Скидка подписчикам канала</b>
+          <span>Подпишитесь на канал в MAX — бот проверит подписку и пришлёт личный промокод.</span></div>
+        <a class="btn btn-primary" data-bot target="_blank" rel="noopener" data-goal="get_discount">Получить скидку в боте</a>
+      </div>
+    </div>
+  </section>
 
   <section id="new" hidden>
     <div class="wrap">
@@ -650,6 +670,8 @@
         <dt>Получение</dt><dd>Самовывоз / ТК33, Нагаево</dd>
       </dl>
 
+      <div class="promo-in"><input id="mPromo" maxlength="20" placeholder="Промокод, если есть" autocomplete="off" aria-label="Промокод"></div>
+      <p class="promo-get" id="mPromoGet" hidden>Нет промокода? <a data-bot target="_blank" rel="noopener" data-goal="get_discount">Получите скидку в боте</a> за подписку на канал.</p>
       <div class="msg"><b>Текст заказа (скопируется сам)</b><span id="mMsg"></span></div>
       <div class="order">
         <a class="btn btn-primary" id="mMax" target="_blank" rel="noopener">Заказать в MAX</a>
@@ -725,6 +747,7 @@
           <a href="#new" data-if="new">Новинки</a>
           <a href="#popular" data-if="popular">Хиты недели</a>
           <a href="#" data-menu-fav>Избранное</a>
+          <a href="#gift" id="menuGift" hidden>🎁 Скидка</a>
           <a href="#find">Найти под заказ</a>
           <a href="#own">Своя модель</a>
           <a href="#how">Как заказать</a>
@@ -819,7 +842,8 @@ function toast(t){
   clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove("show"), 3200);
 }
 async function copy(text){ try { await navigator.clipboard.writeText(text); return true; } catch(e){ return false; } }
-const orderText = m => `Здравствуйте! Хочу заказать с сайта: ${m.title} (№${m.no}). Размер: …, цвет: …`;
+const promoVal = () => ($("#mPromo")?.value || "").trim().toUpperCase();
+const orderText = m => `Здравствуйте! Хочу заказать с сайта: ${m.title} (№${m.no}). Размер: …, цвет: …` + (promoVal() ? `. Промокод: ${promoVal()}` : "");
 const pageUrl = m => new URL("m/" + m.no + ".html", location.href.split("#")[0].split("?")[0]).href;
 
 /* ---------- избранное ---------- */
@@ -838,7 +862,8 @@ function syncFav(){
 }
 function favItems(){ return CATALOG.filter(m => FAV.has(m.no)); }
 function favText(){
-  return "Здравствуйте! Хочу заказать с сайта:\n" + favItems().map(m => `• №${m.no} ${m.title} — ${fmt(m.price)}`).join("\n") + "\nРазмер и цвет обсудим.";
+  return "Здравствуйте! Хочу заказать с сайта:\n" + favItems().map(m => `• №${m.no} ${m.title} — ${fmt(m.price)}`).join("\n") + "\nРазмер и цвет обсудим."
+    + (promoVal() ? `\nПромокод: ${promoVal()}` : "");
 }
 function renderFav(){
   const list = favItems(), box = $("#favItems");
@@ -1156,6 +1181,19 @@ $$("[data-maxprofile]").forEach(a => a.href = C.max);
 $$("[data-tg]").forEach(a => a.href = tgUrl);
 $$("[data-tel]").forEach(a => a.href = "tel:" + C.phone);
 $$("[data-channel]").forEach(a => a.href = C.channel);
+try { $("#mPromo").value = localStorage.getItem("promo") || ""; } catch(e){}
+$("#mPromo").addEventListener("input", () => {
+  try { localStorage.setItem("promo", promoVal()); } catch(e){}
+  if (current) $("#mMsg").textContent = orderText(current);
+});
+function setBotLinks(url, gift){
+  if (!url || !gift) return;                     // баннер — только когда скидка за подписку включена в боте
+  const v = gift.kind === "%" ? gift.value + "%" : gift.value + " ₽";
+  $("#giftTitle").textContent = `🎁 Скидка ${v} подписчикам канала`;
+  const link = url + (url.includes("?") ? "&" : "?") + "start=skidka";
+  $$("[data-bot]").forEach(a => a.href = link);
+  $("#gift").hidden = false; $("#mPromoGet").hidden = false; $("#menuGift").hidden = false;
+}
 $$("[data-tgchannel]").forEach(a => C.tgChannel ? a.href = C.tgChannel : a.hidden = true);
 $$("[data-phonetext]").forEach(el => el.textContent = C.phonePretty);
 $("#tgHandle").textContent = "@" + C.telegram;
@@ -1179,6 +1217,7 @@ fetch("catalog.json?v=" + Date.now())
   .then(data => {
     const items = (Array.isArray(data) ? data : (data.items || [])).filter(i => !i.hidden);
     REVIEWS = data.reviews || [];
+    setBotLinks(C.bot || data.bot, data.gift);
     const fromMax = new Set(items.filter(i => i.source === "max").map(i => norm(i.title)));
     CATALOG = items.filter(i => i.source === "max" || !fromMax.has(norm(i.title))).map(i => ({ photos: [], ...i }));
     NEW_SET = new Set([...CATALOG].filter(m => m.ts && Date.now() - m.ts < NEW_MS)
