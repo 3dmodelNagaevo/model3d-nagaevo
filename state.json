@@ -1,10 +1,8 @@
 {
   "owners": [
-    479018271,
-    149796551,
     150322993
   ],
-  "owners_ts": 1795171414,
+  "owners_ts": 1795185678,
   "marker": 22676,
   "views_ts": 1795182971,
   "snap_month": {
@@ -89,5 +87,22 @@
       "mid.ffffb8167a965fcf01a0b33c282831bb": 97
     }
   },
-  "commands_v": 1
+  "commands_v": 1,
+  "admins": [
+    {
+      "id": 479018271,
+      "owner": false
+    },
+    {
+      "id": 149796551,
+      "owner": false
+    },
+    {
+      "id": 150322993,
+      "owner": true
+    }
+  ],
+  "chief": [
+    150322993
+  ]
 }
