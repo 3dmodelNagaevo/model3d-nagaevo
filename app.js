@@ -246,11 +246,19 @@ function renderMore(){
   $("#admins").innerHTML = D.admins.map(a => { const [t, c] = ROLE[a.role];
     const btn = !D.chief || a.role === "owner" ? "" : a.role === "off"
       ? `<button class="btn sm" data-cmd="/разрешить ${a.k}">Дать доступ</button>`
-      : `<button class="btn ghost sm" data-cmd="/запретить ${a.k}">Забрать</button>`;
+      : `<button class="btn ghost sm" data-revoke="${a.k}" data-name="${esc(a.name)}" data-full="${a.role === "full" ? 1 : ""}">Забрать</button>`;
     return `<div class="row" style="cursor:default"><div class="t"><b>${esc(a.name)}</b><small><span class="pill ${c}">${t}</span></small></div>${btn}</div>`; }).join("")
     || `<div class="empty">Список админов недоступен</div>`;
   renderLinks();
 }
+$("#admins").addEventListener("click", e => {      // забрать доступ — с подтверждением
+  const b = e.target.closest("[data-revoke]"); if (!b) return;
+  const k = b.dataset.revoke, name = b.dataset.name;
+  sheet(`<div class="top"><h3>Забрать доступ?</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+    <p>У «${esc(name)}» будет забран доступ${b.dataset.full ? " и полные права" : ""}. Он больше не сможет управлять ботом и открывать это приложение.</p>
+    <div class="btns full"><button class="btn red" id="revYes">🚫 Да, забрать</button><button class="btn ghost" onclick="__appCloseSheet()">Отмена</button></div>`);
+  $("#revYes").onclick = () => { closeSheet(); cmd(`/запретить ${k} да`); };
+});
 $("#lq").oninput = () => renderLinks();
 function renderLinks(){
   const q = $("#lq").value.trim().toLowerCase();

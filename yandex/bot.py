@@ -1508,6 +1508,11 @@ def change_access(uid, text, allow):
         return send(uid, "У владельца доступ есть всегда.")
     if not allow and target["id"] in cfg.get("full", ()) and uid not in cfg.get("real", ()):
         return send(uid, "Снять полные права может только владелец канала.")
+    if not allow and not re.search(r"\bда\b", text.lower()):       # забрать доступ — только после подтверждения
+        k = cfg["admins"].index(target) + 1
+        extra = " и полные права" if target["id"] in cfg.get("full", ()) else ""
+        return send(uid, f"⚠️ Забрать доступ{extra} у «{target['name']}»?\nПосле этого он не сможет управлять ботом.",
+                    menu=False, buttons=[[("✅ Да, забрать", f"/запретить {k} да"), ("❌ Отмена", "/отмена")]])
     def f(d):
         s = set(d.get("allowed", []))
         (s.add if allow else s.discard)(target["id"])
