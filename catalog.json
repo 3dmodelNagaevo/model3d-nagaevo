@@ -1,6 +1,32 @@
 {
-  "updated": 1795191779,
+  "updated": 1795192047,
   "items": [
+    {
+      "mid": "mid.ffffb8167a965fcf01a1f9c74c373f85",
+      "ts": 1795191950391,
+      "url": "https://max.ru/channel_model3Dnagaevo/AaH5x0w3P4U",
+      "title": "Драконье яйцо \"Спираль чешуи\"",
+      "category": "Игрушки и антистресс",
+      "price": 400,
+      "size": "По желанию",
+      "color": "Согласовывать в ЛС",
+      "material": "",
+      "desc": "",
+      "tags": "",
+      "views": 3,
+      "photos": [
+        "photos/mid_ffffb8167a965fcf01a1f9c74c373f85_0.jpg",
+        "photos/mid_ffffb8167a965fcf01a1f9c74c373f85_1.jpg",
+        "photos/mid_ffffb8167a965fcf01a1f9c74c373f85_2.jpg",
+        "photos/mid_ffffb8167a965fcf01a1f9c74c373f85_3.jpg",
+        "photos/mid_ffffb8167a965fcf01a1f9c74c373f85_4.jpg",
+        "photos/mid_ffffb8167a965fcf01a1f9c74c373f85_5.jpg"
+      ],
+      "source": "max",
+      "no": 48,
+      "views_week": 3,
+      "views_month": 3
+    },
     {
       "mid": "mid.ffffb8167a965fcf01a1f8143b3702a2",
       "ts": 1795163437879,
