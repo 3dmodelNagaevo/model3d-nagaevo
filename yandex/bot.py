@@ -36,7 +36,7 @@ SECRET = os.environ.get("SECRET", "").strip()
 REPO = os.environ.get("REPO", "3dmodelNagaevo/model3d-nagaevo").strip()
 SITE_URL = os.environ.get("SITE_URL", "https://3dnagaevo.ru/").rstrip("/") + "/"
 MAX_HOSTS = ["https://platform-api2.max.ru", "https://platform-api.max.ru"]
-UPDATE_TYPES = ["message_created", "message_edited", "message_removed", "bot_started"]
+UPDATE_TYPES = ["message_created", "message_edited", "message_removed", "bot_started", "message_callback"]
 UA = "model3d-bot-yandex"
 
 # ---------------------------------------------------------------- HTTP
@@ -223,11 +223,61 @@ def keyboard():
     return {"type": "inline_keyboard", "payload": {"buttons": rows}}
 
 
-def send(uid, text, menu=True):
+def send(uid, text, menu=True, buttons=None):
+    """buttons — ряды кнопок-действий [[("✅ Опубликовать", "/одобрить 5"), …], …]: нажал — и команда выполнена."""
     body = {"text": text[:3900]}
+    rows = [[{"type": "callback", "text": lbl[:60], "payload": cmd[:1000]} for lbl, cmd in row] for row in (buttons or []) if row]
     if menu:
-        body["attachments"] = [keyboard()]
+        kb = keyboard()
+        kb["payload"]["buttons"] = rows + kb["payload"]["buttons"]
+        body["attachments"] = [kb]
+    elif rows:
+        body["attachments"] = [{"type": "inline_keyboard", "payload": {"buttons": rows}}]
     max_api("POST", "/messages", {"user_id": uid, "disable_link_preview": "true"}, body)
+
+
+# ---------------------------------------------------------------- команды без номера: бот спрашивает номер
+
+ASK = {
+    "/цена": "💰 Напишите номер товара и новую цену через пробел:\n12 300\n\nВернуть цену из поста: 12 сброс",
+    "/скрыть": "🙈 Какой товар убрать с сайта? Напишите его номер, например: 12",
+    "/показать": "👁 Какой товар вернуть на сайт? Напишите его номер, например: 12",
+    "/обложка": "🖼 У какого товара сменить главное фото? Напишите номер, например: 12",
+    "/изменить": "✏️ Напишите номер товара и что поменять:\n12 цена 350\n12 размер 10 см\n12 цвет любой\n12 название Дракон большой\n\n"
+                 "Или только номер — пришлю весь текст поста.\n(Бот меняет только посты, которые сам опубликовал.)",
+    "/удалить отзыв": "🗑 Напишите номер отзыва, который убрать с сайта. Номера — в «🗂 Отзывы».",
+    "/удалить продажу": "🗑 Напишите номер отметки из «📜 История», например: 7",
+    "/сбросить продажи": "🧹 У какого товара обнулить «Продано»? Напишите номер, например: 38",
+    "/разрешить": "👥 Напишите номер админа из списка «👥 Доступ», которому дать доступ.",
+    "/запретить": "👥 Напишите номер админа из списка «👥 Доступ», у которого забрать доступ.",
+}
+ASK_ALIASES = {"/удалить_отзыв": "/удалить отзыв", "удалить отзыв": "/удалить отзыв", "/удалить_продажу": "/удалить продажу",
+               "удалить продажу": "/удалить продажу", "/сбросить_продажи": "/сбросить продажи", "/показать": "/показать",
+               "/изменить пост": "/изменить", "изменить": "/изменить", "цена": "/цена", "скрыть": "/скрыть", "обложка": "/обложка"}
+CANCEL = [[("❌ Отмена", "/отмена")]]
+_await = {}            # uid → (команда, время): ждём номер следующим сообщением
+
+
+def ask_or_fill(uid, text):
+    """Голая команда → спросить номер. Следующее сообщение без «/» → дописать к команде.
+    Возвращает (текст для выполнения | None, отправлено_ли_сообщение)."""
+    bare = re.sub(r"\s+", " ", text.strip().lower())
+    bare = ASK_ALIASES.get(bare, bare)
+    if bare in ASK:
+        _await[uid] = (bare, time.time())
+        send(uid, ASK[bare], menu=False, buttons=CANCEL)
+        return None, True
+    if bare in ("/отмена", "отмена"):
+        had = _await.pop(uid, None)
+        send(uid, "Отменил." if had else "Нечего отменять.")
+        return None, True
+    if text.startswith("/") or text in MENU_BUTTONS:
+        _await.pop(uid, None)
+        return text, False
+    w = _await.pop(uid, None)
+    if w and time.time() - w[1] < 900:
+        return f"{w[0]} {text}", False
+    return text, False
 
 
 def num(s):
@@ -565,7 +615,7 @@ def access_text(cfg):
     if not lines:
         return "Не удалось получить список админов канала. Попробуйте позже."
     return ("👥 Админы канала и доступ к боту:\n" + "\n".join(lines) +
-            "\n\nДать доступ: /разрешить 2\nЗабрать: /запретить 2\n(число — номер в этом списке)\n\n"
+            "\n\nДать или забрать доступ — кнопками ниже.\n\n"
             "⭐ Полные права — всё как у владельца, включая выдачу доступа.\n"
             "Без доступа админ не может пользоваться ботом: команды, продажи, цены, отзывы.")
 
@@ -810,14 +860,14 @@ def site_review(event, headers):
         return out(200, ok=True, published=False)       # спамеру не сообщаем, что отзыв отброшен
     stars_txt = "  " + "★" * stars + "☆" * (5 - stars) if stars else ""
     if verdict["v"] == "ok":
-        msg = (f"✅ Новый отзыв опубликован автоматически\n\n№{no} «{item['title']}»\n{name}{stars_txt}\n«{text}»\n\n"
-               f"Убрать с сайта: /удалить отзыв {entry['id']}")
+        msg = f"✅ Новый отзыв опубликован автоматически\n\n№{no} «{item['title']}»\n{name}{stars_txt}\n«{text}»"
+        btns = [[("🗑 Убрать с сайта", f"/удалить отзыв {entry['id']}")]]
     else:
-        msg = (f"⭐ Отзыв с сайта — нужна проверка ({verdict['why']})\n\n№{no} «{item['title']}»\n{name}{stars_txt}\n«{text}»\n\n"
-               f"Опубликовать: /одобрить {entry['id']}\nУдалить: /отклонить {entry['id']}")
+        msg = f"⭐ Отзыв с сайта — нужна проверка ({verdict['why']})\n\n№{no} «{item['title']}»\n{name}{stars_txt}\n«{text}»"
+        btns = [[("✅ Опубликовать", f"/одобрить {entry['id']}"), ("🗑 Удалить", f"/отклонить {entry['id']}")]]
     for uid in config()["owners"]:
         try:
-            send(uid, msg)
+            send(uid, msg, menu=False, buttons=btns)
         except Exception as e:
             print("notify review:", e)
     return out(200, ok=True, published=verdict["v"] == "ok")
@@ -842,8 +892,8 @@ def moderate_review(uid, text, approve):
     if not r:
         return send(uid, f"Отзыва №{rid} на проверке нет (возможно, его уже обработал другой админ).")
     if approve:
-        return send(uid, f"✅ Отзыв №{rid} от {r.get('name')} опубликован. На сайте появится через 1–2 минуты.\n"
-                         f"Убрать потом: /удалить отзыв {rid}")
+        return send(uid, f"✅ Отзыв №{rid} от {r.get('name')} опубликован. На сайте появится через 1–2 минуты.",
+                    buttons=[[("🗑 Всё-таки убрать", f"/удалить отзыв {rid}")]])
     return send(uid, f"🗑 Отзыв №{rid} от {r.get('name')} удалён.")
 
 
@@ -852,10 +902,11 @@ def pending_reviews(uid):
     pend = (data or {}).get("pending", [])
     if not pend:
         return send(uid, "Отзывов на проверке нет.")
-    lines = [f"№{r['id']} — {r.get('name')} о №{r.get('no')}: {(r.get('text') or '')[:70]}"
-             + (f" ({r['why']})" if r.get("why") else "") for r in pend[-15:]]
-    return send(uid, "⭐ Отзывы с сайта на проверке:\n" + "\n".join(lines) +
-                "\n\nОпубликовать: /одобрить 5\nУдалить: /отклонить 5")
+    for r in pend[-10:]:
+        send(uid, f"⭐ №{r['id']} — {r.get('name')} о товаре №{r.get('no')}"
+                  + (f" ({r['why']})" if r.get("why") else "") + f"\n«{(r.get('text') or '')[:500]}»",
+             menu=False, buttons=[[("✅ Опубликовать", f"/одобрить {r['id']}"), ("🗑 Удалить", f"/отклонить {r['id']}")]])
+    return send(uid, f"На проверке: {len(pend)}. Нажимайте кнопки под отзывами.")
 
 
 SALE_ONLY_RE = re.compile(r"^[\d\s,;:xх×*\-—–.шт]+$", re.I)
@@ -954,6 +1005,10 @@ def record_sales(uid, pairs, bad):
 def handle_owner(uid, text, images):
     if text in MENU_BUTTONS:
         text = MENU_BUTTONS[text]
+    if not images:
+        text, done = ask_or_fill(uid, text)
+        if done:
+            return
     low = text.lower()
     if low.startswith("/отзыв") and not low.startswith("/отзывы") or low.startswith("отзыв:") or "#отзыв" in low:
         return add_review(uid, text.replace("#отзыв", "").replace("#Отзыв", ""), images)
@@ -965,7 +1020,14 @@ def handle_owner(uid, text, images):
         cfg = config()
         if uid not in cfg["chief"]:
             return send(uid, "Список доступов видит только владелец канала и админы с полными правами.")
-        return send(uid, access_text(cfg))
+        btns = []
+        for k, a in enumerate(cfg["admins"], 1):
+            if a["owner"] and a["id"] in cfg.get("real", ()):
+                continue
+            short = a["name"][:20]
+            btns.append([(f"🚫 Забрать: {short}", f"/запретить {k}")] if a["id"] in cfg["owners"]
+                        else [(f"✅ Дать доступ: {short}", f"/разрешить {k}")])
+        return send(uid, access_text(cfg), menu=False, buttons=btns)
     if low.startswith("/разрешить"):
         return change_access(uid, text, True)
     if low.startswith("/запретить"):
@@ -1093,8 +1155,10 @@ def handle_owner(uid, text, images):
                 except Exception as e:
                     print("photo:", e)
             cur = ((ov or {}).get("cover") or {}).get(str(no), 1)
-            return send(uid, f"🖼 «{item['title']}»: сейчас главное — фото {cur}.\n"
-                             f"Напишите, например: /обложка {no} 2")
+            nums = list(range(1, min(len(base), 10) + 1))
+            btns = [[(f"{'✅ ' if n == cur else ''}Фото {n}", f"/обложка {no} {n}") for n in nums[i:i + 4]] for i in range(0, len(nums), 4)]
+            return send(uid, f"🖼 «{item['title']}»: сейчас главное — фото {cur}.\nКакое сделать главным?",
+                        menu=False, buttons=btns)
         def f(ov):
             c = ov.setdefault("cover", {})
             if k <= 1:
@@ -1378,6 +1442,18 @@ def handle_update(u):
     if t == "message_created" and rec.get("chat_type") == "chat" and rec.get("chat_id") != cfg.get("channel"):
         return handle_group(msg, rec.get("chat_id"))
 
+    if t == "message_callback":
+        cb = u.get("callback") or {}
+        cuid = (cb.get("user") or {}).get("user_id")
+        try:
+            max_api("POST", "/answers", {"callback_id": cb.get("callback_id")}, {"notification": "Выполняю…"})
+        except Exception as e:
+            print("answer:", e)
+        if cuid in cfg["owners"] and cb.get("payload"):
+            _await.pop(cuid, None)
+            return handle_owner(cuid, cb["payload"], [])
+        return
+
     uid = (msg.get("sender") or u.get("user") or {}).get("user_id")
     if uid not in cfg["owners"]:
         if uid in {a["id"] for a in cfg.get("admins", [])} and rec.get("chat_type") in (None, "dialog"):
@@ -1433,6 +1509,24 @@ def setup_page(func_url, action):
     return {"statusCode": 200, "headers": {"Content-Type": "text/html; charset=utf-8"}, "body": page}
 
 
+_sub_checked = [0.0]
+
+
+def ensure_subscription(func_url):
+    """Раз в час проверяем, что вебхук получает все нужные события (например, нажатия кнопок)."""
+    if time.time() - _sub_checked[0] < 3600:
+        return
+    _sub_checked[0] = time.time()
+    try:
+        subs = max_api("GET", "/subscriptions").get("subscriptions") or []
+        mine = next((x for x in subs if (x.get("url") or "").rstrip("/") == func_url.rstrip("/")), None)
+        if mine and set(UPDATE_TYPES) - set(mine.get("update_types") or UPDATE_TYPES):
+            max_api("POST", "/subscriptions", None, {"url": mine["url"], "update_types": UPDATE_TYPES, "secret": SECRET})
+            print("subscription: добавлены события", set(UPDATE_TYPES) - set(mine.get("update_types") or []))
+    except Exception as e:
+        print("subscription check:", e)
+
+
 def handler(event, context):
     headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
     q = event.get("queryStringParameters") or {}
@@ -1451,6 +1545,7 @@ def handler(event, context):
 
     if not SECRET or headers.get("x-max-bot-api-secret") != SECRET:
         return {"statusCode": 403, "body": "forbidden"}
+    ensure_subscription(func_url)
     try:
         raw = event.get("body") or "{}"
         if event.get("isBase64Encoded"):
