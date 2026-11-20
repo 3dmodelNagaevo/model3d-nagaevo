@@ -1080,7 +1080,7 @@ $("#menuModal").addEventListener("click", e => {
   if (e.target.id === "menuModal") return closeMenu();
   const a = e.target.closest("a"); if (!a) return;
   if (a.hasAttribute("data-menu-fav")) { e.preventDefault(); closeMenu(); setTimeout(openFav, 270); return; }
-  if (a.getAttribute("href")?.startsWith("#")) closeMenu();   // переход к разделу
+  if ((a.getAttribute("href") || "").startsWith("#")) closeMenu();   // переход к разделу
 });
 const toTop = $("#toTop");
 window.addEventListener("scroll", () => toTop.classList.toggle("show", window.scrollY > 1400), { passive: true });
