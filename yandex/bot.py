@@ -624,7 +624,7 @@ def promo_line(c):
 
 def promo_post_text(c):
     until = time.strftime("%d.%m", time.gmtime(c["until"] + TZ)) if c.get("until") else ""
-    return (f"🎁 Промокод: {c['code']}\n\n"
+    return (f"🎁 Промокод:\n\n{c['code']}\n\n"
             f"Скидка {fmt_disc(c)} на любой заказ.\n"
             + (f"⚡️ Количество ограничено: всего {plural_act(c['limit'])}"
                + (f", осталось {c['limit'] - c.get('used', 0)}" if c.get("used") else "")
@@ -676,20 +676,41 @@ def promo_publish(c):
     c["until"] = c["start"] + c["days"] * 86400 if c.get("days") else None
 
 
+def promo_kb(code, copy=True):
+    """Кнопки под постом: скопировать код одним нажатием, заказать, каталог."""
+    rows = []
+    if copy:
+        rows.append([{"type": "clipboard", "text": f"📋 Скопировать промокод {code}", "payload": code}])
+    rows.append([{"type": "link", "text": "✍️ Заказать у мастера", "url": MASTER_URL},
+                 {"type": "link", "text": "🛍 Каталог", "url": SITE_URL + "?utm_source=promo"}])
+    return {"type": "inline_keyboard", "payload": {"buttons": rows}}
+
+
+def post_with_kb(method, params, text, code):
+    """Пост/правка с кнопкой «Скопировать»; если MAX её не примет — без неё."""
+    for copy in (True, False):
+        try:
+            return max_api(method, "/messages", params, {"text": text, "attachments": [promo_kb(code, copy)]})
+        except Exception as e:
+            print("promo kb:", copy, e)
+    return max_api(method, "/messages", params, {"text": text})
+
+
 def promo_post(code):
     d, _ = gh_file("promos.json")
     c = find_code(d or {}, code)
-    r = max_api("POST", "/messages", {"chat_id": config()["channel"]}, {"text": promo_post_text(c)})
+    r = post_with_kb("POST", {"chat_id": config()["channel"]}, promo_post_text(c), c["code"])
     mid = ((r.get("message") or {}).get("body") or {}).get("mid")
     if mid:
-        promo_update(lambda dd: find_code(dd, code).update(mid=mid), "Бот: пост промокода")
+        promo_update(lambda dd: find_code(dd, code).update(mid=mid, kb=True), "Бот: пост промокода")
 
 
 def promo_end_post(c, reason):
     if c.get("mid") and not c.get("post_closed"):
         try:
             max_api("PUT", "/messages", {"message_id": c["mid"]},
-                    {"text": promo_post_text(c).replace("🎁 Промокод:", "⛔️ Промокод больше не действует:") + f"\n\n({reason})"})
+                    {"text": promo_post_text(c).replace("🎁 Промокод:", "⛔️ Промокод больше не действует:") + f"\n\n({reason})",
+                     "attachments": []})                  # кнопки «Скопировать/Заказать» убираем
             c["post_closed"] = True
         except Exception as e:
             print("promo end post:", e)
@@ -871,7 +892,7 @@ def promo_cmd(uid, text):
                                  "Опубликуйте его в канале вручную.")
         if res.get("refresh") and c.get("mid"):           # в посте — сколько активаций осталось
             try:
-                max_api("PUT", "/messages", {"message_id": c["mid"]}, {"text": promo_post_text(c)})
+                post_with_kb("PUT", {"message_id": c["mid"]}, promo_post_text(c), c["code"])
             except Exception as e:
                 print("promo refresh:", e)
         msg = {"опубликовать": f"📣 Опубликовал промокод {c['code']} в канале.",
@@ -1014,6 +1035,11 @@ def give_sub_discount(uid, name):
                 until = time.strftime("%d.%m", time.gmtime(c["until"] + TZ)) if c.get("until") else ""
                 lines.append(f"🎁 {c['code']} — скидка {fmt_disc(c)}"
                              + (f", осталось {plural_act(left)}" if left is not None else "") + (f", до {until}" if until else ""))
+            for c in act[:3]:
+                try:
+                    post_with_kb("POST", {"user_id": uid}, f"🎁 {c['code']}", c["code"])
+                except Exception as e:
+                    print("promo to customer:", e)
             return send_customer(uid, "Сейчас действуют промокоды:\n\n" + "\n".join(lines) +
                                  "\n\n👉 Чтобы получить скидку, выберите модель и напишите мастеру заказ, добавив в сообщение промокод. "
                                  "Количество активаций ограничено: промокод засчитывается, когда заказ выполнен — успейте!", links=[("✍️ Написать заказ мастеру", MASTER_URL)])
@@ -1060,6 +1086,10 @@ def give_sub_discount(uid, name):
         return send_customer(uid, "Вы уже получили личный промокод 🙂")
     disc = f"{sub['value']}%" if sub["kind"] == "%" else f"{sub['value']} ₽"
     until = time.strftime("%d.%m", time.gmtime(res["until"] + TZ))
+    try:
+        post_with_kb("POST", {"user_id": uid}, f"🎁 Ваш личный промокод: {res['code']}", res["code"])
+    except Exception as e:
+        print("personal code msg:", e)
     send_customer(uid, f"🎉 Спасибо за подписку! Ваш личный промокод:\n\n{res['code']}\n\n"
                        f"Скидка {disc} на один заказ, действует до {until} включительно.\n\n"
                        "👉 Как получить скидку: выберите модель в каталоге и напишите мастеру заказ, "

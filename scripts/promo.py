@@ -33,7 +33,7 @@ def fmt_disc(c):
 
 def post_text(c, site_url):
     until = time.strftime("%d.%m", time.gmtime(c["until"] + TZ)) if c.get("until") else ""
-    return (f"🎁 Промокод: {c['code']}\n\n"
+    return (f"🎁 Промокод:\n\n{c['code']}\n\n"
             f"Скидка {fmt_disc(c)} на любой заказ.\n"
             + (f"⚡️ Количество ограничено: всего {plural_act(c['limit'])}"
                + (f", осталось {c['limit'] - c.get('used', 0)}" if c.get("used") else "")
@@ -43,8 +43,29 @@ def post_text(c, site_url):
               f"Каталог: {site_url}\n#промокод")
 
 
+MASTER_URL = "https://max.ru/u/f9LHodD0cOIASIo07UGTqsR7Fx0LPNcqKwAi9GFiTlXqkxZ281BEJNmiZK0"
+
+
+def kb(code, site_url, copy=True):
+    rows = []
+    if copy:
+        rows.append([{"type": "clipboard", "text": f"📋 Скопировать промокод {code}", "payload": code}])
+    rows.append([{"type": "link", "text": "✍️ Заказать у мастера", "url": MASTER_URL},
+                 {"type": "link", "text": "🛍 Каталог", "url": site_url + "?utm_source=promo"}])
+    return {"type": "inline_keyboard", "payload": {"buttons": rows}}
+
+
+def _send(method, params, token, text, code, site_url):
+    for copy in (True, False):
+        try:
+            return maxapi._request(method, "/messages", params, token, {"text": text, "attachments": [kb(code, site_url, copy)]})
+        except Exception as e:
+            print(f"  ! кнопки промокода ({'с копированием' if copy else 'без'}): {e}")
+    return maxapi._request(method, "/messages", params, token, {"text": text})
+
+
 def _post(token, chat_id, c, site_url):
-    r = maxapi.post("/messages", {"chat_id": chat_id}, token, {"text": post_text(c, site_url)})
+    r = _send("POST", {"chat_id": chat_id}, token, post_text(c, site_url), c["code"], site_url)
     return ((r.get("message") or {}).get("body") or {}).get("mid")
 
 
@@ -54,7 +75,7 @@ def _close_post(token, c, reason, site_url):
     try:
         maxapi._request("PUT", "/messages", {"message_id": c["mid"]}, token,
                         {"text": post_text(c, site_url).replace("🎁 Промокод:", "⛔️ Промокод больше не действует:")
-                         + f"\n\n({reason})"})
+                         + f"\n\n({reason})", "attachments": []})
         c["post_closed"] = True
     except Exception as e:
         print(f"  ! промокод {c['code']}: не удалось закрыть пост: {e}")
@@ -92,6 +113,16 @@ def run(doc, token, chat_id, notifier, site_url, now=None):
             notifier.send(f"⚪️ Промокод {c['code']} закончился по сроку: использовали {c.get('used', 0)} из {c.get('limit') or '∞'}.")
             changed = True
 
+    # 1б) добавить кнопку «Скопировать» к уже опубликованным постам (один раз)
+    for c in codes:
+        if c.get("code") and c.get("mid") and c.get("status") == "active" and not c.get("kb"):
+            try:
+                _send("PUT", {"message_id": c["mid"]}, token, post_text(c, site_url), c["code"], site_url)
+                c["kb"] = True
+                changed = True
+            except Exception as e:
+                print(f"  ! кнопки к посту {c['code']}: {e}")
+
     # 2) промокод недели
     sch = doc.get("schedule") or {}
     if sch.get("on"):
@@ -114,6 +145,7 @@ def run(doc, token, chat_id, notifier, site_url, now=None):
             changed = True
             try:
                 c["mid"] = _post(token, chat_id, c, site_url)
+                c["kb"] = True
                 notifier.send(f"📣 Автовыкладка: опубликовал промокод {c['code']} — {fmt_disc(c)}, "
                               f"{plural_act(c['limit']) if c.get('limit') else 'без ограничения'}, до {time.strftime('%d.%m', time.gmtime(c['until'] + TZ)) if c.get('until') else '—'}.")
             except Exception as e:
