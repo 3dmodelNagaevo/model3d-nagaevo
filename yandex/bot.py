@@ -1260,14 +1260,14 @@ def webapp_user(init_data):
 
 
 def app_dash(uid):
-    cfg = config()
-    items = catalog_items()
-    sd, _ = gh_file("sales.json")
-    rv, _ = gh_file("reviews.json")
-    pr, _ = gh_file("promos.json")
-    ov, _ = gh_file("overrides.json")
-    ln, _ = gh_file("links.json")
-    cat, _ = gh_file("catalog.json")
+    from concurrent.futures import ThreadPoolExecutor
+    names = ["sales.json", "reviews.json", "promos.json", "overrides.json", "links.json", "catalog.json"]
+    with ThreadPoolExecutor(8) as ex:                      # читаем файлы параллельно — быстрее
+        fut_cfg = ex.submit(config)
+        res = dict(zip(names, ex.map(lambda n: gh_file(n)[0], names)))
+        cfg = fut_cfg.result()
+    sd, rv, pr, ov, ln, cat = (res[n] for n in names)
+    items = (cat or {}).get("items", [])
     codes = []
     pers = []
     for c in (pr or {}).get("codes", []):

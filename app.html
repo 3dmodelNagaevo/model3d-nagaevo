@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light only">
 <title>Управление — 3D модели Нагаево</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@600;700&display=swap" rel="stylesheet">
@@ -58,6 +59,7 @@
   .bars i{display:block;width:100%;background:var(--cobalt);border-radius:6px 6px 2px 2px;min-height:2px}
   .bars small{font-size:11px;color:var(--muted);white-space:nowrap}
   .bars em{font-style:normal;font-size:11px;font-weight:700}
+  [hidden]{display:none !important}
   nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(6,1fr);padding:4px 2px calc(4px + env(safe-area-inset-bottom))}
   nav button{border:0;background:none;display:grid;justify-items:center;gap:1px;padding:6px 0;font-size:11px;color:var(--muted);cursor:pointer;position:relative}
   nav button span{font-size:20px;line-height:1}
@@ -217,7 +219,7 @@ const thumb = p => p && p.startsWith("photos/") ? p.replace("photos/", "photos/t
 const rub = n => n == null ? "—" : n.toLocaleString("ru-RU") + " ₽";
 const day = ts => new Date(ts).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
 const WA = window.WebApp;
-const INIT = WA && WA.initData || "";
+let INIT = WA && WA.initData || "";
 let D = null;
 
 function toast(t){ const el = $("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("on"), 3200); }
@@ -226,10 +228,17 @@ function busy(on){ $("#bar").style.width = on ? "70%" : "100%"; if (!on) setTime
 async function api(body){
   busy(true);
   try {
-    const r = await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: JSON.stringify({ initData: INIT, ...body }) });
+    if (!API) throw new Error("не задан адрес бота в config.js");
+    const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 25000);
+    const r = await fetch(API, { signal: ctl.signal, method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: JSON.stringify({ initData: INIT, ...body }) });
+    clearTimeout(tm);
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw Object.assign(new Error(d.error || "Ошибка " + r.status), { code: r.status });
     return d;
+  } catch (e) {
+    if (e.name === "AbortError") throw new Error("сервер долго не отвечает");
+    if (e instanceof TypeError) throw new Error("нет связи с сервером бота (" + e.message + ")");
+    throw e;
   } finally { busy(false); }
 }
 async function cmd(text, reload = true){
@@ -259,7 +268,8 @@ const item = no => D.items.find(i => i.no === no);
 const soldOf = no => D.sales.filter(s => s.no === no).reduce((a, s) => a + (+s.qty || 1), 0);
 const priceOf = i => (D.overrides.price || {})[String(i.no)] ?? i.price;
 
-async function load(){
+async function load(first){
+  if (first) gate("Загружаю…", "Секунду, собираю данные магазина.");
   try {
     const d = await api({ action: "dash" });
     D = d.data;
@@ -267,13 +277,17 @@ async function load(){
   } catch (e) {
     if (e.code === 403) return location.replace("index.html");   // покупатель открыл приложение — показываем каталог
     if (e.code === 401) return gate("Откройте из бота", "Это приложение работает внутри MAX — откройте его кнопкой в чате с ботом.", true);
+    if (!D) return gate("Не удалось загрузить", "Причина: " + (e.message || e) + (e.code ? " (код " + e.code + ")" : "") +
+      ". Попробуйте ещё раз через минуту. Если повторяется — пришлите этот экран.", false, true);
     toast("❌ " + e.message);
   }
 }
-function gate(title, text, site){
+function gate(title, text, site, retry){
   $("#appMain").hidden = true; $("#nav").hidden = true;
   $("#gate").hidden = false;
-  $("#gate").innerHTML = `<h1>${esc(title)}</h1><p class="muted">${esc(text)}</p>` + (site ? `<p><a class="btn" href="index.html">Перейти в каталог</a></p>` : "");
+  $("#gate").innerHTML = `<h1>${esc(title)}</h1><p class="muted">${esc(text)}</p>`
+    + (retry ? `<p><button class="btn" onclick="load(true)">🔄 Повторить</button></p>` : "")
+    + (site ? `<p><a class="btn" href="index.html">Перейти в каталог</a></p>` : "");
 }
 
 function render(){
@@ -466,8 +480,16 @@ $("#metrBtn").onclick = async () => {
 try { WA && WA.ready && WA.ready(); } catch(e){}
 const u = WA && WA.initDataUnsafe && WA.initDataUnsafe.user;
 if (u) $("#who").textContent = "Здравствуйте, " + (u.first_name || "") + "!";
-if (!INIT) gate("Откройте из бота", "Это приложение управления работает внутри MAX — откройте его кнопкой в чате с ботом.", true);
-else load();
+(async () => {
+  for (let k = 0; !INIT && k < 20; k++) {             // мост MAX иногда отдаёт данные не сразу
+    await new Promise(r => setTimeout(r, 150));
+    INIT = (window.WebApp && window.WebApp.initData) || "";
+  }
+  const u = window.WebApp && window.WebApp.initDataUnsafe && window.WebApp.initDataUnsafe.user;
+  if (u) $("#who").textContent = "Здравствуйте, " + (u.first_name || "") + "!";
+  if (!INIT) gate("Откройте из бота", "Это приложение управления работает внутри MAX — откройте его кнопкой в чате с ботом.", true);
+  else load(true);
+})();
 </script>
 </body>
 </html>
