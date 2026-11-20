@@ -61,6 +61,33 @@
   .fav-btn .cnt{background:var(--heart);color:#fff;border-radius:999px;font-size:12px;min-width:20px;height:20px;display:grid;place-items:center;padding:0 6px}
   .fav-btn .cnt:empty{display:none}
   @media (max-width:960px){.nav-links{display:none}.fav-btn{margin-left:auto}}
+  section{scroll-margin-top:74px}
+  .menu-btn{border:1px solid var(--line);background:var(--sheet);border-radius:var(--r-sm);height:40px;padding:0 12px;display:flex;align-items:center;gap:7px;cursor:pointer;font-weight:600;font-size:14px;color:var(--ink)}
+  .menu-btn i{display:grid;gap:4px;width:16px}.menu-btn i b{display:block;height:2px;border-radius:2px;background:currentColor}
+  .menu{padding:22px 22px 26px;display:grid;gap:20px}
+  .menu h4{margin:0 0 8px;font-size:13px;color:var(--muted);font-weight:600}
+  .menu-head{display:flex;justify-content:space-between;align-items:center}
+  .menu-head h3{margin:0;font-size:22px}
+  .menu-links{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .menu-links a{display:block;padding:12px 14px;border-radius:12px;background:var(--plate);text-decoration:none;font-weight:600;font-size:15px}
+  .menu-links a:hover{background:#e3e6ee}
+  .menu-cats{display:flex;flex-wrap:wrap;gap:8px}
+  .menu-cats button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px}
+  .menu-cats button::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c,var(--muted))}
+  .menu-cats small{color:var(--muted);font-weight:500}
+  .menu-contacts{display:grid;gap:8px}
+  .more-wrap{display:flex;justify-content:center;margin-top:22px}
+  .to-top{position:fixed;right:16px;bottom:18px;z-index:40;width:46px;height:46px;border-radius:14px;border:1px solid var(--line);background:var(--sheet);box-shadow:0 6px 18px rgba(27,31,59,.15);display:grid;place-items:center;cursor:pointer;opacity:0;transform:translateY(10px);pointer-events:none;transition:.2s;color:var(--ink)}
+  .to-top.show{opacity:1;transform:none;pointer-events:auto}
+  .own{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start}
+  @media (max-width:820px){.own{grid-template-columns:minmax(0,1fr)}}
+  .own-list{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+  .own-list li{background:var(--sheet);border:1px solid var(--line);border-radius:14px;padding:13px 16px;font-size:15px;line-height:1.45}
+  .own-list b{display:block;margin-bottom:2px}
+  .formats{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}
+  .formats span{background:var(--ink);color:#fff;border-radius:10px;padding:7px 12px;font-weight:700;font-size:14px}
+  .formats span.ok2{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .own .note{font-size:14px;color:var(--muted);margin:8px 0 0}
   @media (max-width:420px){.nav{gap:8px}.logo{font-size:13px}.spool{width:30px;height:30px}.nav .btn{padding:9px 12px;font-size:13px}.fav-btn .lbl,.hide-sm{display:none}}
 
   /* ---------- кнопки ---------- */
@@ -309,6 +336,7 @@
     <a class="logo" href="#top"><span class="spool" aria-hidden="true"></span>3D модели Нагаево</a>
     <nav class="nav-links">
       <a href="#catalog">Каталог</a>
+      <a href="#own">Своя модель</a>
       <a href="#how">Как заказать</a>
       <a href="#reviews" id="navReviews" hidden>Отзывы</a>
       <a href="#delivery">Условия</a>
@@ -319,7 +347,8 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 5.3 3.1 1.7-1.9 3.2-3.1 5.3-3.1 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></svg>
       <span class="lbl">Избранное</span><span class="cnt" id="favCount"></span>
     </button>
-    <a class="btn btn-primary btn-sm" data-maxprofile target="_blank" rel="noopener" data-goal="contact_max"><span><span class="hide-sm">Написать в </span>MAX</span></a>
+    <a class="btn btn-primary btn-sm" data-channel target="_blank" rel="noopener" data-goal="channel_max"><span><span class="hide-sm">Канал в </span>MAX</span></a>
+    <button class="menu-btn" id="menuOpen" aria-label="Меню" aria-haspopup="dialog"><i aria-hidden="true"><b></b><b></b><b></b></i><span class="hide-sm">Меню</span></button>
   </div>
 </header>
 
@@ -388,6 +417,7 @@
       </div>
       <div class="count" id="count"></div>
       <div class="grid" id="grid"></div>
+      <div class="more-wrap"><button class="btn btn-ghost" id="more" hidden>Показать ещё</button></div>
     </div>
   </section>
 
@@ -409,6 +439,32 @@
           <li>Забираете в Нагаево или отправляю через ТК33</li>
         </ol>
       </div>
+    </div>
+  </section>
+
+  <section id="own">
+    <div class="wrap own">
+      <div>
+        <h2>Есть своя модель?</h2>
+        <p class="sub">Пришлите файл в MAX или Telegram — посмотрю, проверю, что модель напечатается, и назову цену.</p>
+        <div class="formats" aria-label="Форматы файлов">
+          <span>STL</span><span>3MF</span><span class="ok2">OBJ</span><span class="ok2">STEP</span>
+        </div>
+        <p class="note">Лучше всего STL или 3MF. Ссылка на модель с Thingiverse, Printables или MakerWorld тоже подойдёт. Другой формат — присылайте, разберёмся.</p>
+        <p class="note">Если модели нет, а есть только чертёж или фото — смогу смоделировать сам, это оплачивается отдельно.</p>
+        <div class="cta" style="margin-top:16px">
+          <a class="btn btn-primary" data-maxprofile target="_blank" rel="noopener" data-goal="own_max">Отправить модель в MAX</a>
+          <a class="btn btn-ghost" data-tg target="_blank" rel="noopener" data-goal="own_tg">Telegram</a>
+        </div>
+      </div>
+      <ul class="own-list">
+        <li><b>Размер</b>Высота или длина в сантиметрах. Если деталь должна куда-то подойти — точные размеры в миллиметрах.</li>
+        <li><b>Цвет и количество</b>Сколько штук и какого цвета. Можно в несколько цветов — уточню, получится ли.</li>
+        <li><b>Для чего</b>Декор или рабочая деталь, будет ли нагрузка, улица, солнце, нагрев. От этого зависит пластик и прочность.</li>
+        <li><b>Срок</b>К какой дате нужно — чтобы я поставил заказ в очередь.</li>
+        <li><b>Фото, если это запчасть</b>Фото места, куда ставится деталь, или старой сломанной детали рядом с линейкой.</li>
+        <li><b>Большие модели</b>За один раз печатаю до 25 × 25 × 25 см. Что больше — делю на части и склеиваю.</li>
+      </ul>
     </div>
   </section>
 
@@ -579,6 +635,47 @@
     </div>
   </div>
 </div>
+
+<!-- Меню -->
+<div class="modal" id="menuModal" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+  <div class="sheet" style="max-width:560px;grid-template-columns:1fr">
+    <div class="menu">
+      <div class="menu-head">
+        <h3 id="menuTitle">Меню</h3>
+        <button class="icon-btn" id="menuClose" aria-label="Закрыть" style="font-size:22px">×</button>
+      </div>
+      <div>
+        <h4>Категории</h4>
+        <div class="menu-cats" id="menuCats"></div>
+      </div>
+      <div>
+        <h4>Разделы</h4>
+        <nav class="menu-links">
+          <a href="#catalog">Весь каталог</a>
+          <a href="#new" data-if="new">Новинки</a>
+          <a href="#popular" data-if="popular">Хиты недели</a>
+          <a href="#" data-menu-fav>Избранное</a>
+          <a href="#find">Найти под заказ</a>
+          <a href="#own">Своя модель</a>
+          <a href="#how">Как заказать</a>
+          <a href="#reviews" data-if="reviews">Отзывы</a>
+          <a href="#delivery">Условия</a>
+          <a href="#contacts">Контакты</a>
+        </nav>
+      </div>
+      <div class="menu-contacts">
+        <a class="btn btn-primary" data-channel target="_blank" rel="noopener" data-goal="channel_max">Канал в MAX</a>
+        <a class="btn btn-ghost" data-maxprofile target="_blank" rel="noopener" data-goal="contact_max">Написать в MAX</a>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <a class="btn btn-ghost btn-sm" data-tg target="_blank" rel="noopener" data-goal="contact_tg">Telegram</a>
+          <a class="btn btn-ghost btn-sm" data-tel data-goal="contact_call">Позвонить</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="to-top" id="toTop" aria-label="Наверх"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
 
 <div class="cookie" id="cookie">
   <span>Продолжая пользоваться сайтом, вы соглашаетесь на использование cookies и Яндекс Метрики. <a href="privacy.html">Подробнее</a></span>
@@ -752,7 +849,10 @@ function renderChips(){
   });
 }
 
-function renderGrid(){
+const PAGE = 24;
+let shown = PAGE, lastList = [];
+function renderGrid(keep){
+  if (keep !== true) shown = PAGE;
   const q = $("#q").value.trim().toLowerCase();
   const [lo, hi] = ($("#priceSel").value || "-").split("-").map(x => x === "" ? null : +x);
   let list = CATALOG.filter(m =>
@@ -767,13 +867,56 @@ function renderGrid(){
   if (s === "cheap") list.sort((a,b) => P(a) - P(b));
   if (s === "dear") list.sort((a,b) => (b.price ?? -1) - (a.price ?? -1));
   $("#count").textContent = list.length ? `Найдено: ${list.length}` : "";
-  const g = $("#grid"); g.innerHTML = "";
+  const g = $("#grid"); g.innerHTML = ""; lastList = list;
+  const more = $("#more");
   if (!list.length){
     g.innerHTML = `<div class="empty" style="grid-column:1/-1">Ничего не нашлось. <a href="#find">Напишите мне</a> — найду модель под заказ.</div>`;
-    return;
+    more.hidden = true; return;
   }
-  list.forEach(m => g.appendChild(cardEl(m)));
+  list.slice(0, shown).forEach(m => g.appendChild(cardEl(m)));
+  const left = list.length - shown;
+  more.hidden = left <= 0;
+  more.textContent = `Показать ещё ${Math.min(left, PAGE)} из ${left}`;
 }
+$("#more").onclick = () => {
+  const from = shown; shown += PAGE;
+  const g = $("#grid");
+  lastList.slice(from, shown).forEach(m => g.appendChild(cardEl(m)));
+  const left = lastList.length - shown;
+  $("#more").hidden = left <= 0;
+  $("#more").textContent = `Показать ещё ${Math.min(left, PAGE)} из ${left}`;
+};
+
+/* ---------- меню ---------- */
+function renderMenu(){
+  const box = $("#menuCats"); box.innerHTML = "";
+  const counts = {};
+  CATALOG.forEach(m => counts[m.category] = (counts[m.category] || 0) + 1);
+  [["Все", CATALOG.length], ...Object.entries(counts).sort((a,b) => b[1] - a[1])].forEach(([c, n]) => {
+    const b = document.createElement("button");
+    if (c !== "Все") b.style.setProperty("--c", catColor(c));
+    b.innerHTML = `${esc(c)} <small>${n}</small>`;
+    b.onclick = () => {
+      activeCat = c; $("#q").value = ""; renderChips(); renderGrid();
+      closeMenu(); $("#catalog").scrollIntoView({ behavior: "smooth" });
+    };
+    box.appendChild(b);
+  });
+  $$("#menuModal [data-if]").forEach(a => a.hidden = !!$("#" + a.dataset.if).hidden);
+}
+function openMenu(){ renderMenu(); showLayer($("#menuModal")); }
+function closeMenu(){ hideLayer($("#menuModal")); }
+$("#menuOpen").onclick = openMenu;
+$("#menuClose").onclick = closeMenu;
+$("#menuModal").addEventListener("click", e => {
+  if (e.target.id === "menuModal") return closeMenu();
+  const a = e.target.closest("a"); if (!a) return;
+  if (a.hasAttribute("data-menu-fav")) { e.preventDefault(); closeMenu(); setTimeout(openFav, 270); return; }
+  if (a.getAttribute("href")?.startsWith("#")) closeMenu();   // переход к разделу
+});
+const toTop = $("#toTop");
+window.addEventListener("scroll", () => toTop.classList.toggle("show", window.scrollY > 1400), { passive: true });
+toTop.onclick = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
 function renderStrips(){
   const sorted = [...CATALOG].sort((a,b) => (b.ts||0) - (a.ts||0));
@@ -862,7 +1005,7 @@ function orderVia(name, g){
 }
 $("#mClose").onclick = closeModel;
 $("#modal").addEventListener("click", e => { if (e.target.id === "modal") closeModel(); });
-document.addEventListener("keydown", e => { if (e.key === "Escape") { closeModel(); closeFav(); } });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { closeModel(); closeFav(); closeMenu(); } });
 $("#mMax").href = C.max; $("#mMax").onclick = () => orderVia("MAX", "order_max");
 $("#mTg").href = tgUrl;  $("#mTg").onclick = () => orderVia("Telegram", "order_tg");
 $("#mTel").href = "tel:" + C.phone; $("#mTel").onclick = () => goal("order_call", { no: current.no });
