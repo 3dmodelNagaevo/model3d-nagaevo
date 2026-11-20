@@ -151,7 +151,7 @@ def run_sync():
 MENU_BUTTONS = {
     "📊 Статус": "/статус", "🔥 Топ": "/топ", "📈 Статистика": "/стата", "🔄 Обновить": "/обновить",
     "🙈 Скрыть": "/скрыть", "👁 Вернуть": "/показать", "💰 Цена": "/цена", "🖼 Обложка": "/обложка",
-    "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон",
+    "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон", "✏️ Изменить пост": "/изменить",
     "💬 Отзыв": "/отзыв", "🗂 Отзывы": "/отзывы", "👥 Доступ": "/доступ", "📜 История": "/история", "↩️ Отменить": "/отменить", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
     # старые подписи кнопок (из прошлых сообщений)
     "🔥 Топ недели": "/топ", "🙈 Скрыть товар": "/скрыть", "👁 Вернуть товар": "/показать",
@@ -166,8 +166,9 @@ MENU_ROWS = [
     ["🙈 Скрыть", "👁 Вернуть"],
     ["💰 Цена", "🖼 Обложка"],
     ["💬 Отзыв", "🗂 Отзывы"],
-    ["📸 Новый пост", "📝 Шаблон"],
-    ["👥 Доступ", "❓ Помощь"],
+    ["📸 Новый пост", "✏️ Изменить пост"],
+    ["📝 Шаблон", "👥 Доступ"],
+    ["❓ Помощь"],
 ]
 POST_TEMPLATE = """Название модели
 Пара слов о модели (можно удалить эту строку)
@@ -202,6 +203,7 @@ HELP = """🤖 Бот сайта. Кнопки — под этим сообще�
 /обложка 12 — показать фото товара №12 и выбрать главное
 /обложка 12 3 — сделать 3-е фото главным
 /обновить — обновить сайт прямо сейчас
+/изменить 12 — изменить пост товара №12 в канале (только посты, опубликованные ботом)
 /доступ — кто из админов может пользоваться ботом (только для владельца)
 /шаблон — шаблон поста для канала
 /отзыв текст (+ фото) — добавить отзыв на сайт, /отзывы — список
@@ -401,6 +403,101 @@ def build_post(text, images):
         elif p.get("url"):
             atts.append({"type": "image", "payload": {"url": p["url"]}})
     return "\n".join(lines), atts
+
+
+# ---------------------------------------------------------------- редактирование постов бота
+
+EDIT_HELP = """✏️ Изменить пост в канале
+
+Бот может менять только посты, которые сам опубликовал (через «📸 Новый пост»). Свои посты меняйте в MAX вручную.
+
+Поменять одну строку:
+/изменить 12 цена 350
+/изменить 12 размер 10 см
+/изменить 12 цвет любой
+/изменить 12 название Дракон большой
+
+Заменить весь текст: /изменить 12 — пришлю текст поста, скопируйте, исправьте и отправьте обратно.
+Фото в посте остаются прежними. 12 — номер товара на сайте."""
+
+EDIT_FIELDS = {"цена": "Стоимость", "стоимость": "Стоимость", "размер": "Размер", "цвет": "Цвет",
+               "материал": "Материал", "название": None}
+FIELD_LINE = {"Стоимость": re.compile(r"^\s*[-•]?\s*(стоимость|цена)\s*:", re.I),
+              "Размер": re.compile(r"^\s*[-•]?\s*размер\s*:", re.I),
+              "Цвет": re.compile(r"^\s*[-•]?\s*цвет\s*:", re.I),
+              "Материал": re.compile(r"^\s*[-•]?\s*материал\s*:", re.I)}
+
+
+def set_field(text, field, value):
+    lines = text.splitlines()
+    if field is None:                                  # название — первая строка поста
+        for i, l in enumerate(lines):
+            if l.strip():
+                lines[i] = value
+                break
+        return "\n".join(lines)
+    if field == "Стоимость":
+        n = re.sub(r"\D", "", value)
+        value = f"{n} ₽" if n and not re.search(r"[а-яa-z]", value, re.I) else value
+    if field == "Размер" and not value.startswith("("):
+        value = f"({value})"
+    new = f"- {field}: {value}"
+    for i, l in enumerate(lines):
+        if FIELD_LINE[field].match(l):
+            lines[i] = new
+            return "\n".join(lines)
+    k = len(lines)                                     # строки нет — вставляем перед хэштегами
+    while k > 0 and lines[k - 1].strip().startswith("#"):
+        k -= 1
+    lines.insert(k, new)
+    return "\n".join(lines)
+
+
+def edit_post(uid, text):
+    m = re.match(r"^/?изменить(?:\s+пост)?\s*(\d+)?[ \t]*(.*)$", text, re.S | re.I)
+    no = int(m.group(1)) if m and m.group(1) else None
+    rest = (m.group(2) if m else "").strip()
+    if not no:
+        return send(uid, EDIT_HELP)
+    item = _find(catalog_items(), no)
+    if not item or not item.get("mid"):
+        return send(uid, f"Товара №{no} нет на сайте. Номер виден в карточке товара.")
+    try:
+        cur = (max_api("GET", f"/messages/{item['mid']}").get("body") or {}).get("text") or ""
+    except Exception as e:
+        return send(uid, f"❌ Не смог прочитать пост №{no}: {e}")
+    if not rest:
+        send(uid, f"✏️ Пост №{no} «{item['title']}». Скопируйте сообщение ниже, исправьте текст и отправьте обратно "
+                  f"(первую строку «/изменить {no}» не удаляйте).\n\nИли поменяйте одну строку: /изменить {no} цена 350",
+             menu=False)
+        return send(uid, f"/изменить {no}\n{cur}")
+    first, _, tail = rest.partition("\n")
+    key = first.split()[0].lower().rstrip(":") if first.split() else ""
+    if not tail.strip() and key in EDIT_FIELDS:
+        value = first.split(None, 1)[1].strip() if len(first.split(None, 1)) > 1 else ""
+        if not value:
+            return send(uid, f"Напишите новое значение, например: /изменить {no} {key} …")
+        new = set_field(cur, EDIT_FIELDS[key], value)
+    elif "\n" in text.strip():
+        new = rest
+    else:
+        return send(uid, EDIT_HELP)
+    if new.strip() == cur.strip():
+        return send(uid, "Текст не изменился — пост оставил как есть.")
+    try:
+        max_api("PUT", "/messages", {"message_id": item["mid"]}, {"text": new[:4000]})
+    except Exception as e:
+        err = str(e)
+        if any(w in err.lower() for w in ("403", "forbidden", "not allowed", "permission", "own", "access")):
+            return send(uid, f"🚫 Пост №{no} публиковал не бот, а человек — MAX не разрешает боту его менять. "
+                             f"Исправьте его вручную в канале.\n\n({err[:150]})")
+        return send(uid, f"❌ MAX не дал изменить пост №{no}:\n{err[:300]}")
+    note = ""
+    if EDIT_FIELDS.get(key) == "Стоимость":
+        ov, _ = gh_file("overrides.json")
+        if str(no) in ((ov or {}).get("price") or {}):
+            note = f"\n\n⚠️ На сайте для №{no} стоит цена из «💰 Цена» — она важнее поста. Вернуть цену из поста: /цена {no} сброс"
+    return send(uid, f"✅ Пост №{no} изменён в канале. Сайт обновится через 1–2 минуты." + note)
 
 
 # ---------------------------------------------------------------- обработка событий
@@ -704,6 +801,8 @@ def handle_owner(uid, text, images):
         return change_access(uid, text, True)
     if low.startswith("/запретить"):
         return change_access(uid, text, False)
+    if re.match(r"^/?изменить", low):
+        return edit_post(uid, text)
     if is_sales_list(text):                       # просто номера: «38 2», «20» … — это продажи
         pairs, bad = parse_sales(text)
         return record_sales(uid, pairs, bad)
