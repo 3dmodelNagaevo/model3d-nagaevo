@@ -117,12 +117,15 @@ def get_owners(token, chat_id, state):
         return env
     import sync_max as sm
     allowed = set(sm.load_json(sm.ROOT / "access.json", {}).get("allowed", []))
-    if time.time() - state.get("owners_ts", 0) >= 3600 or "admins" not in state:
+    no_names = any("name" not in a for a in state.get("admins") or [])
+    if time.time() - state.get("owners_ts", 0) >= 3600 or "admins" not in state or no_names:
         try:
             data = maxapi.get(f"/chats/{chat_id}/members/admins", {}, token)
             ms = [m for m in data.get("members") or [] if not m.get("is_bot")]
             if ms:
-                state["admins"] = [{"id": m["user_id"], "owner": bool(m.get("is_owner"))} for m in ms]
+                state["admins"] = [{"id": m["user_id"], "owner": bool(m.get("is_owner")),
+                                    "name": " ".join(x for x in (m.get("first_name"), m.get("last_name")) if x) or m.get("name") or m.get("username") or str(m["user_id"])}
+                                   for m in ms]
                 state["owners_ts"] = int(time.time())
         except ApiError as e:
             log(f"  ! список админов недоступен: {e}")
