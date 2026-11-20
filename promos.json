@@ -6,14 +6,20 @@
       "value": 10,
       "limit": 3,
       "days": 7,
-      "used": 0,
+      "used": 1,
       "status": "active",
       "created": 1795192361,
       "by": 479018271,
       "start": 1795192372,
       "until": 1795797172,
       "mid": "mid.ffffb8167a965fcf01a1f9cdc3653f43",
-      "kb": true
+      "kb": true,
+      "uses": [
+        {
+          "ts": 1795201588,
+          "by": 149796551
+        }
+      ]
     }
   ]
 }
