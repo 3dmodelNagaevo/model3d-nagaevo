@@ -467,7 +467,7 @@ GOAL_NAMES = {"order_max": "Заказ в MAX", "order_tg": "Заказ в Teleg
               "promo_check": "Проверка промокода", "review_sent": "Отзыв отправлен", "open_post": "Пост в канале"}
 
 
-def metrika_data(days=30):
+def metrika_data(days=30, date1="", date2=""):
     """Метрика для приложения: графики по дням, источники, устройства, города, цели, метки, часы, поисковые фразы."""
     from concurrent.futures import ThreadPoolExecutor
     mid = os.environ.get("METRIKA_ID", "").strip() or METRIKA_DEFAULT_ID
@@ -475,7 +475,18 @@ def metrika_data(days=30):
     if not tok:
         return {"error": "Не задан токен Метрики (METRIKA_TOKEN в настройках функции в Яндекс Облаке)."}
     d1, cutf, label = metrika_period(days, mid, tok)
-    per = {"date1": d1, "date2": "today", "ids": mid, "accuracy": "full", "lang": "ru"}
+    d2 = "today"
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", date1 or "") and re.fullmatch(r"\d{4}-\d{2}-\d{2}", date2 or ""):
+        lo, hi = sorted([date1, date2])                # свой период; отсечка «с этого момента» тоже действует
+        _a, cutf, label = metrika_period(3650, mid, tok)
+        cut_day = _a if cutf else ""
+        d1 = max(lo, cut_day) if cut_day else lo
+        d2 = hi
+        if cut_day and cut_day > hi:                   # весь период раньше отсечки — данных нет
+            d1 = hi
+        if cut_day and cut_day < lo:
+            cutf = ""
+    per = {"date1": d1, "date2": d2, "ids": mid, "accuracy": "full", "lang": "ru"}
     approx = []
 
     def q(params):
@@ -1468,7 +1479,8 @@ def site_app(event, headers):
         if act == "metrika":
             return out(200, ok=True, text=metrika_text(int(req.get("days") or 7)))
         if act == "metrika_data":
-            return out(200, ok=True, data=metrika_data(max(1, min(365, int(req.get("days") or 30)))))
+            return out(200, ok=True, data=metrika_data(max(1, min(365, int(req.get("days") or 30))),
+                                                       str(req.get("date1") or ""), str(req.get("date2") or "")))
         if act == "cmd":
             text = str(req.get("text") or "")[:3000]
             if not text.startswith("/") or text.startswith("/обложка") and len(text.split()) < 3:

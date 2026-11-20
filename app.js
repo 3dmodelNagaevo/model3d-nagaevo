@@ -271,21 +271,50 @@ function renderLinks(){
 $("#metrBtn").onclick = () => goTab("metr");
 
 /* ---------- Метрика ---------- */
-let mDays = 7; const MC = {};
+let mP = "7"; const MC = {};
+const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const ruD = s => s.split("-").reverse().join(".");
+function periodRange(p){
+  const t = new Date(), d = n => { const x = new Date(t); x.setDate(x.getDate() - n); return x; };
+  if (p === "today") return [iso(t), iso(t)];
+  if (p === "yesterday") return [iso(d(1)), iso(d(1))];
+  if (p === "month") return [iso(new Date(t.getFullYear(), t.getMonth(), 1)), iso(t)];
+  if (p === "prevmonth") return [iso(new Date(t.getFullYear(), t.getMonth() - 1, 1)), iso(new Date(t.getFullYear(), t.getMonth(), 0))];
+  if (p === "custom") return [$("#mFrom").value, $("#mTo").value];
+  return [iso(d(+p - 1)), iso(t)];
+}
 const UTM = { flyer: "Листовка (QR-код)", max_channel: "Посты в канале MAX", bot: "Бот", promo: "Пост с промокодом", channel_post: "Пост про сайт", qr: "QR-код" };
 const SRC = { "Direct traffic": "Прямые заходы", "Link traffic": "Переходы по ссылкам", "Search engine traffic": "Из поиска", "Social network traffic": "Из соцсетей",
   "Internal traffic": "Внутри сайта", "Messenger traffic": "Из мессенджеров", "Cached page traffic": "Из сохранённых копий", "Recommendation system traffic": "Из рекомендаций",
   "Переходы из мессенджеров": "Из мессенджеров (MAX, Telegram)", "Прямые заходы": "Прямые заходы (адрес, QR-код, закладки)", "Внутренние переходы": "Переходы внутри сайта",
   "Переходы из поисковых систем": "Из поиска (Яндекс, Google)", "Переходы по ссылкам на сайтах": "По ссылкам с других сайтов", "Переходы из социальных сетей": "Из соцсетей" };
-$$("#mSeg button").forEach(b => b.onclick = () => { $$("#mSeg button").forEach(x => x.classList.toggle("on", x === b)); mDays = +b.dataset.d; loadMetrika(); });
-$$('nav button[data-t="metr"]').forEach(b => b.addEventListener("click", () => { if (!MC[mDays]) loadMetrika(); }));
+$$("#mSeg button").forEach(b => b.onclick = () => {
+  $$("#mSeg button").forEach(x => x.classList.toggle("on", x === b));
+  mP = b.dataset.p;
+  $("#mCustom").hidden = mP !== "custom";
+  if (mP === "custom") {
+    if (!$("#mFrom").value) { const [a, z] = periodRange("30"); $("#mFrom").value = a; $("#mTo").value = z; }
+    return;
+  }
+  loadMetrika();
+});
+$("#mApply").onclick = () => {
+  if (!$("#mFrom").value || !$("#mTo").value) return toast("Выберите обе даты");
+  loadMetrika();
+};
+$$('nav button[data-t="metr"]').forEach(b => b.addEventListener("click", () => { if (!$("#mBody .card, #mBody .kpi3")) loadMetrika(); }));
 async function loadMetrika(){
-  if (MC[mDays]) return renderMetrika(MC[mDays]);
+  const [d1, d2] = periodRange(mP);
+  const lo = d1 < d2 ? d1 : d2, hi = d1 < d2 ? d2 : d1;
+  const key = lo + "_" + hi;
+  $("#mRange").textContent = lo === hi ? "За " + ruD(lo) : "С " + ruD(lo) + " по " + ruD(hi);
+  if (MC[key]) return renderMetrika(MC[key]);
   $("#mBody").innerHTML = `<div class="empty">Загружаю статистику…</div>`;
   try {
-    const d = await api({ action: "metrika_data", days: mDays });
+    const days = Math.round((new Date(hi) - new Date(lo)) / 864e5) + 1;
+    const d = await api({ action: "metrika_data", days, date1: lo, date2: hi });
     if (d.data.error) { $("#mBody").innerHTML = `<div class="card">${esc(d.data.error)}</div>`; return; }
-    MC[mDays] = d.data; renderMetrika(d.data);
+    MC[key] = d.data; renderMetrika(d.data);
   } catch (e) { $("#mBody").innerHTML = `<div class="card">Не удалось загрузить: ${esc(e.message)}</div>`; }
 }
 function hbars(rows, map){
@@ -321,8 +350,7 @@ function renderMetrika(m){
       <div class="card kpi"><b>${mmss(t.duration)}</b><span>мин:сек на сайте</span></div>
     </div>
     <p class="hint" style="margin-top:8px">«Человек» — разные посетители, «заходов» — сколько раз заходили (один человек может зайти несколько раз). «Сразу ушли» — закрыли сайт меньше чем за 15 секунд.</p>
-    <h2>Посетители по дням</h2>
-    <div class="card">${cols("cDay", daily)}</div>
+    ${daily.length > 1 ? `<h2>Посетители по дням</h2><div class="card">${cols("cDay", daily)}</div>` : ""}
     <h2>Что делали на сайте</h2>
     <p class="hint">Сколько раз нажимали кнопки: открыть модель, заказать, позвонить, поделиться…</p>
     <div class="card">${hbars(m.goals)}</div>

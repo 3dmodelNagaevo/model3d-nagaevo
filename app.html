@@ -105,6 +105,8 @@
   .kpi3 .card{padding:10px}
   .kpi3 b{font-size:18px}
   .hint{font-size:13px;color:var(--muted);margin:-4px 0 8px}
+  input[type=date]{min-width:0;max-width:100%;-webkit-appearance:none;appearance:none;padding:10px 8px}
+  .grid2 > *{min-width:0}
   .loading{position:fixed;top:0;left:0;height:3px;background:var(--orange);z-index:30;width:0;transition:width .3s}
 </style>
 </head>
@@ -215,7 +217,16 @@
 
   <!-- Метрика -->
   <section class="tab" id="t-metr">
-    <div class="seg" id="mSeg"><button data-d="7" class="on">7 дней</button><button data-d="30">30 дней</button><button data-d="90">90 дней</button><button data-d="365">Год</button></div>
+    <div class="seg" id="mSeg">
+      <button data-p="today">Сегодня</button><button data-p="yesterday">Вчера</button><button data-p="7" class="on">7 дней</button>
+      <button data-p="30">30 дней</button><button data-p="month">Этот месяц</button><button data-p="prevmonth">Прошлый месяц</button>
+      <button data-p="90">90 дней</button><button data-p="365">Год</button><button data-p="custom">📅 Свой период</button>
+    </div>
+    <div class="card form" id="mCustom" hidden style="margin-bottom:10px">
+      <div class="grid2"><label>С<input type="date" id="mFrom"></label><label>По<input type="date" id="mTo"></label></div>
+      <button class="btn" id="mApply">Показать</button>
+    </div>
+    <div class="muted" id="mRange" style="font-size:13px;margin:-2px 0 8px"></div>
     <div id="mBody"><div class="empty">Загружаю статистику…</div></div>
   </section>
 
