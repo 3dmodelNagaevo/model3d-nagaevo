@@ -51,7 +51,7 @@ def kb(code, site_url, copy=True):
     rows = []
     if copy:
         rows.append([{"type": "clipboard", "text": f"📋 Скопировать промокод {code}", "payload": code}])
-    rows.append([{"type": "link", "text": "✍️ Заказать", "url": BOT_URL},
+    rows.append([{"type": "link", "text": "✍️ Заказать у мастера", "url": MASTER_URL},
                  {"type": "link", "text": "🛍 Каталог", "url": site_url + "?utm_source=promo"}])
     return {"type": "inline_keyboard", "payload": {"buttons": rows}}
 

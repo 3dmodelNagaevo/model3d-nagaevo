@@ -682,7 +682,7 @@ def promo_kb(code, copy=True):
     rows = []
     if copy:
         rows.append([{"type": "clipboard", "text": f"📋 Скопировать промокод {code}", "payload": code}])
-    rows.append([{"type": "link", "text": "✍️ Заказать", "url": BOT_URL},
+    rows.append([{"type": "link", "text": "✍️ Заказать у мастера", "url": MASTER_URL},
                  {"type": "link", "text": "🛍 Каталог", "url": SITE_URL + "?utm_source=promo"}])
     return {"type": "inline_keyboard", "payload": {"buttons": rows}}
 
@@ -943,7 +943,7 @@ def customer_keyboard(extra=None):
     rows += [[{"type": "callback", "text": "🎁 Получить скидку", "payload": "/скидка"}],
              [{"type": "link", "text": "🛍 Каталог с ценами", "url": SITE_URL + "?utm_source=bot"}],
              [{"type": "link", "text": "📣 Канал", "url": CHANNEL_URL},
-              {"type": "callback", "text": "✍️ Написать мастеру", "payload": "/написать"}]]
+              {"type": "link", "text": "✍️ Написать мастеру", "url": MASTER_URL}]]
     return {"type": "inline_keyboard", "payload": {"buttons": rows}}
 
 
@@ -958,7 +958,7 @@ def send_customer(uid, text, links=None, extra=None):
 CUSTOMER_HELLO = ("Здравствуйте! 👋 Это бот мастерской «3D модели в Нагаево».\n\n"
                   "🎁 Нажмите «Получить скидку» — покажу действующие промокоды.\n"
                   "🛍 Все модели с ценами — в каталоге на сайте.\n"
-                  "✍️ Вопросы, заказ, своя модель — пишите прямо сюда, я передам мастеру.")
+                  "✍️ Заказ, вопросы, своя модель — пишите мастеру.")
 
 
 def is_subscribed(uid):
@@ -1102,9 +1102,9 @@ def give_sub_discount(uid, name):
         print("personal code msg:", e)
     send_customer(uid, f"🎉 Спасибо за подписку! Ваш личный промокод:\n\n{res['code']}\n\n"
                        f"Скидка {disc} на один заказ, действует до {until} включительно.\n\n"
-                       "👉 Как получить скидку: выберите модель в каталоге и нажмите «Заказать в MAX» "
-                       "(промокод впишите в поле на сайте) — или просто напишите заказ с промокодом сюда, в этот чат.",
-                  extra=[[("✍️ Оформить заказ здесь", "/написать")]])
+                       "👉 Как получить скидку: выберите модель в каталоге и напишите мастеру заказ, "
+                       "добавив в сообщение этот промокод (на сайте его можно вписать в поле — добавится в текст заказа сам).",
+                  links=[("✍️ Написать заказ мастеру", MASTER_URL)])
     for o in config()["owners"]:
         try:
             send(o, f"🎁 {name or 'Покупатель'} подписался на канал и получил личный промокод на {disc} (до {until}).", menu=False)
