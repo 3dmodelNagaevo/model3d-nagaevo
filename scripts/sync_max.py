@@ -36,7 +36,7 @@ SALES = ROOT / "sales.json"           # отметки «/продано» из 
 REVIEWS = ROOT / "reviews.json"       # отзывы, присланные боту (/отзыв)
 PHOTOS = ROOT / "photos"
 CHANNEL_FILE = ROOT / "channel_id.txt"
-SITE_URL = (os.environ.get("SITE_URL") or "https://3dmodelnagaevo.github.io/model3d-nagaevo/").rstrip("/") + "/"
+SITE_URL = (os.environ.get("SITE_URL") or "https://3dnagaevo.ru/").rstrip("/") + "/"
 
 FETCH_COUNT = 100          # постов за один запрос (максимум API)
 MAX_PAGES = 30             # до 3000 постов истории

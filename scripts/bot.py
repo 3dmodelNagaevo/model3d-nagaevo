@@ -46,7 +46,7 @@ HELP = """🤖 Бот сайта. Кнопки меню — под этим со
 
 # ---------------------------------------------------------------- меню
 
-SITE_URL = (os.environ.get("SITE_URL") or "https://3dmodelnagaevo.github.io/model3d-nagaevo/").rstrip("/") + "/"
+SITE_URL = (os.environ.get("SITE_URL") or "https://3dnagaevo.ru/").rstrip("/") + "/"
 
 # Кнопки типа "message": нажатие отправляет боту текст кнопки, как будто его написали вручную.
 MENU_BUTTONS = {

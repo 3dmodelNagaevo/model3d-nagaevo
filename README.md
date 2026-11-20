@@ -1,6 +1,6 @@
 # Сайт «3D модели Нагаево на заказ»
 
-Сайт: https://3dmodelnagaevo.github.io/model3d-nagaevo/
+Сайт: https://3dnagaevo.ru/
 
 Каталог сам пополняется из канала MAX. Каждые ~15 минут GitHub запускает синхронизацию.
 
