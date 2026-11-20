@@ -330,6 +330,7 @@
   .promo-in input::placeholder{text-transform:none;color:#8a90a8}
   .promo-get{font-size:14px;color:var(--muted);margin:2px 0 0}
   .promo-st{font-size:14px;font-weight:600;margin:-2px 0 0}
+  .via-bot{font-size:13px;color:var(--muted);margin:-2px 0 2px;text-align:center}
   .promo-st.ok{color:#16803c}.promo-st.bad{color:#d33}.promo-st.wait{color:var(--muted);font-weight:500}
   .promo-get a{color:var(--cobalt);font-weight:600}
   .gift{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;justify-content:space-between;background:#fff;border:2px dashed var(--orange);border-radius:22px;padding:18px 22px}
@@ -681,9 +682,11 @@
         <button class="btn btn-ghost btn-sm" id="mPromoCheck" type="button">Проверить</button></div>
       <p class="promo-st" id="mPromoSt" hidden></p>
       <p class="promo-get" id="mPromoGet" hidden>Нет промокода? <a data-bot target="_blank" rel="noopener" data-goal="get_discount">Получите его в нашем боте</a>.</p>
-      <div class="msg"><b>Текст заказа (скопируется сам)</b><span id="mMsg"></span></div>
+      <div class="msg"><b>Ваш заказ</b><span id="mMsg"></span></div>
       <div class="order">
         <a class="btn btn-primary" id="mMax" target="_blank" rel="noopener">Заказать в MAX</a>
+        <p class="via-bot" id="mViaBot" hidden>Откроется наш бот — заказ и промокод передадутся мастеру сами, ничего копировать не нужно.</p>
+        <a class="btn btn-ghost btn-sm" id="mDirect" target="_blank" rel="noopener" hidden>Написать мастеру напрямую</a>
         <div class="alt">
           <a class="btn btn-ghost btn-sm" id="mTg" target="_blank" rel="noopener">Telegram</a>
           <a class="btn btn-ghost btn-sm" id="mTel">Позвонить</a>
@@ -906,6 +909,11 @@ $("#favModal").addEventListener("click", e => { if (e.target.id === "favModal") 
 $("#favMax").href = C.max; $("#favTg").href = tgUrl;
 [["#favMax","MAX","fav_send_max"],["#favTg","Telegram","fav_send_tg"]].forEach(([s,name,g]) => $(s).addEventListener("click", () => {
   goal(g, { count: favItems().length });
+  if (s === "#favMax" && BOT_URL && favItems().length) {
+    $("#favMax").href = botOrderLink(favItems().map(m => m.no));
+    copy(favText());
+    return toast("Открываю бота — нажмите «Начать», список уйдёт мастеру");
+  }
   copy(favText()).then(ok => toast(ok ? `Список скопирован — вставьте его в чат ${name}` : "Напишите номера моделей из списка"));
 }));
 
@@ -1167,6 +1175,14 @@ function closeModel(){
     else history.replaceState(null, "", location.pathname + location.search);
   }
 }
+/* заказ через бота: номер модели и промокод передаются в ссылке */
+let BOT_URL = "";
+function b64url(t){ return btoa(unescape(encodeURIComponent(t))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+function botOrderLink(nos){
+  const pr = promoVal();
+  const payload = (nos.length === 1 ? "o" + nos[0] : "f" + nos.slice(0, 30).join("_")) + (pr ? "-" + b64url(pr) : "");
+  return BOT_URL + (BOT_URL.includes("?") ? "&" : "?") + "start=" + payload;
+}
 function orderVia(name, g){
   goal(g, { no: current.no, title: current.title });
   copy(orderText(current)).then(ok =>
@@ -1175,7 +1191,15 @@ function orderVia(name, g){
 $("#mClose").onclick = closeModel;
 $("#modal").addEventListener("click", e => { if (e.target.id === "modal") closeModel(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape") { closeModel(); closeFav(); closeMenu(); } });
-$("#mMax").href = C.max; $("#mMax").onclick = () => orderVia("MAX", "order_max");
+$("#mMax").href = C.max;
+$("#mMax").onclick = e => {
+  if (!BOT_URL) return orderVia("MAX", "order_max");
+  $("#mMax").href = botOrderLink([current.no]);          // ссылка с номером модели и промокодом
+  goal("order_bot", { no: current.no, title: current.title });
+  copy(orderText(current));                               // на всякий случай текст и в буфере
+  toast("Открываю бота — нажмите «Начать», заказ уйдёт мастеру");
+};
+$("#mDirect").href = C.max; $("#mDirect").onclick = () => orderVia("MAX", "order_max");
 $("#mTg").href = tgUrl;  $("#mTg").onclick = () => orderVia("Telegram", "order_tg");
 $("#mTel").href = "tel:" + C.phone; $("#mTel").onclick = () => goal("order_call", { no: current.no });
 $("#mFav").onclick = () => toggleFav(current.no);
@@ -1222,6 +1246,8 @@ async function checkPromo(force){
 }
 function setBotLinks(url, gift){
   if (!url) return;
+  BOT_URL = url;
+  $("#mViaBot").hidden = false; $("#mDirect").hidden = false;
   if (gift) {                                    // скидка за подписку включена в боте
     const v = gift.kind === "%" ? gift.value + "%" : gift.value + " ₽";
     $("#giftTitle").textContent = `🎁 Скидка ${v} подписчикам канала`;

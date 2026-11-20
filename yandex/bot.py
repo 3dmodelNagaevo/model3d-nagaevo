@@ -957,7 +957,7 @@ def send_customer(uid, text, links=None, extra=None):
 CUSTOMER_HELLO = ("Здравствуйте! 👋 Это бот мастерской «3D модели в Нагаево».\n\n"
                   "🎁 Нажмите «Получить скидку» — покажу действующие промокоды.\n"
                   "🛍 Все модели с ценами — в каталоге на сайте.\n"
-                  "✍️ Заказ, вопросы, своя модель — пишите мастеру.")
+                  "✍️ Вопросы, заказ, своя модель — пишите прямо сюда, я передам мастеру.")
 
 
 def is_subscribed(uid):
@@ -972,6 +972,15 @@ def uid_hash(uid):
 
 
 _sub_tries = {}
+_acks = {}
+
+
+def _recent_ack(uid):
+    """Не повторять «Передал мастеру» на каждое сообщение подряд."""
+    now = time.time()
+    seen = now - _acks.get(uid, 0) < 600
+    _acks[uid] = now
+    return seen
 
 
 _promo_ip = {}
@@ -1107,6 +1116,107 @@ def handle_customer(uid, text, name=""):
     if low in ("/скидка", "скидка", "/skidka", "получить скидку", "🎁 получить скидку", "/discount"):
         return give_sub_discount(uid, name)
     return send_customer(uid, CUSTOMER_HELLO)
+
+
+# ---------------------------------------------------------------- заказы через бота
+
+def parse_start(payload):
+    """«o48-<промокод base64url>» или «f12_15_20-…» → (номера, промокод)."""
+    m = re.fullmatch(r"([of])([\d_]+)(?:-([A-Za-z0-9_\-]+))?", payload or "")
+    if not m:
+        return None, ""
+    nos = [int(x) for x in m.group(2).split("_") if x][:30]
+    promo = ""
+    if m.group(3):
+        try:
+            b = m.group(3) + "=" * (-len(m.group(3)) % 4)
+            promo = base64.urlsafe_b64decode(b).decode("utf-8")[:30]
+        except Exception:
+            promo = ""
+    return nos, promo
+
+
+def customer_title(user):
+    name = " ".join(x for x in (user.get("first_name"), user.get("last_name")) if x) or user.get("name") or "Покупатель"
+    link = f"https://max.ru/{user['username']}" if user.get("username") else ""
+    return name, link
+
+
+def promo_info(code):
+    if not code:
+        return None, ""
+    d, _ = gh_file("promos.json")
+    c = find_code(d or {}, code)
+    if not c:
+        return None, f"{code.upper()} — такого промокода нет"
+    st, why = promo_status(c)
+    if st == "active":
+        return c, f"{c['code']} — ✅ действует, скидка {fmt_disc(c)}"
+    return None, f"{c['code']} — ❌ не действует" + (f" ({why})" if why else "")
+
+
+def notify_owners(text, buttons=None):
+    for o in config()["owners"]:
+        try:
+            send(o, text, menu=False, buttons=buttons)
+        except Exception as e:
+            print("notify owner:", e)
+
+
+def new_order(uid, user, nos, promo):
+    items = catalog_items()
+    found = [_find(items, n) for n in nos]
+    found = [i for i in found if i]
+    if not found:
+        return send_customer(uid, "Не нашёл эту модель в каталоге 🤔 Напишите сюда, что хотите заказать — передам мастеру.")
+    name, link = customer_title(user)
+    pc, ptxt = promo_info(promo)
+    lines = "\n".join(f"• №{i['no']} {i['title']} — {fmt_price(i.get('price'))}" for i in found)
+    send_customer(uid, "✅ Заказ принят и передан мастеру!\n\n" + lines
+                  + (f"\n\n🎟 Промокод: {ptxt}" if ptxt else "")
+                  + "\n\nНапишите сюда размер и цвет (или «как на фото») и любые пожелания — "
+                    "мастер ответит здесь же, в этом чате.")
+    btns = [[("💬 Ответить покупателю", f"/ответ {uid}")]]
+    if len(found) == 1:
+        btns.append([(f"✅ Продано №{found[0]['no']}", f"/продано {found[0]['no']}")])
+    if pc:
+        btns.append([(f"🎟 Активировать {pc['code']} (после продажи)", f"/промо списать {pc['code']}")])
+    notify_owners("🛒 Новый заказ с сайта\n\n" + lines
+                  + (f"\n\n🎟 Промокод: {ptxt}" if ptxt else "")
+                  + f"\n\n👤 {name}" + (f"\n{link}" if link else "")
+                  + "\n\nЧто покупатель напишет боту — придёт сюда.", btns)
+
+
+def forward_to_owners(uid, user, msg):
+    """Сообщение покупателя → админам (с кнопкой «Ответить»)."""
+    name, link = customer_title(user)
+    body = msg.get("body") or {}
+    text = (body.get("text") or "").strip()
+    has_media = bool(body.get("attachments"))
+    notify_owners(f"💬 {name} пишет боту:" + (f"\n\n«{text[:1500]}»" if text else "") + (f"\n{link}" if link else ""),
+                  [[("💬 Ответить", f"/ответ {uid}")]])
+    if has_media and body.get("mid"):
+        for o in config()["owners"]:
+            try:
+                max_api("POST", "/messages", {"user_id": o}, {"text": "", "link": {"type": "forward", "mid": body["mid"]}})
+            except Exception as e:
+                print("forward media:", e)
+
+
+def owner_reply(uid, text):
+    m = re.match(r"^/?ответ\s+(\d+)\s*(.*)$", text, re.S | re.I)
+    if not m:
+        return send(uid, "Нажмите «💬 Ответить» под сообщением покупателя.")
+    cid, body = int(m.group(1)), m.group(2).strip()
+    if not body:
+        _await[uid] = (f"/ответ {cid}", time.time())
+        return send(uid, "💬 Напишите ответ покупателю — я перешлю его.", menu=False, buttons=CANCEL)
+    try:
+        send_customer(cid, "💬 Мастер:\n\n" + body)
+    except Exception as e:
+        return send(uid, f"❌ Не получилось отправить: {e}")
+    return send(uid, "✅ Отправил покупателю. Его ответ придёт сюда.", menu=False,
+                buttons=[[("💬 Написать ещё", f"/ответ {cid}")]])
 
 
 # ---------------------------------------------------------------- обработка событий
@@ -1599,6 +1709,8 @@ def handle_owner(uid, text, images):
         return change_access(uid, text, True)
     if low.startswith("/запретить"):
         return change_access(uid, text, False)
+    if re.match(r"^/?ответ\b", low):
+        return owner_reply(uid, text)
     if re.match(r"^/?промо", low):
         return promo_cmd(uid, text)
     if re.match(r"^/?(код|проверить)\b", low):
@@ -2034,16 +2146,38 @@ def handle_update(u):
         user = msg.get("sender") or u.get("user") or {}
         name = user.get("first_name") or user.get("name") or ""
         if t == "bot_started":
-            if (u.get("payload") or "").lower() in ("skidka", "discount", "promo"):
+            payload = u.get("payload") or ""
+            if payload.lower() in ("skidka", "discount", "promo"):
                 return give_sub_discount(uid, name)
+            nos, promo = parse_start(payload)
+            if nos:
+                return new_order(uid, user, nos, promo)
             return send_customer(uid, CUSTOMER_HELLO)
         if t != "message_created":
             return
         text = ((msg.get("body") or {}).get("text") or "").strip()
+        sm = re.match(r"^/start\s+(\S+)", text)
+        if sm:                                          # ссылка открыта в уже начатом чате
+            nos, promo = parse_start(sm.group(1))
+            if nos:
+                return new_order(uid, user, nos, promo)
+            if sm.group(1).lower() == "skidka":
+                return give_sub_discount(uid, name)
         is_admin = uid in {a["id"] for a in cfg.get("admins", [])}
         if is_admin and (text in MENU_BUTTONS or (text.startswith("/") and text.lower() not in ("/start", "/скидка", "/skidka"))):
             return deny(uid, cfg)               # админ без доступа пробует команды
-        return handle_customer(uid, text, name)  # покупатели: только их меню
+        low = text.lower()
+        if low in ("/start", "/skidka", "/скидка", "скидка", "получить скидку", "🎁 получить скидку", "/discount", "привет", "здравствуйте", ""):
+            if not text and (msg.get("body") or {}).get("attachments"):
+                return forward_to_owners(uid, user, msg)
+            return handle_customer(uid, text, name)
+        # вставили текст заказа с сайта («… (№48) … промокод: X») — оформляем заказ
+        nos = [int(x) for x in re.findall(r"№\s*(\d+)", text)][:30]
+        if nos and re.search(r"заказ", low):
+            pm = re.search(r"промокод:\s*([^\s,.;]+)", text, re.I)
+            return new_order(uid, user, nos, pm.group(1) if pm else "")
+        forward_to_owners(uid, user, msg)               # остальное — мастеру
+        return send_customer(uid, "✉️ Передал мастеру — он ответит здесь же.") if not _recent_ack(uid) else None
     if t == "bot_started":
         return send(uid, HELP)
     if t == "message_created" and rec.get("chat_type") == "dialog":
