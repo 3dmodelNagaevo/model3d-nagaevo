@@ -1,5 +1,5 @@
 {
-  "updated": 1795205341,
+  "updated": 1795205408,
   "items": [
     {
       "mid": "mid.ffffb8167a965fcf01a1fa93248e14ff",
@@ -15,12 +15,17 @@
       "tags": "для_дома",
       "views": 2,
       "photos": [
-        "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_1.jpg",
+        "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_2.jpg"
       ],
       "source": "max",
       "no": 49,
+      "photos_orig": [
+        "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_0.jpg",
+        "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_1.jpg",
+        "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_2.jpg"
+      ],
       "views_week": 2,
       "views_month": 2
     },
