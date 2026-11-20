@@ -152,7 +152,7 @@ MENU_BUTTONS = {
     "📊 Статус": "/статус", "🔥 Топ": "/топ", "📈 Статистика": "/стата", "🔄 Обновить": "/обновить",
     "🙈 Скрыть": "/скрыть", "👁 Вернуть": "/показать", "💰 Цена": "/цена", "🖼 Обложка": "/обложка",
     "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон",
-    "💬 Отзыв": "/отзыв", "🗂 Отзывы": "/отзывы", "📜 История": "/история", "↩️ Отменить": "/отменить", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
+    "💬 Отзыв": "/отзыв", "🗂 Отзывы": "/отзывы", "👥 Доступ": "/доступ", "📜 История": "/история", "↩️ Отменить": "/отменить", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
     # старые подписи кнопок (из прошлых сообщений)
     "🔥 Топ недели": "/топ", "🙈 Скрыть товар": "/скрыть", "👁 Вернуть товар": "/показать",
     "💰 Изменить цену": "/цена", "🔄 Обновить сайт": "/обновить",
@@ -167,7 +167,7 @@ MENU_ROWS = [
     ["💰 Цена", "🖼 Обложка"],
     ["💬 Отзыв", "🗂 Отзывы"],
     ["📸 Новый пост", "📝 Шаблон"],
-    ["❓ Помощь"],
+    ["👥 Доступ", "❓ Помощь"],
 ]
 POST_TEMPLATE = """Название модели
 Пара слов о модели (можно удалить эту строку)
@@ -202,6 +202,7 @@ HELP = """🤖 Бот сайта. Кнопки — под этим сообще�
 /обложка 12 — показать фото товара №12 и выбрать главное
 /обложка 12 3 — сделать 3-е фото главным
 /обновить — обновить сайт прямо сейчас
+/доступ — кто из админов может пользоваться ботом (только для владельца)
 /шаблон — шаблон поста для канала
 /отзыв текст (+ фото) — добавить отзыв на сайт, /отзывы — список
 
@@ -407,8 +408,14 @@ def build_post(text, images):
 _cache = {}
 
 
+def member_name(m):
+    n = m.get("name") or " ".join(x for x in (m.get("first_name"), m.get("last_name")) if x)
+    return (n or m.get("username") or str(m.get("user_id"))).strip()
+
+
 def config():
-    """Владельцы и id канала — из репозитория (кэш на 10 минут)."""
+    """Кто может управлять ботом (кэш на 10 минут):
+    владелец канала — всегда; другие админы — только если владелец разрешил (/разрешить)."""
     if _cache.get("ts", 0) > time.time() - 600:
         return _cache
     state, _ = gh_file("state.json")
@@ -418,8 +425,86 @@ def config():
         ch = int(base64.b64decode(d["content"]).decode().strip())
     except Exception as e:
         print("channel:", e)
-    _cache.update(ts=time.time(), owners=set((state or {}).get("owners", [])), channel=ch)
+    admins = []
+    try:
+        data = max_api("GET", f"/chats/{ch}/members/admins")
+        admins = [{"id": m["user_id"], "name": member_name(m), "owner": bool(m.get("is_owner"))}
+                  for m in data.get("members") or [] if not m.get("is_bot")]
+    except Exception as e:
+        print("admins:", e)
+    access, _ = gh_file("access.json")
+    allowed = set((access or {}).get("allowed", []))
+    chief = {a["id"] for a in admins if a["owner"]}
+    if not admins:                                 # MAX не ответил — берём последний известный список
+        owners = set((state or {}).get("owners", []))
+        chief = set((state or {}).get("chief", [])) or owners
+    elif not chief:                                # MAX не сообщил, кто владелец — пускаем всех админов, как раньше
+        chief = {a["id"] for a in admins}
+        owners = chief
+    else:
+        owners = chief | (allowed & {a["id"] for a in admins})
+    _cache.update(ts=time.time(), owners=owners, chief=chief, admins=admins, allowed=allowed, channel=ch)
     return _cache
+
+
+_asked = {}
+
+
+def access_text(cfg):
+    lines = []
+    for k, a in enumerate(cfg["admins"], 1):
+        mark = "👑 владелец" if a["id"] in cfg["chief"] and a["owner"] else (
+            "✅ есть доступ" if a["id"] in cfg["owners"] else "🚫 нет доступа")
+        lines.append(f"{k}. {a['name']} — {mark}")
+    if not lines:
+        return "Не удалось получить список админов канала. Попробуйте позже."
+    return ("👥 Админы канала и доступ к боту:\n" + "\n".join(lines) +
+            "\n\nДать доступ: /разрешить 2\nЗабрать: /запретить 2\n(число — номер в этом списке)\n\n"
+            "Без доступа админ не может пользоваться ботом: команды, продажи, цены, отзывы.")
+
+
+def change_access(uid, text, allow):
+    cfg = config()
+    if uid not in cfg["chief"]:
+        return send(uid, "Выдавать доступ может только владелец канала.")
+    n = num(text)
+    target = None
+    if n and 1 <= n <= len(cfg["admins"]):
+        target = cfg["admins"][n - 1]
+    elif n:
+        target = next((a for a in cfg["admins"] if a["id"] == n), None)
+    if not target:
+        return send(uid, "Не нашёл такого админа. Посмотрите номера: /доступ")
+    if target["id"] in cfg["chief"] and target["owner"]:
+        return send(uid, "У владельца доступ есть всегда.")
+    def f(d):
+        s = set(d.get("allowed", []))
+        (s.add if allow else s.discard)(target["id"])
+        d["allowed"] = sorted(s)
+    update_json("access.json", f, f"Бот: доступ {'выдан' if allow else 'снят'}", {"allowed": []})
+    _cache.clear()
+    try:
+        send(target["id"], "✅ Владелец канала дал вам доступ к боту сайта. Напишите /меню." if allow
+             else "🚫 Владелец канала закрыл вам доступ к боту сайта.", menu=allow)
+    except Exception as e:
+        print("notify admin:", e)
+    return send(uid, (f"✅ {target['name']} теперь может пользоваться ботом." if allow
+                      else f"🚫 {target['name']} больше не может пользоваться ботом.") + "\n\n" + access_text(config()))
+
+
+def deny(uid, cfg):
+    """Админ без доступа написал боту — отказ и запрос владельцу (не чаще раза в час)."""
+    send(uid, "🚫 У вас нет доступа к управлению ботом. Я отправил запрос владельцу канала.", menu=False)
+    if time.time() - _asked.get(uid, 0) < 3600:
+        return
+    _asked[uid] = time.time()
+    k = next((i for i, a in enumerate(cfg["admins"], 1) if a["id"] == uid), None)
+    name = next((a["name"] for a in cfg["admins"] if a["id"] == uid), str(uid))
+    for chief in cfg["chief"]:
+        try:
+            send(chief, f"🔐 Админ «{name}» хочет пользоваться ботом.\nРазрешить: /разрешить {k}\nВсе доступы: /доступ")
+        except Exception as e:
+            print("notify chief:", e)
 
 
 
@@ -597,6 +682,15 @@ def handle_owner(uid, text, images):
         return list_reviews(uid)
     if re.match(r"^/?удалить[ _]отзыв", low):
         return delete_review(uid, text)
+    if low in ("/доступ", "доступ", "/admins"):
+        cfg = config()
+        if uid not in cfg["chief"]:
+            return send(uid, "Список доступов видит только владелец канала.")
+        return send(uid, access_text(cfg))
+    if low.startswith("/разрешить"):
+        return change_access(uid, text, True)
+    if low.startswith("/запретить"):
+        return change_access(uid, text, False)
     if is_sales_list(text):                       # просто номера: «38 2», «20» … — это продажи
         pairs, bad = parse_sales(text)
         return record_sales(uid, pairs, bad)
@@ -999,7 +1093,9 @@ def handle_update(u):
 
     uid = (msg.get("sender") or u.get("user") or {}).get("user_id")
     if uid not in cfg["owners"]:
-        return  # не владелец — молчим (покупателей бот пока не обслуживает)
+        if uid in {a["id"] for a in cfg.get("admins", [])} and rec.get("chat_type") in (None, "dialog"):
+            deny(uid, cfg)
+        return  # посторонние — молчим (покупателей бот пока не обслуживает)
     if t == "bot_started":
         return send(uid, HELP)
     if t == "message_created" and rec.get("chat_type") == "dialog":

@@ -53,7 +53,7 @@ MENU_BUTTONS = {
     "📊 Статус": "/статус", "🔥 Топ": "/топ", "📈 Статистика": "/стата", "🔄 Обновить": "/обновить",
     "🙈 Скрыть": "/скрыть", "👁 Вернуть": "/показать", "💰 Цена": "/цена", "🖼 Обложка": "/обложка",
     "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон",
-    "💬 Отзыв": "/отзыв", "🗂 Отзывы": "/отзывы", "📜 История": "/история", "↩️ Отменить": "/отменить", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
+    "💬 Отзыв": "/отзыв", "🗂 Отзывы": "/отзывы", "👥 Доступ": "/доступ", "📜 История": "/история", "↩️ Отменить": "/отменить", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
     # старые подписи кнопок (из прошлых сообщений)
     "🔥 Топ недели": "/топ", "🙈 Скрыть товар": "/скрыть", "👁 Вернуть товар": "/показать",
     "💰 Изменить цену": "/цена", "🔄 Обновить сайт": "/обновить",
@@ -67,7 +67,7 @@ MENU_ROWS = [
     ["💰 Цена", "🖼 Обложка"],
     ["💬 Отзыв", "🗂 Отзывы"],
     ["📸 Новый пост", "📝 Шаблон"],
-    ["❓ Помощь"],
+    ["👥 Доступ", "❓ Помощь"],
 ]
 POST_TEMPLATE = """Название модели
 Пара слов о модели (можно удалить эту строку)
@@ -111,21 +111,30 @@ def ensure_commands(token, state):
 # ---------------------------------------------------------------- владельцы
 
 def get_owners(token, chat_id, state):
+    """Кто может управлять ботом: владелец канала всегда, другие админы — если владелец разрешил (access.json)."""
     env = [int(x) for x in re.findall(r"-?\d+", os.environ.get("OWNER_IDS", ""))]
     if env:
         return env
-    if time.time() - state.get("owners_ts", 0) < 86400 and state.get("owners"):
-        return state["owners"]
-    try:
-        data = maxapi.get(f"/chats/{chat_id}/members/admins", {}, token)
-        owners = [m["user_id"] for m in data.get("members") or []
-                  if not m.get("is_bot") and (m.get("is_owner") or m.get("is_admin"))]
-        if owners:
-            state["owners"], state["owners_ts"] = owners, int(time.time())
-            return owners
-    except ApiError as e:
-        log(f"  ! список админов недоступен: {e}")
-    return state.get("owners", [])
+    import sync_max as sm
+    allowed = set(sm.load_json(sm.ROOT / "access.json", {}).get("allowed", []))
+    if time.time() - state.get("owners_ts", 0) >= 3600 or "admins" not in state:
+        try:
+            data = maxapi.get(f"/chats/{chat_id}/members/admins", {}, token)
+            ms = [m for m in data.get("members") or [] if not m.get("is_bot")]
+            if ms:
+                state["admins"] = [{"id": m["user_id"], "owner": bool(m.get("is_owner"))} for m in ms]
+                state["owners_ts"] = int(time.time())
+        except ApiError as e:
+            log(f"  ! список админов недоступен: {e}")
+    admins = state.get("admins") or []
+    chief = [a["id"] for a in admins if a.get("owner")]
+    if admins and not chief:
+        log("  ! MAX не сообщил владельца канала — доступ у всех админов")
+        chief = [a["id"] for a in admins]
+    ids = {a["id"] for a in admins}
+    owners = sorted(set(chief) | (allowed & ids)) if admins else state.get("owners", [])
+    state["owners"], state["chief"] = owners, sorted(set(chief))
+    return owners
 
 
 # ---------------------------------------------------------------- отправка
