@@ -271,7 +271,7 @@ function renderLinks(){
 $("#metrBtn").onclick = () => goTab("metr");
 
 /* ---------- Метрика ---------- */
-let mP = "7"; const MC = {};
+let mP = "7", mTempAll = false; const MC = {};
 const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 const ruD = s => s.split("-").reverse().join(".");
 function periodRange(p){
@@ -306,13 +306,13 @@ $$('nav button[data-t="metr"]').forEach(b => b.addEventListener("click", () => {
 async function loadMetrika(){
   const [d1, d2] = periodRange(mP);
   const lo = d1 < d2 ? d1 : d2, hi = d1 < d2 ? d2 : d1;
-  const key = lo + "_" + hi;
+  const key = lo + "_" + hi + (mTempAll ? "_all" : "");
   $("#mRange").textContent = lo === hi ? "За " + ruD(lo) : "С " + ruD(lo) + " по " + ruD(hi);
   if (MC[key]) return renderMetrika(MC[key]);
   $("#mBody").innerHTML = `<div class="empty">Загружаю статистику…</div>`;
   try {
     const days = Math.round((new Date(hi) - new Date(lo)) / 864e5) + 1;
-    const d = await api({ action: "metrika_data", days, date1: lo, date2: hi });
+    const d = await api({ action: "metrika_data", days, date1: lo, date2: hi, all: mTempAll });
     if (d.data.error) { $("#mBody").innerHTML = `<div class="card">${esc(d.data.error)}</div>`; return; }
     MC[key] = d.data; renderMetrika(d.data);
   } catch (e) { $("#mBody").innerHTML = `<div class="card">Не удалось загрузить: ${esc(e.message)}</div>`; }
@@ -375,9 +375,10 @@ function renderMetrika(m){
     <div class="card">${hbars(m.phrases)}</div>
     <h2>Начать отсчёт заново</h2>
     <div class="card form">
+      ${m.tempAll ? `<div class="pill o" style="justify-self:start">👁 Сейчас временно показано всё — отсчёт с ${esc(m.from)} не применён</div>` : ""}
       <div class="muted">${m.from ? "Статистика считается с <b>" + esc(m.from) + "</b> (по Уфе)." + (m.approx ? " Метрика не дала отсечь по минутам — показано с начала этого дня." : "") : "Статистика считается за весь выбранный период."}
         Сами данные в Метрике не удаляются — здесь просто не показывается то, что было раньше (например, ваши тестовые заходы).</div>
-      <div class="btns full"><button class="btn red" id="mReset">🧹 Начать отсчёт с этого момента</button>${m.from ? `<button class="btn ghost" id="mAll">Показывать всё</button>` : ""}</div>
+      <div class="btns full"><button class="btn red" id="mReset">🧹 Начать отсчёт с этого момента</button>${m.from ? `<button class="btn ghost" id="mTemp">${mTempAll ? "↩️ Вернуть отсчёт" : "👁 Показать всё временно"}</button>` : ""}${m.from ? `<button class="btn ghost" id="mAll">Показывать всё</button>` : ""}</div>
     </div>
     <p class="muted" style="font-size:13px">Ваши заходы и заходы админов с телефона, где открыто это приложение, больше не считаются. Данные Яндекс Метрики обновляются с задержкой до нескольких минут.</p>`;
   const confirmSheet = (title, text, yes, cls, then) => {
@@ -385,14 +386,15 @@ function renderMetrika(m){
       <div class="btns full"><button class="btn ${cls}" id="cfYes">${yes}</button><button class="btn ghost" onclick="__appCloseSheet()">Отмена</button></div>`);
     $("#cfYes").onclick = then;
   };
-  const resetNow = () => { closeSheet(); for (const k in MC) delete MC[k]; cmd("/метрика сброс", false).then(loadMetrika); };
-  const showAll = () => { closeSheet(); for (const k in MC) delete MC[k]; cmd("/метрика всё", false).then(loadMetrika); };
+  const resetNow = () => { closeSheet(); mTempAll = false; for (const k in MC) delete MC[k]; cmd("/метрика сброс", false).then(loadMetrika); };
+  const showAll = () => { closeSheet(); mTempAll = false; for (const k in MC) delete MC[k]; cmd("/метрика всё", false).then(loadMetrika); };
   $("#mReset").onclick = () => confirmSheet("Начать отсчёт с этого момента?",
     "Во вкладке «Метрика» и в статистике бота будут только заходы начиная с этой минуты — все цифры станут нулями.",
     "Да, продолжить", "red",
     () => confirmSheet("Точно начать заново?",
       "Это второе подтверждение. Прошлые данные не удалятся — их можно будет снова показать кнопкой «Показывать всё».",
       "🧹 Да, начать с этого момента", "red", resetNow));
+  if ($("#mTemp")) $("#mTemp").onclick = () => { mTempAll = !mTempAll; loadMetrika(); };   // без подтверждения: настройка не меняется
   if ($("#mAll")) $("#mAll").onclick = () => confirmSheet("Показывать всю статистику?",
     "Снова будут учитываться все заходы за выбранный период, включая те, что были до отсчёта (например, ваши тестовые).",
     "Да, продолжить", "",

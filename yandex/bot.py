@@ -467,7 +467,7 @@ GOAL_NAMES = {"order_max": "Заказ в MAX", "order_tg": "Заказ в Teleg
               "promo_check": "Проверка промокода", "review_sent": "Отзыв отправлен", "open_post": "Пост в канале"}
 
 
-def metrika_data(days=30, date1="", date2=""):
+def metrika_data(days=30, date1="", date2="", ignore_cut=False):
     """Метрика для приложения: графики по дням, источники, устройства, города, цели, метки, часы, поисковые фразы."""
     from concurrent.futures import ThreadPoolExecutor
     mid = os.environ.get("METRIKA_ID", "").strip() or METRIKA_DEFAULT_ID
@@ -486,6 +486,14 @@ def metrika_data(days=30, date1="", date2=""):
             d1 = hi
         if cut_day and cut_day < lo:
             cutf = ""
+    if ignore_cut and cutf:                            # «показать всё временно» — без отсечки, настройка не меняется
+        if date1 and date2:
+            d1 = min(date1, date2)
+        else:
+            import datetime as _dt
+            d1 = (_dt.datetime.utcnow() + _dt.timedelta(hours=5)).date().isoformat()
+            d1 = (_dt.date.fromisoformat(d1) - _dt.timedelta(days=days - 1)).isoformat()
+        cutf = ""
     per = {"date1": d1, "date2": d2, "ids": mid, "accuracy": "full", "lang": "ru"}
     approx = []
 
@@ -541,7 +549,7 @@ def metrika_data(days=30, date1="", date2=""):
                 print("metrika job", k, e)
                 res[k] = None
     t = (res.get("totals") or {}).get("totals") or [0] * 6
-    out = {"days": days, "from": label, "approx": bool(approx),
+    out = {"days": days, "from": label, "approx": bool(approx), "tempAll": bool(ignore_cut and label),
            "totals": {"users": int(t[0]), "visits": int(t[1]), "pageviews": int(t[2]), "bounce": round(t[3], 1),
                       "duration": int(t[4]), "new": round(t[5], 1)},
            "daily": [[r["dimensions"][0]["name"], int(r["metrics"][0]), int(r["metrics"][1])] for r in (res.get("daily") or {}).get("data", [])],
@@ -1480,7 +1488,8 @@ def site_app(event, headers):
             return out(200, ok=True, text=metrika_text(int(req.get("days") or 7)))
         if act == "metrika_data":
             return out(200, ok=True, data=metrika_data(max(1, min(365, int(req.get("days") or 30))),
-                                                       str(req.get("date1") or ""), str(req.get("date2") or "")))
+                                                       str(req.get("date1") or ""), str(req.get("date2") or ""),
+                                                       bool(req.get("all"))))
         if act == "cmd":
             text = str(req.get("text") or "")[:3000]
             if not text.startswith("/") or text.startswith("/обложка") and len(text.split()) < 3:
