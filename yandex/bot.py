@@ -207,6 +207,7 @@ HELP = """🤖 Бот сайта. Кнопки — под этим сообще�
 /доступ — кто из админов может пользоваться ботом (только для владельца)
 /шаблон — шаблон поста для канала
 /отзыв текст (+ фото) — добавить отзыв на сайт, /отзывы — список
+/проверка — отзывы покупателей с сайта, /одобрить 5 или /отклонить 5
 
 📸 Публикация: пришлите фото с подписью
 /пост Дракон-антистресс
@@ -637,7 +638,7 @@ def add_review(uid, text, images):
     no = int(m.group(1)) if m else None
     rid_holder = {}
     def reserve(d):
-        rid = max([r.get("id", 0) for r in d.get("reviews", [])] + [0]) + 1
+        rid = max([r.get("id", 0) for r in d.get("reviews", []) + d.get("pending", [])] + [0]) + 1
         rid_holder["id"] = rid
     data, _ = gh_file("reviews.json")
     reserve(data or {"reviews": []})
@@ -669,11 +670,14 @@ def add_review(uid, text, images):
 def list_reviews(uid):
     data, _ = gh_file("reviews.json")
     revs = (data or {}).get("reviews", [])
+    pend = (data or {}).get("pending", [])
+    tail = (f"\n\n⭐ На проверке с сайта: {len(pend)} — /проверка" if pend else "")
     if not revs:
-        return send(uid, "Отзывов из бота пока нет.\n\n" + REVIEW_HELP)
-    lines = [f"№{r['id']} — {time.strftime('%d.%m', time.gmtime(r['ts'] / 1000 + 3 * 3600))}: "
+        return send(uid, "Отзывов на сайте пока нет.\n\n" + REVIEW_HELP + tail)
+    lines = [f"№{r['id']} — {time.strftime('%d.%m', time.gmtime(r['ts'] / 1000 + 3 * 3600))}"
+             f"{' ' + r['name'] if r.get('name') else ''}: "
              f"{(r.get('text') or '(без текста)')[:60]}{' 📷' if r.get('raw') else ''}" for r in revs[-15:]]
-    return send(uid, "🗂 Отзывы на сайте (из бота):\n" + "\n".join(lines) + "\n\nУбрать: /удалить отзыв 3")
+    return send(uid, "🗂 Отзывы на сайте:\n" + "\n".join(lines) + "\n\nУбрать: /удалить отзыв 3" + tail)
 
 
 def delete_review(uid, text):
@@ -687,6 +691,113 @@ def delete_review(uid, text):
         gone.append(before != len(d["reviews"]))
     update_json("reviews.json", f, f"Бот: удалён отзыв {rid}", {"reviews": []})
     return send(uid, f"🗑 Отзыв №{rid} убран с сайта." if gone and gone[0] else f"Отзыва №{rid} нет.")
+
+
+# ---------------------------------------------------------------- отзывы покупателей с сайта
+
+SITE_ORIGINS = ("https://3dnagaevo.ru", "https://www.3dnagaevo.ru", "https://3dmodelnagaevo.github.io")
+_rev_ip = {}
+
+
+def _cors(origin):
+    o = origin if origin in SITE_ORIGINS or (origin or "").startswith("http://localhost") else SITE_ORIGINS[0]
+    return {"Access-Control-Allow-Origin": o, "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type", "Vary": "Origin"}
+
+
+def site_review(event, headers):
+    """Отзыв с сайта → reviews.json (pending) → владельцу на проверку."""
+    cors = _cors(headers.get("origin", ""))
+    if (event.get("httpMethod") or "").upper() == "OPTIONS":
+        return {"statusCode": 204, "headers": cors, "body": ""}
+    def out(code, **kw):
+        return {"statusCode": code, "headers": {**cors, "Content-Type": "application/json"},
+                "body": json.dumps(kw, ensure_ascii=False)}
+    try:
+        raw = event.get("body") or "{}"
+        if event.get("isBase64Encoded"):
+            raw = base64.b64decode(raw).decode()
+        d = json.loads(raw)
+    except Exception:
+        return out(400, error="Не удалось прочитать отзыв")
+    if d.get("web"):                                   # скрытое поле — его заполняют только спам-боты
+        return out(200, ok=True)
+    name = re.sub(r"\s+", " ", str(d.get("name") or "")).strip()[:40]
+    text = str(d.get("text") or "").strip()[:800]
+    try:
+        no = int(d.get("no"))
+        stars = max(0, min(5, int(d.get("stars") or 0)))
+    except Exception:
+        return out(400, error="Неверные данные")
+    if len(name) < 2:
+        return out(400, error="Напишите имя")
+    if len(text) < 3:
+        return out(400, error="Напишите пару слов о модели")
+    ip = ((event.get("requestContext") or {}).get("identity") or {}).get("sourceIp") or headers.get("x-forwarded-for", "?")
+    now = time.time()
+    hits = [x for x in _rev_ip.get(ip, []) if now - x < 3600]
+    if len(hits) >= 3:
+        return out(429, error="Слишком много отзывов подряд. Попробуйте позже.")
+    _rev_ip[ip] = hits + [now]
+    item = _find(catalog_items(), no)
+    if not item:
+        return out(400, error="Модель не найдена")
+    entry = {}
+    def f(dd):
+        pend = dd.setdefault("pending", [])
+        if len(pend) >= 50:
+            raise RuntimeError("очередь отзывов переполнена")
+        rid = max([r.get("id", 0) for r in dd.get("reviews", []) + pend] + [0]) + 1
+        entry.update(id=rid, ts=int(now * 1000), no=no, name=name, stars=stars, text=text, raw=[], src="site")
+        pend.append(dict(entry))
+    try:
+        update_json("reviews.json", f, f"Сайт: отзыв на проверку №{no}", {"reviews": []})
+    except Exception as e:
+        print("site review:", e)
+        return out(503, error="Не получилось отправить. Попробуйте позже.")
+    msg = (f"⭐ Новый отзыв с сайта — на проверку\n\n№{no} «{item['title']}»\n"
+           f"{name}{'  ' + '★' * stars + '☆' * (5 - stars) if stars else ''}\n«{text}»\n\n"
+           f"Опубликовать: /одобрить {entry['id']}\nУдалить: /отклонить {entry['id']}")
+    for uid in config()["owners"]:
+        try:
+            send(uid, msg)
+        except Exception as e:
+            print("notify review:", e)
+    return out(200, ok=True)
+
+
+def moderate_review(uid, text, approve):
+    rid = num(text)
+    if not rid:
+        return pending_reviews(uid)
+    res = {}
+    def f(d):
+        pend = d.get("pending", [])
+        r = next((x for x in pend if x.get("id") == rid), None)
+        if not r:
+            return
+        d["pending"] = [x for x in pend if x.get("id") != rid]
+        if approve:
+            d.setdefault("reviews", []).append(r)
+        res["r"] = r
+    update_json("reviews.json", f, f"Бот: отзыв {rid} {'опубликован' if approve else 'отклонён'}", {"reviews": []})
+    r = res.get("r")
+    if not r:
+        return send(uid, f"Отзыва №{rid} на проверке нет (возможно, его уже обработал другой админ).")
+    if approve:
+        return send(uid, f"✅ Отзыв №{rid} от {r.get('name')} опубликован. На сайте появится через 1–2 минуты.\n"
+                         f"Убрать потом: /удалить отзыв {rid}")
+    return send(uid, f"🗑 Отзыв №{rid} от {r.get('name')} удалён.")
+
+
+def pending_reviews(uid):
+    data, _ = gh_file("reviews.json")
+    pend = (data or {}).get("pending", [])
+    if not pend:
+        return send(uid, "Отзывов на проверке нет.")
+    lines = [f"№{r['id']} — {r.get('name')} о №{r.get('no')}: {(r.get('text') or '')[:70]}" for r in pend[-15:]]
+    return send(uid, "⭐ Отзывы с сайта на проверке:\n" + "\n".join(lines) +
+                "\n\nОпубликовать: /одобрить 5\nУдалить: /отклонить 5")
 
 
 SALE_ONLY_RE = re.compile(r"^[\d\s,;:xх×*\-—–.шт]+$", re.I)
@@ -801,6 +912,12 @@ def handle_owner(uid, text, images):
         return change_access(uid, text, True)
     if low.startswith("/запретить"):
         return change_access(uid, text, False)
+    if re.match(r"^/?(одобрить|опубликовать)\b", low):
+        return moderate_review(uid, text, True)
+    if re.match(r"^/?отклонить\b", low):
+        return moderate_review(uid, text, False)
+    if low in ("/проверка", "проверка", "/на проверке"):
+        return pending_reviews(uid)
     if re.match(r"^/?изменить", low):
         return edit_post(uid, text)
     if is_sales_list(text):                       # просто номера: «38 2», «20» … — это продажи
@@ -1262,6 +1379,10 @@ def handler(event, context):
     headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
     q = event.get("queryStringParameters") or {}
     func_url = os.environ.get("FUNC_URL") or f"https://functions.yandexcloud.net/{context.function_name}"
+
+    # отзыв покупателя с сайта (публичный адрес, без секрета)
+    if "review" in q:
+        return site_review(event, headers)
 
     # настройка из браузера: ?setup=SECRET (подключить), ?off=SECRET (отключить), ?check=SECRET
     for action in ("setup", "off", "check"):

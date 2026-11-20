@@ -323,6 +323,35 @@
   .msg{background:var(--plate);border-radius:12px;padding:10px 12px;font-size:14px;color:#3d4262}
   .msg b{display:block;font-size:13px;color:var(--muted);font-weight:600;margin-bottom:2px}
   .similar{grid-column:1/-1;padding:4px 24px 24px;min-width:0}
+  .mrev{grid-column:1/-1;padding:6px 24px 8px;min-width:0;border-top:1px solid var(--line);margin-top:8px}
+  .mrev-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:14px 0 10px}
+  .mrev-head h4{margin:0;font-size:16px}
+  .mrev-head .avg{font-weight:700;color:var(--ink)}
+  .stars{color:#F5A524;letter-spacing:1px;white-space:nowrap}
+  .stars .off{color:#d5d8e2}
+  .mrev-list{display:grid;gap:10px}
+  .mrev-item{background:var(--plate);border-radius:14px;padding:12px 14px}
+  .mrev-item b{font-size:15px}
+  .mrev-item .meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+  .mrev-item small{color:var(--muted)}
+  .mrev-item p{margin:0;white-space:pre-line;overflow-wrap:anywhere}
+  .mrev-item .pics{display:flex;gap:6px;margin-top:8px}
+  .mrev-item .pics img{width:72px;height:72px;object-fit:cover;border-radius:10px}
+  .mrev-empty{color:var(--muted);margin:0 0 4px;font-size:15px}
+  .rform{display:grid;gap:10px;background:var(--plate);border-radius:16px;padding:14px;margin-top:10px}
+  .rform label{display:grid;gap:4px;font-size:14px;font-weight:600}
+  .rform input,.rform textarea{font:inherit;font-weight:400;font-size:16px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff;color:var(--ink);width:100%;box-sizing:border-box}
+  .rform textarea{min-height:90px;resize:vertical}
+  .rform .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+  .star-pick{display:flex;gap:4px}
+  .star-pick button{font-size:28px;line-height:1;background:none;border:0;padding:2px;cursor:pointer;color:#d5d8e2}
+  .star-pick button.on{color:#F5A524}
+  .rform .hint{font-size:13px;color:var(--muted);margin:0}
+  .rform .err{color:#d33;font-size:14px;margin:0}
+  .rdone{background:#e8f6ee;color:#16683a;border-radius:14px;padding:12px 14px;margin-top:10px;font-weight:600}
+  .card .rating{font-size:13px;font-weight:600;color:var(--ink)}
+  .card .rating .stars{font-size:12px}
+  .rev .who{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
   .similar h4{margin:8px 0 12px;font-size:16px}
   .similar .strip{grid-auto-columns:148px}
 
@@ -335,7 +364,7 @@
   .favrow small{color:var(--muted)}
   .favrow button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:20px;padding:6px}
 
-  .cookie{position:fixed;left:16px;right:16px;bottom:16px;z-index:40;max-width:640px;margin:0 auto;background:var(--ink);color:#fff;border-radius:16px;padding:12px 14px 12px 18px;display:none;gap:14px;align-items:center;font-size:14px;box-shadow:0 10px 30px rgba(20,23,45,.25)}
+  .cookie{position:fixed;left:16px;right:16px;bottom:16px;z-index:55;max-width:640px;margin:0 auto;background:var(--ink);color:#fff;border-radius:16px;padding:12px 14px 12px 18px;display:none;gap:14px;align-items:center;font-size:14px;box-shadow:0 10px 30px rgba(20,23,45,.25)}
   .cookie.show{display:flex}
   .cookie a{color:#b9c3ff}
   .cookie .btn{flex:0 0 auto;background:#fff;color:var(--ink)}
@@ -631,6 +660,28 @@
         <a class="btn btn-ghost btn-sm" id="mPost" target="_blank" rel="noopener" data-goal="open_post">📣 Посмотреть модель в канале</a>
       </div>
     </div>
+    <div class="mrev" id="mRev">
+      <div class="mrev-head">
+        <h4>Отзывы о модели <span class="avg" id="mRevAvg"></span></h4>
+        <button class="btn btn-ghost btn-sm" id="mRevOpen" type="button">✍️ Оставить отзыв</button>
+      </div>
+      <div class="mrev-list" id="mRevList"></div>
+      <form class="rform" id="mRevForm" hidden novalidate>
+        <label>Ваше имя
+          <input id="rfName" name="name" maxlength="40" autocomplete="given-name" placeholder="Например, Анна" required>
+        </label>
+        <div><label style="margin-bottom:2px">Оценка</label>
+          <div class="star-pick" id="rfStars" role="radiogroup" aria-label="Оценка"></div></div>
+        <label>Отзыв
+          <textarea id="rfText" maxlength="800" placeholder="Как вам модель? Качество, цвет, кому дарили…" required></textarea>
+        </label>
+        <input class="hp" id="rfWeb" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <p class="err" id="rfErr" hidden></p>
+        <button class="btn btn-primary" id="rfSend" type="submit">Отправить отзыв</button>
+        <p class="hint">Имя увидят на сайте. Отзыв появится после проверки.</p>
+      </form>
+      <div class="rdone" id="mRevDone" hidden>Спасибо! Отзыв появится на сайте после проверки.</div>
+    </div>
     <div class="similar" id="mSimilarWrap">
       <h4>Похожие модели</h4>
       <div class="strip" id="mSimilar"></div>
@@ -824,6 +875,65 @@ $("#favMax").href = C.max; $("#favTg").href = tgUrl;
   copy(favText()).then(ok => toast(ok ? `Список скопирован — вставьте его в чат ${name}` : "Напишите номера моделей из списка"));
 }));
 
+/* ---------- отзывы о модели ---------- */
+function starsHtml(v){
+  const n = Math.round(v);
+  return `<span class="stars" aria-label="Оценка ${n} из 5">${"★".repeat(n)}<span class="off">${"★".repeat(5 - n)}</span></span>`;
+}
+function reviewsOf(no){ return REVIEWS.filter(r => r.no === no); }
+function ratingOf(no){
+  const st = reviewsOf(no).filter(r => r.stars).map(r => r.stars);
+  return { n: st.length, avg: st.length ? st.reduce((a, b) => a + b, 0) / st.length : 0 };
+}
+let rfStars = 0;
+function paintStars(){ $$("#rfStars button").forEach((b, i) => { b.classList.toggle("on", i < rfStars); b.setAttribute("aria-checked", i + 1 === rfStars); }); }
+for (let i = 1; i <= 5; i++) {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = "★";
+  b.setAttribute("role", "radio"); b.setAttribute("aria-label", i + " из 5");
+  b.onclick = () => { rfStars = i; paintStars(); };
+  $("#rfStars").appendChild(b);
+}
+function renderModelReviews(m){
+  const list = reviewsOf(m.no).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  const r = ratingOf(m.no);
+  $("#mRevAvg").innerHTML = r.n ? `${starsHtml(r.avg)} ${r.avg.toFixed(1)}` : "";
+  $("#mRevList").innerHTML = list.length ? list.map(x => `<div class="mrev-item">
+      <div class="meta"><b>${esc(x.name || "Покупатель")}</b>${x.stars ? starsHtml(x.stars) : ""}<small>${new Date(x.ts).toLocaleDateString("ru-RU")}</small></div>
+      <p>${esc(x.text)}</p>
+      ${(x.photos || []).length ? `<div class="pics">${x.photos.map(p => `<img src="${esc(p)}" alt="" loading="lazy">`).join("")}</div>` : ""}
+    </div>`).join("") : `<p class="mrev-empty">Отзывов пока нет. Купили эту модель? Расскажите, как она вам.</p>`;
+  const can = !!C.reviewApi;
+  $("#mRevOpen").hidden = !can;
+  $("#mRevForm").hidden = true; $("#mRevDone").hidden = true; $("#rfErr").hidden = true;
+}
+$("#mRevOpen").onclick = () => {
+  $("#mRevForm").hidden = false; $("#mRevOpen").hidden = true; $("#mRevDone").hidden = true;
+  try { $("#rfName").value = localStorage.getItem("rev_name") || ""; } catch(e){}
+  rfStars = 0; paintStars(); $("#rfText").value = "";
+  setTimeout(() => ($("#rfName").value ? $("#rfText") : $("#rfName")).focus(), 50);
+};
+["#rfName","#rfText"].forEach(id => $(id).addEventListener("input", () => $("#rfErr").hidden = true));
+$("#mRevForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("#rfName").value.trim(), text = $("#rfText").value.trim(), err = $("#rfErr");
+  const fail = msg => { err.textContent = msg; err.hidden = false; };
+  if (name.length < 2) return fail("Напишите ваше имя");
+  if (text.length < 3) return fail("Напишите пару слов о модели");
+  err.hidden = true;
+  const btn = $("#rfSend"); btn.disabled = true; btn.textContent = "Отправляю…";
+  try {
+    const res = await fetch(C.reviewApi, { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: JSON.stringify({ no: current.no, name, text, stars: rfStars, web: $("#rfWeb").value }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || "Не получилось отправить");
+    try { localStorage.setItem("rev_name", name); } catch(e){}
+    $("#mRevForm").hidden = true; $("#mRevDone").hidden = false;
+    goal("review_sent", { no: current.no, stars: rfStars });
+  } catch (x) {
+    fail((x && x.message && !/fetch|network/i.test(x.message) ? x.message : "Нет связи. Попробуйте ещё раз или напишите отзыв мне в MAX."));
+  } finally { btn.disabled = false; btn.textContent = "Отправить отзыв"; }
+});
+
 /* ---------- карточки ---------- */
 function cardEl(m){
   const c = document.createElement("div");
@@ -837,6 +947,7 @@ function cardEl(m){
       <h3>${esc(m.title)}</h3>
       <span class="cat">${esc(m.category)}</span>
       ${m.sold ? `<span class="sold">${soldText(m)}</span>` : ""}
+      ${ratingOf(m.no).n ? `<span class="rating">${starsHtml(ratingOf(m.no).avg)} ${ratingOf(m.no).avg.toFixed(1)} (${ratingOf(m.no).n})</span>` : ""}
       <span class="price ${m.price == null ? "ask" : ""}">${fmt(m.price)}</span>
     </div>`;
   c.querySelector(".heart").onclick = e => { e.stopPropagation(); toggleFav(m.no); };
@@ -960,7 +1071,7 @@ function renderReviews(){
     const pics = (r.photos || []).map(p => `<img src="${esc(p)}" alt="" loading="lazy">`).join("");
     const item = r.no && CATALOG.find(m => m.no === r.no);
     return `<div class="rev">${pics ? `<div class="pics${r.photos.length > 1 ? " multi" : ""}">${pics}</div>` : ""}
-      <div class="txt"><p>${esc(r.text)}</p><small>${new Date(r.ts).toLocaleDateString("ru-RU")}</small>
+      <div class="txt">${r.name || r.stars ? `<div class="who">${r.name ? `<b>${esc(r.name)}</b>` : ""}${r.stars ? starsHtml(r.stars) : ""}</div>` : ""}<p>${esc(r.text)}</p><small>${new Date(r.ts).toLocaleDateString("ru-RU")}</small>
       ${item ? `<br><button class="about" data-no="${item.no}">${esc(item.title)}</button>` : ""}</div></div>`;
   }).join("");
   $$("#revGrid .about").forEach(b => b.onclick = () => openModel(CATALOG.find(m => m.no === +b.dataset.no)));
@@ -994,6 +1105,7 @@ function openModel(m, fromHash){
     };
     th.appendChild(b);
   });
+  renderModelReviews(m);
   const sim = CATALOG.filter(x => x.category === m.category && x.no !== m.no).sort((a,b) => popScore(b) - popScore(a)).slice(0, 8);
   $("#mSimilarWrap").hidden = !sim.length;
   $("#mSimilar").innerHTML = ""; sim.forEach(x => $("#mSimilar").appendChild(miniEl(x)));

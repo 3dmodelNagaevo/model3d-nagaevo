@@ -319,7 +319,11 @@ def add_bot_reviews(reviews, bot_reviews):
         mid = f"bot{r['id']}"
         text = re.sub(r"\s*№\s*\d+", "", r.get("text", "")).strip()
         reviews[mid] = {"mid": mid, "ts": r.get("ts", 0), "text": text, "photos": photos,
-                        "url": "", "no": r.get("no"), "source": "bot", "id": r["id"]}
+                        "url": "", "no": r.get("no"), "source": r.get("src") or "bot", "id": r["id"]}
+        if r.get("name"):
+            reviews[mid]["name"] = r["name"]
+        if r.get("stars"):
+            reviews[mid]["stars"] = r["stars"]
 
 
 def sync(messages, old_items, old_reviews, state, whole_history, ov=None, bot_reviews=()):
