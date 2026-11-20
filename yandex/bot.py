@@ -933,7 +933,7 @@ def send_customer(uid, text, links=None, extra=None):
 
 
 CUSTOMER_HELLO = ("Здравствуйте! 👋 Это бот мастерской «3D модели в Нагаево».\n\n"
-                  "🎁 Подпишитесь на наш канал — и я пришлю личный промокод на скидку.\n"
+                  "🎁 Нажмите «Получить скидку» — покажу действующие промокоды.\n"
                   "🛍 Все модели с ценами — в каталоге на сайте.\n"
                   "✍️ Заказ, вопросы, своя модель — пишите мастеру.")
 
@@ -952,11 +952,72 @@ def uid_hash(uid):
 _sub_tries = {}
 
 
+_promo_ip = {}
+
+
+def site_promo_check(event, headers):
+    """Сайт спрашивает: действует ли промокод? Ничего не списывает."""
+    cors = _cors(headers.get("origin", ""))
+    if (event.get("httpMethod") or "").upper() == "OPTIONS":
+        return {"statusCode": 204, "headers": cors, "body": ""}
+    def out(**kw):
+        return {"statusCode": 200, "headers": {**cors, "Content-Type": "application/json"}, "body": json.dumps(kw, ensure_ascii=False)}
+    ip = ((event.get("requestContext") or {}).get("identity") or {}).get("sourceIp") or headers.get("x-forwarded-for", "?")
+    now = time.time()
+    hits = [x for x in _promo_ip.get(ip, []) if now - x < 3600]
+    if len(hits) >= 30:                                   # защита от перебора кодов
+        return out(valid=False, text="Слишком много проверок. Мастер проверит промокод при заказе.")
+    _promo_ip[ip] = hits + [now]
+    try:
+        raw = event.get("body") or "{}"
+        if event.get("isBase64Encoded"):
+            raw = base64.b64decode(raw).decode()
+        code = str(json.loads(raw).get("code") or "")[:30]
+    except Exception:
+        code = ""
+    if len(norm_code(code)) < 3:
+        return out(valid=False, text="❌ Такого промокода нет")
+    d, _ = gh_file("promos.json")
+    c = find_code(d or {}, code)
+    if not c:
+        return out(valid=False, text="❌ Такого промокода нет — проверьте, нет ли опечатки")
+    st, why = promo_status(c, now)
+    if st == "active":
+        left = (c["limit"] - c.get("used", 0)) if c.get("limit") else None
+        until = time.strftime("%d.%m", time.gmtime(c["until"] + TZ)) if c.get("until") else ""
+        txt = f"✅ Промокод действует: скидка {fmt_disc(c)}"
+        if left is not None and not c.get("personal"):
+            txt += f", осталось {plural_act(left)}"
+        if until:
+            txt += f", до {until}"
+        return out(valid=True, text=txt + ". Он уже добавлен в текст заказа.")
+    if st == "ended":
+        return out(valid=False, text="❌ Промокод больше не действует" + (f": {why}" if why else ""))
+    return out(valid=False, text="❌ Такого промокода нет — проверьте, нет ли опечатки")
+
+
+def active_public_promos():
+    d, _ = gh_file("promos.json")
+    return [c for c in (d or {}).get("codes", []) if not c.get("personal") and c.get("mid") and promo_status(c)[0] == "active"]
+
+
 def give_sub_discount(uid, name):
     d, _ = gh_file("promos.json")
     sub = (d or {}).get("sub") or {}
     if not sub.get("on"):
-        return send_customer(uid, "Сейчас скидки за подписку нет 🙁\nНо в канале регулярно выходят промокоды — подпишитесь, чтобы не пропустить!")
+        act = active_public_promos()
+        if act:
+            lines = []
+            for c in act:
+                left = (c["limit"] - c.get("used", 0)) if c.get("limit") else None
+                until = time.strftime("%d.%m", time.gmtime(c["until"] + TZ)) if c.get("until") else ""
+                lines.append(f"🎁 {c['code']} — скидка {fmt_disc(c)}"
+                             + (f", осталось {plural_act(left)}" if left is not None else "") + (f", до {until}" if until else ""))
+            return send_customer(uid, "Сейчас действуют промокоды:\n\n" + "\n".join(lines) +
+                                 "\n\n👉 Чтобы получить скидку, выберите модель и напишите мастеру заказ, добавив в сообщение промокод. "
+                                 "Активаций мало — кто первый, тот и получил!", links=[("✍️ Написать заказ мастеру", MASTER_URL)])
+        return send_customer(uid, "Сейчас свободных промокодов нет 🙁\nНовые выходят в нашем канале — подпишитесь, чтобы не пропустить!",
+                             links=[("📣 Подписаться на канал", CHANNEL_URL)])
     uh = uid_hash(uid)
     old = next((c for c in (d or {}).get("codes", []) if c.get("personal") and c.get("u") == uh), None)
     if old:
@@ -2016,9 +2077,11 @@ def handler(event, context):
     q = event.get("queryStringParameters") or {}
     func_url = os.environ.get("FUNC_URL") or f"https://functions.yandexcloud.net/{context.function_name}"
 
-    # отзыв покупателя с сайта (публичный адрес, без секрета)
+    # отзыв покупателя и проверка промокода с сайта (публичный адрес, без секрета)
     if "review" in q:
         return site_review(event, headers)
+    if "promo" in q:
+        return site_promo_check(event, headers)
 
     # настройка из браузера: ?setup=SECRET (подключить), ?off=SECRET (отключить), ?check=SECRET
     for action in ("setup", "off", "check"):

@@ -147,10 +147,13 @@
   @media (prefers-reduced-motion:reduce){.hero-pics figure{animation:none}}
   .hero-pics figure:first-child img{aspect-ratio:16/10}
   .hero-pics figcaption{position:absolute;left:10px;right:10px;bottom:10px;background:rgba(255,255,255,.94);border-radius:12px;padding:8px 12px;
-    font-size:14px;font-weight:600;line-height:1.3;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+    font-size:14px;font-weight:600;line-height:1.3;display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;align-items:baseline;min-width:0}
   .hero-pics figcaption:empty{display:none}
-  .hero-pics figcaption b{font-family:var(--display);color:var(--orange);font-size:14px;white-space:nowrap}
-  .hero-pics figcaption span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hero-pics figcaption b{font-family:var(--display);color:var(--orange);font-size:14px;white-space:nowrap;flex:0 0 auto;max-width:100%}
+  .hero-pics figcaption span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 0;min-width:0}
+  @media (max-width:560px){.hero-pics figure:not(:first-child) figcaption{font-size:12.5px;padding:6px 9px;left:6px;right:6px;bottom:6px}
+    .hero-pics figure:not(:first-child) figcaption span{flex-basis:100%}
+    .hero-pics figure:not(:first-child) figcaption b{font-size:12.5px}}
   .hero-note{position:absolute;left:12px;top:12px;background:var(--ink);color:#fff;font-size:13px;font-weight:600;padding:5px 11px;border-radius:999px}
   @media (max-width:880px){.hero{padding-top:28px}.hero .cta .btn{flex:1 1 100%}}
 
@@ -324,6 +327,8 @@
   .promo-in input{flex:1;min-width:0;font:inherit;font-size:16px;border:1px dashed #b9c0d6;border-radius:12px;padding:9px 12px;background:#fff;color:var(--ink);text-transform:uppercase}
   .promo-in input::placeholder{text-transform:none;color:#8a90a8}
   .promo-get{font-size:14px;color:var(--muted);margin:2px 0 0}
+  .promo-st{font-size:14px;font-weight:600;margin:-2px 0 0}
+  .promo-st.ok{color:#16803c}.promo-st.bad{color:#d33}.promo-st.wait{color:var(--muted);font-weight:500}
   .promo-get a{color:var(--cobalt);font-weight:600}
   .gift{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;justify-content:space-between;background:#fff;border:2px dashed var(--orange);border-radius:22px;padding:18px 22px}
   .gift b{display:block;font-family:var(--display);font-size:19px;margin-bottom:2px}
@@ -435,9 +440,9 @@
   <section id="gift" hidden>
     <div class="wrap">
       <div class="gift">
-        <div><b id="giftTitle">🎁 Скидка подписчикам канала</b>
-          <span>Подпишитесь на канал в MAX — бот проверит подписку и пришлёт личный промокод.</span></div>
-        <a class="btn btn-primary" data-bot target="_blank" rel="noopener" data-goal="get_discount">Получить скидку в боте</a>
+        <div><b id="giftTitle">🎁 Промокоды на скидку</b>
+          <span id="giftText">В канале и в нашем боте выходят промокоды на скидку — с ограниченным числом активаций. Успейте!</span></div>
+        <a class="btn btn-primary" data-bot target="_blank" rel="noopener" data-goal="get_discount">Получить промокод в боте</a>
       </div>
     </div>
   </section>
@@ -670,8 +675,10 @@
         <dt>Получение</dt><dd>Самовывоз / ТК33, Нагаево</dd>
       </dl>
 
-      <div class="promo-in"><input id="mPromo" maxlength="20" placeholder="Промокод, если есть" autocomplete="off" aria-label="Промокод"></div>
-      <p class="promo-get" id="mPromoGet" hidden>Нет промокода? <a data-bot target="_blank" rel="noopener" data-goal="get_discount">Получите скидку в боте</a> за подписку на канал.</p>
+      <div class="promo-in"><input id="mPromo" maxlength="20" placeholder="Промокод, если есть" autocomplete="off" aria-label="Промокод">
+        <button class="btn btn-ghost btn-sm" id="mPromoCheck" type="button">Проверить</button></div>
+      <p class="promo-st" id="mPromoSt" hidden></p>
+      <p class="promo-get" id="mPromoGet" hidden>Нет промокода? <a data-bot target="_blank" rel="noopener" data-goal="get_discount">Получите его в нашем боте</a>.</p>
       <div class="msg"><b>Текст заказа (скопируется сам)</b><span id="mMsg"></span></div>
       <div class="order">
         <a class="btn btn-primary" id="mMax" target="_blank" rel="noopener">Заказать в MAX</a>
@@ -843,7 +850,7 @@ function toast(t){
 }
 async function copy(text){ try { await navigator.clipboard.writeText(text); return true; } catch(e){ return false; } }
 const promoVal = () => ($("#mPromo")?.value || "").trim().toUpperCase();
-const orderText = m => `Здравствуйте! Хочу заказать с сайта: ${m.title} (№${m.no}). Размер: …, цвет: …` + (promoVal() ? `. Промокод: ${promoVal()}` : "");
+const orderText = m => `Здравствуйте! Хочу заказать с сайта: ${m.title} (№${m.no}). Размер: …, цвет: …` + (promoVal() ? `, промокод: ${promoVal()}` : "");
 const pageUrl = m => new URL("m/" + m.no + ".html", location.href.split("#")[0].split("?")[0]).href;
 
 /* ---------- избранное ---------- */
@@ -1134,6 +1141,7 @@ function openModel(m, fromHash){
     th.appendChild(b);
   });
   renderModelReviews(m);
+  if (promoVal() && $("#mPromoSt").hidden) checkPromo();
   const sim = CATALOG.filter(x => x.category === m.category && x.no !== m.no).sort((a,b) => popScore(b) - popScore(a)).slice(0, 8);
   $("#mSimilarWrap").hidden = !sim.length;
   $("#mSimilar").innerHTML = ""; sim.forEach(x => $("#mSimilar").appendChild(miniEl(x)));
@@ -1182,14 +1190,41 @@ $$("[data-tg]").forEach(a => a.href = tgUrl);
 $$("[data-tel]").forEach(a => a.href = "tel:" + C.phone);
 $$("[data-channel]").forEach(a => a.href = C.channel);
 try { $("#mPromo").value = localStorage.getItem("promo") || ""; } catch(e){}
+let promoTimer = null, promoLast = "";
 $("#mPromo").addEventListener("input", () => {
   try { localStorage.setItem("promo", promoVal()); } catch(e){}
   if (current) $("#mMsg").textContent = orderText(current);
+  clearTimeout(promoTimer);
+  const st = $("#mPromoSt");
+  if (!promoVal()) { st.hidden = true; promoLast = ""; return; }
+  promoTimer = setTimeout(checkPromo, 900);
 });
+$("#mPromoCheck").onclick = () => checkPromo(true);
+async function checkPromo(force){
+  const code = promoVal(), st = $("#mPromoSt");
+  if (!code) { st.hidden = false; st.className = "promo-st bad"; st.textContent = "Введите промокод"; return; }
+  if (!C.reviewApi || (code === promoLast && !force)) return;
+  promoLast = code;
+  st.hidden = false; st.className = "promo-st wait"; st.textContent = "Проверяю…";
+  try {
+    const url = C.reviewApi.replace(/review=1/, "promo=1");
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: JSON.stringify({ code }) });
+    const d = await r.json();
+    if (promoVal() !== code) return;
+    st.className = "promo-st " + (d.valid ? "ok" : "bad");
+    st.textContent = d.text || (d.valid ? "✅ Промокод действует" : "❌ Промокод не действует");
+    goal("promo_check", { valid: !!d.valid });
+  } catch (e) {
+    st.className = "promo-st wait"; st.textContent = "Не удалось проверить — мастер проверит промокод при заказе.";
+  }
+}
 function setBotLinks(url, gift){
-  if (!url || !gift) return;                     // баннер — только когда скидка за подписку включена в боте
-  const v = gift.kind === "%" ? gift.value + "%" : gift.value + " ₽";
-  $("#giftTitle").textContent = `🎁 Скидка ${v} подписчикам канала`;
+  if (!url) return;
+  if (gift) {                                    // скидка за подписку включена в боте
+    const v = gift.kind === "%" ? gift.value + "%" : gift.value + " ₽";
+    $("#giftTitle").textContent = `🎁 Скидка ${v} подписчикам канала`;
+    $("#giftText").textContent = "Подпишитесь на канал в MAX — бот проверит подписку и пришлёт личный промокод.";
+  }
   const link = url + (url.includes("?") ? "&" : "?") + "start=skidka";
   $$("[data-bot]").forEach(a => a.href = link);
   $("#gift").hidden = false; $("#mPromoGet").hidden = false; $("#menuGift").hidden = false;
