@@ -1,6 +1,29 @@
 {
-  "updated": 1795204080,
+  "updated": 1795205341,
   "items": [
+    {
+      "mid": "mid.ffffb8167a965fcf01a1fa93248e14ff",
+      "ts": 1795205309582,
+      "url": "https://max.ru/channel_model3Dnagaevo/AaH6kySOFP8",
+      "title": "Держатель для пасты \"Вертикаль\"",
+      "category": "Для дома",
+      "price": 200,
+      "size": "По желанию",
+      "color": "Согласовывать в ЛС",
+      "material": "",
+      "desc": "Гаджет для ванной",
+      "tags": "для_дома",
+      "views": 2,
+      "photos": [
+        "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_0.jpg",
+        "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_1.jpg",
+        "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_2.jpg"
+      ],
+      "source": "max",
+      "no": 49,
+      "views_week": 2,
+      "views_month": 2
+    },
     {
       "mid": "mid.ffffb8167a965fcf01a1f9c74c373f85",
       "ts": 1795191950391,
@@ -13,7 +36,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 8,
+      "views": 12,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f9c74c373f85_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1f9c74c373f85_1.jpg",
@@ -24,8 +47,8 @@
       ],
       "source": "max",
       "no": 48,
-      "views_week": 8,
-      "views_month": 8
+      "views_week": 12,
+      "views_month": 12
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f8143b3702a2",
@@ -39,7 +62,7 @@
       "material": "",
       "desc": "3x3-50\n5x5-150\n10x10-400",
       "tags": "",
-      "views": 15,
+      "views": 18,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f8143b3702a2_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1f8143b3702a2_1.jpg",
@@ -48,8 +71,8 @@
       ],
       "source": "max",
       "no": 47,
-      "views_week": 15,
-      "views_month": 15
+      "views_week": 18,
+      "views_month": 18
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f7f0039d6020",
@@ -111,14 +134,14 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 26,
+      "views": 27,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f40b6473141e_0.jpg"
       ],
       "source": "max",
       "no": 44,
-      "views_week": 26,
-      "views_month": 26
+      "views_week": 27,
+      "views_month": 27
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f3445fed058e",
@@ -132,7 +155,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 26,
+      "views": 28,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f3445fed058e_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1f3445fed058e_0.jpg",
@@ -147,8 +170,8 @@
         "photos/mid_ffffb8167a965fcf01a1f3445fed058e_2.jpg",
         "photos/mid_ffffb8167a965fcf01a1f3445fed058e_3.jpg"
       ],
-      "views_week": 26,
-      "views_month": 26
+      "views_week": 28,
+      "views_month": 28
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f327f4fb2e2a",
@@ -162,7 +185,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 27,
+      "views": 29,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f327f4fb2e2a_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1f327f4fb2e2a_1.jpg",
@@ -171,8 +194,8 @@
       ],
       "source": "max",
       "no": 40,
-      "views_week": 19,
-      "views_month": 19
+      "views_week": 21,
+      "views_month": 21
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1ee23f13b0c61",
@@ -186,7 +209,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 35,
+      "views": 36,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1ee23f13b0c61_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1ee23f13b0c61_1.jpg",
@@ -195,8 +218,8 @@
       ],
       "source": "max",
       "no": 5,
-      "views_week": 14,
-      "views_month": 14
+      "views_week": 15,
+      "views_month": 15
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1ede0b6974f3b",
@@ -210,7 +233,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 35,
+      "views": 36,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1ede0b6974f3b_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1ede0b6974f3b_1.jpg",
@@ -218,8 +241,8 @@
       ],
       "source": "max",
       "no": 6,
-      "views_week": 14,
-      "views_month": 14
+      "views_week": 15,
+      "views_month": 15
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1eddff0e06f9a",
@@ -233,7 +256,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 28,
+      "views": 29,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1eddff0e06f9a_2.jpg",
         "photos/mid_ffffb8167a965fcf01a1eddff0e06f9a_0.jpg",
@@ -246,8 +269,8 @@
         "photos/mid_ffffb8167a965fcf01a1eddff0e06f9a_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1eddff0e06f9a_2.jpg"
       ],
-      "views_week": 13,
-      "views_month": 13
+      "views_week": 14,
+      "views_month": 14
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1e9dfcee634e6",
@@ -354,7 +377,7 @@
       "material": "",
       "desc": "26 плоских тактильных фигурок с выпуклым контуром: зубная щётка, гриб, лягушка, качели, слон, хомяк, кораблик и другие.\nРебёнок ощупывает рельеф, узнаёт предмет и называет его. Так тренируются звуки, речь, внимание и мелкая моторика.\nРазмер около 5 см, гладкие скруглённые края\nПодходит для логопеда, детского сада и занятий дома\nАртикуляционная гимнастика",
       "tags": "",
-      "views": 40,
+      "views": 41,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1d6cdde9424b4_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1d6cdde9424b4_1.jpg",
@@ -364,8 +387,8 @@
       ],
       "source": "max",
       "no": 42,
-      "views_week": 40,
-      "views_month": 40
+      "views_week": 41,
+      "views_month": 41
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1d6cdcfc43767",
@@ -379,7 +402,7 @@
       "material": "",
       "desc": "Те же 26 тактильных фигурок, только объёмные: бегемот, лошадка, дятел на пеньке, чашка с улыбкой, будильник, горка, гармошка и другие.\nФигурки удобно держать в руках и рассматривать со всех сторон. С ними можно играть в «Чудесный мешочек», составлять предложения и автоматизировать звуки.\nРазмер около 5 см, без острых деталей\nПрочный пластик, приятно трогать\nАртикуляционная гимнастика",
       "tags": "",
-      "views": 37,
+      "views": 38,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1d6cdcfc43767_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1d6cdcfc43767_1.jpg",
@@ -389,8 +412,8 @@
       ],
       "source": "max",
       "no": 43,
-      "views_week": 37,
-      "views_month": 37,
+      "views_week": 38,
+      "views_month": 38,
       "sold": 2,
       "sold_week": 2,
       "sold_month": 2
@@ -407,14 +430,14 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 34,
+      "views": 35,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1d628adb955c5_0.jpg"
       ],
       "source": "max",
       "no": 12,
-      "views_week": 8,
-      "views_month": 8
+      "views_week": 9,
+      "views_month": 9
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1d4208c993715",
@@ -499,7 +522,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 51,
+      "views": 52,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1ca2eeb040b15_2.jpg",
         "photos/mid_ffffb8167a965fcf01a1ca2eeb040b15_0.jpg",
@@ -512,8 +535,8 @@
         "photos/mid_ffffb8167a965fcf01a1ca2eeb040b15_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1ca2eeb040b15_2.jpg"
       ],
-      "views_week": 8,
-      "views_month": 8
+      "views_week": 9,
+      "views_month": 9
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1ca20a89934a4",
@@ -884,14 +907,14 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "views": 140,
+      "views": 141,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b508d55675d2_0.jpg"
       ],
       "source": "max",
       "no": 32,
-      "views_week": 4,
-      "views_month": 4
+      "views_week": 5,
+      "views_month": 5
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b50555c47849",
@@ -905,15 +928,15 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "views": 130,
+      "views": 131,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b50555c47849_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b50555c47849_1.jpg"
       ],
       "source": "max",
       "no": 33,
-      "views_week": 3,
-      "views_month": 3
+      "views_week": 4,
+      "views_month": 4
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b4f3c4950837",
@@ -927,7 +950,7 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "views": 118,
+      "views": 119,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b4f3c4950837_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b4f3c4950837_1.jpg",
@@ -935,8 +958,8 @@
       ],
       "source": "max",
       "no": 34,
-      "views_week": 3,
-      "views_month": 3
+      "views_week": 4,
+      "views_month": 4
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b4e3a3af6539",
@@ -950,7 +973,7 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "views": 108,
+      "views": 109,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b4e3a3af6539_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b4e3a3af6539_1.jpg",
@@ -958,8 +981,8 @@
       ],
       "source": "max",
       "no": 35,
-      "views_week": 3,
-      "views_month": 3
+      "views_week": 4,
+      "views_month": 4
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b480356f5ce8",
@@ -973,7 +996,7 @@
       "material": "PLA и PETG",
       "desc": "",
       "tags": "",
-      "views": 101,
+      "views": 102,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b480356f5ce8_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b480356f5ce8_1.jpg",
@@ -982,8 +1005,8 @@
       ],
       "source": "max",
       "no": 36,
-      "views_week": 3,
-      "views_month": 3
+      "views_week": 4,
+      "views_month": 4
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b47405aa0f8a",
@@ -997,15 +1020,15 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "views": 97,
+      "views": 98,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b47405aa0f8a_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b47405aa0f8a_1.jpg"
       ],
       "source": "max",
       "no": 37,
-      "views_week": 3,
-      "views_month": 3,
+      "views_week": 4,
+      "views_month": 4,
       "sold": 1,
       "sold_week": 1,
       "sold_month": 1
@@ -1022,15 +1045,15 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "views": 101,
+      "views": 102,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b36e304e0f20_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b36e304e0f20_1.jpg"
       ],
       "source": "max",
       "no": 38,
-      "views_week": 3,
-      "views_month": 3,
+      "views_week": 4,
+      "views_month": 4,
       "sold": 1,
       "sold_week": 1,
       "sold_month": 1
@@ -1047,15 +1070,15 @@
       "material": "PLA",
       "desc": "(Цвет согласовывать в ЛС)",
       "tags": "",
-      "views": 101,
+      "views": 102,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b33c282831bb_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b33c282831bb_1.jpg"
       ],
       "source": "max",
       "no": 39,
-      "views_week": 4,
-      "views_month": 4
+      "views_week": 5,
+      "views_month": 5
     },
     {
       "no": 3,
