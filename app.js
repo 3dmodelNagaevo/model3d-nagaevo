@@ -380,11 +380,24 @@ function renderMetrika(m){
       <div class="btns full"><button class="btn red" id="mReset">🧹 Начать отсчёт с этого момента</button>${m.from ? `<button class="btn ghost" id="mAll">Показывать всё</button>` : ""}</div>
     </div>
     <p class="muted" style="font-size:13px">Ваши заходы и заходы админов с телефона, где открыто это приложение, больше не считаются. Данные Яндекс Метрики обновляются с задержкой до нескольких минут.</p>`;
-  $("#mReset").onclick = () => sheet(`<div class="top"><h3>Начать отсчёт с этого момента?</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
-    <p>Во вкладке «Метрика» и в статистике бота будут только заходы начиная с этой минуты — сейчас все цифры станут нулями. Вернуть показ прошлых данных можно кнопкой «Показывать всё».</p>
-    <div class="btns full"><button class="btn red" id="mResetYes">🧹 Да, с этого момента</button><button class="btn ghost" onclick="__appCloseSheet()">Отмена</button></div>`)
-    || ($("#mResetYes").onclick = () => { closeSheet(); for (const k in MC) delete MC[k]; cmd("/метрика сброс", false).then(loadMetrika); });
-  if ($("#mAll")) $("#mAll").onclick = () => { for (const k in MC) delete MC[k]; cmd("/метрика всё", false).then(loadMetrika); };
+  const confirmSheet = (title, text, yes, cls, then) => {
+    sheet(`<div class="top"><h3>${title}</h3><button class="x" onclick="__appCloseSheet()">×</button></div><p>${text}</p>
+      <div class="btns full"><button class="btn ${cls}" id="cfYes">${yes}</button><button class="btn ghost" onclick="__appCloseSheet()">Отмена</button></div>`);
+    $("#cfYes").onclick = then;
+  };
+  const resetNow = () => { closeSheet(); for (const k in MC) delete MC[k]; cmd("/метрика сброс", false).then(loadMetrika); };
+  const showAll = () => { closeSheet(); for (const k in MC) delete MC[k]; cmd("/метрика всё", false).then(loadMetrika); };
+  $("#mReset").onclick = () => confirmSheet("Начать отсчёт с этого момента?",
+    "Во вкладке «Метрика» и в статистике бота будут только заходы начиная с этой минуты — все цифры станут нулями.",
+    "Да, продолжить", "red",
+    () => confirmSheet("Точно начать заново?",
+      "Это второе подтверждение. Прошлые данные не удалятся — их можно будет снова показать кнопкой «Показывать всё».",
+      "🧹 Да, начать с этого момента", "red", resetNow));
+  if ($("#mAll")) $("#mAll").onclick = () => confirmSheet("Показывать всю статистику?",
+    "Снова будут учитываться все заходы за выбранный период, включая те, что были до отсчёта (например, ваши тестовые).",
+    "Да, продолжить", "",
+    () => confirmSheet("Точно показать всё?", "Это второе подтверждение. Отсчёт «с этого момента» будет отменён.",
+      "📈 Да, показывать всё", "", showAll));
   bindCols("cDay", daily, r => `<b>${esc(r.label)}</b>: ${r.v} посетителей, ${r.visits} визитов`);
   bindCols("cHour", hours, r => `<b>${esc(r.label)}</b>: ${r.v} визитов`);
 }
