@@ -1,6 +1,32 @@
 {
-  "updated": 1795243424,
+  "updated": 1795249237,
   "items": [
+    {
+      "mid": "mid.ffffb8167a965fcf01a1fd2f53c4437c",
+      "ts": 1795249099716,
+      "url": "https://max.ru/channel_model3Dnagaevo/AaH9L1PEQ3w",
+      "title": "Шлем Бэтмена \"Темный Рыцарь\"",
+      "category": "Фигурки и декор",
+      "price": 300,
+      "size": "По желанию",
+      "color": "Согласовывать в ЛС",
+      "material": "",
+      "desc": "Забавный аксессуар для кота",
+      "tags": "для_питомцев",
+      "views": 4,
+      "photos": [
+        "photos/mid_ffffb8167a965fcf01a1fd2f53c4437c_0.jpg",
+        "photos/mid_ffffb8167a965fcf01a1fd2f53c4437c_1.jpg",
+        "photos/mid_ffffb8167a965fcf01a1fd2f53c4437c_2.jpg",
+        "photos/mid_ffffb8167a965fcf01a1fd2f53c4437c_3.jpg",
+        "photos/mid_ffffb8167a965fcf01a1fd2f53c4437c_4.jpg",
+        "photos/mid_ffffb8167a965fcf01a1fd2f53c4437c_5.jpg"
+      ],
+      "source": "max",
+      "no": 50,
+      "views_week": 4,
+      "views_month": 4
+    },
     {
       "mid": "mid.ffffb8167a965fcf01a1fa93248e14ff",
       "ts": 1795205309582,
