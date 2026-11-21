@@ -1458,7 +1458,7 @@ def app_dash(uid):
         codes.append({k: c.get(k) for k in ("code", "kind", "value", "limit", "used", "days", "until", "start", "mid")}
                      | {"status": st, "why": why})
     admins = [{"k": k, "name": a["name"], "id": a["id"],
-               "role": "owner" if a["owner"] and a["id"] in cfg.get("real", ()) else
+               "role": "owner" if a["id"] in cfg.get("real", ()) else
                        "full" if a["id"] in cfg.get("full", ()) else
                        "on" if a["id"] in cfg["owners"] else "off", "guest": bool(a.get("guest"))}
               for k, a in enumerate(cfg.get("admins", []), 1)]
@@ -1940,6 +1940,7 @@ def config():
     full = set((access or {}).get("full", []))     # админы с полными правами — как у владельца
     chief = {a["id"] for a in admins if a["owner"]}
     real = set(chief)
+    same = set((access or {}).get("as_owner", []))  # аккаунты владельца — права в точности как у владельца
     if not any(not a.get("guest") for a in admins):  # MAX не ответил — берём последний известный список
         owners = set((state or {}).get("owners", []))
         chief = set((state or {}).get("chief", [])) or owners
@@ -1952,6 +1953,10 @@ def config():
         owners = chief | (allowed & ids)
     if not any(not a.get("guest") for a in admins):
         chief |= full; owners |= full | allowed
+    if real or not any(not a.get("guest") for a in admins):
+        ids = {a["id"] for a in admins} | owners
+        real |= same & ids
+        chief |= real; owners |= real
     perms = {}
     raw = (access or {}).get("perms") or {}
     for u in owners:
@@ -2033,7 +2038,7 @@ _asked = {}
 def access_text(cfg):
     lines = []
     for k, a in enumerate(cfg["admins"], 1):
-        mark = "👑 владелец" if a["owner"] and a["id"] in cfg.get("real", ()) else (
+        mark = "👑 владелец" if a["id"] in cfg.get("real", ()) else (
             "⭐ полные права" if a["id"] in cfg.get("full", ()) else
             "✅ есть доступ" if a["id"] in cfg["owners"] else "🚫 нет доступа")
         lines.append(f"{k}. {a['name']}{' (по приглашению)' if a.get('guest') else ''} — {mark}")
@@ -2099,10 +2104,10 @@ def perms_cmd(uid, text):
     if not n or not 1 <= n <= len(cfg["admins"]):
         return send(uid, access_text(cfg), menu=False, buttons=[[(f"⚙️ Права: {a['name'][:24]}", f"/права {k}")]
                                                              for k, a in enumerate(cfg["admins"], 1)
-                                                             if not (a["owner"] and a["id"] in cfg.get("real", ()))])
+                                                             if not (a["id"] in cfg.get("real", ()))])
     target = cfg["admins"][n - 1]
     tid = target["id"]
-    if target["owner"] and tid in cfg.get("real", ()):
+    if tid in cfg.get("real", ()):
         return send(uid, "У владельца канала есть все права всегда.")
     ops = (m.group(2) or "").lower().split()
     if ops:
@@ -2162,7 +2167,7 @@ def change_access(uid, text, allow):
         target = next((a for a in cfg["admins"] if a["id"] == n), None)
     if not target:
         return send(uid, "Не нашёл такого админа. Посмотрите номера: /доступ")
-    if target["owner"] and target["id"] in cfg.get("real", ()):
+    if target["id"] in cfg.get("real", ()):
         return send(uid, "У владельца доступ есть всегда.")
     if not allow and target["id"] in cfg.get("full", ()) and uid not in cfg.get("real", ()):
         return send(uid, "Снять полные права может только владелец канала.")
@@ -2639,7 +2644,7 @@ def handle_owner(uid, text, images):
             return send(uid, "Список доступов видит только владелец канала и админы с полными правами.")
         btns = []
         for k, a in enumerate(cfg["admins"], 1):
-            if a["owner"] and a["id"] in cfg.get("real", ()):
+            if a["id"] in cfg.get("real", ()):
                 continue
             short = a["name"][:20]
             btns.append([(f"⚙️ Права", f"/права {k}"), (f"🚫 Забрать: {short}", f"/запретить {k}")] if a["id"] in cfg["owners"]
