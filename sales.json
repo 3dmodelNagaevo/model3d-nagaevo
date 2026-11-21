@@ -1,38 +1,7 @@
 {
-  "sales": [
-    {
-      "no": 38,
-      "qty": 1,
-      "ts": 1795088561274,
-      "id": 1
-    },
-    {
-      "no": 43,
-      "qty": 2,
-      "ts": 1795090682930,
-      "b": 1795090682930,
-      "id": 2
-    },
-    {
-      "no": 20,
-      "qty": 1,
-      "ts": 1795094261106,
-      "b": 1795094261106,
-      "id": 3
-    },
-    {
-      "no": 24,
-      "qty": 1,
-      "ts": 1795094261106,
-      "b": 1795094261106,
-      "id": 4
-    },
-    {
-      "no": 37,
-      "qty": 1,
-      "ts": 1795094261106,
-      "b": 1795094261106,
-      "id": 5
-    }
-  ]
+  "encrypted": "Зашифровано: финансовые данные видит только бот и приложение управления.",
+  "v": 1,
+  "n": "rNtX4TZyHlPHDPp1ip66yg==",
+  "c": "vgjIw4BCB4vYtmRy/oqeVMWtrJM1Zdbctu+6uDrTeF0IEVf+SkAEiIsDjxd7pRNVXEtN/QOLH7g7M9UlQLt485mclPQJKSFcgjM7UggZXcy9LzFW2sm/1ChFrizq8CRX6pS6WsiFoS+/q7761mQK0ZfT5/CreQ==",
+  "t": "qkmgpEjYZvTZZio57afDrA=="
 }
