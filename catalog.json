@@ -1,5 +1,5 @@
 {
-  "updated": 1795231740,
+  "updated": 1795242915,
   "items": [
     {
       "mid": "mid.ffffb8167a965fcf01a1fa93248e14ff",
@@ -116,7 +116,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 18,
+      "views": 19,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f7c59bca0534_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1f7c59bca0534_1.jpg",
@@ -124,8 +124,8 @@
       ],
       "source": "max",
       "no": 45,
-      "views_week": 18,
-      "views_month": 18
+      "views_week": 19,
+      "views_month": 19
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f40b6473141e",
@@ -418,10 +418,7 @@
       "source": "max",
       "no": 43,
       "views_week": 39,
-      "views_month": 39,
-      "sold": 2,
-      "sold_week": 2,
-      "sold_month": 2
+      "views_month": 39
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1d628adb955c5",
@@ -638,10 +635,7 @@
       "source": "max",
       "no": 20,
       "views_week": 7,
-      "views_month": 7,
-      "sold": 1,
-      "sold_week": 1,
-      "sold_month": 1
+      "views_month": 7
     },
     {
       "mid": "mid.ffffb8167a965fcf01a16491c9475fd4",
@@ -733,10 +727,7 @@
       "source": "max",
       "no": 24,
       "views_week": 7,
-      "views_month": 7,
-      "sold": 1,
-      "sold_week": 1,
-      "sold_month": 1
+      "views_month": 7
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0d444578d5204",
@@ -1033,10 +1024,7 @@
       "source": "max",
       "no": 37,
       "views_week": 4,
-      "views_month": 4,
-      "sold": 1,
-      "sold_week": 1,
-      "sold_month": 1
+      "views_month": 4
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b36e304e0f20",
@@ -1058,10 +1046,7 @@
       "source": "max",
       "no": 38,
       "views_week": 4,
-      "views_month": 4,
-      "sold": 1,
-      "sold_week": 1,
-      "sold_month": 1
+      "views_month": 4
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b33c282831bb",
