@@ -1,5 +1,5 @@
 {
-  "updated": 1795242915,
+  "updated": 1795243424,
   "items": [
     {
       "mid": "mid.ffffb8167a965fcf01a1fa93248e14ff",
@@ -418,7 +418,10 @@
       "source": "max",
       "no": 43,
       "views_week": 39,
-      "views_month": 39
+      "views_month": 39,
+      "sold": 2,
+      "sold_week": 2,
+      "sold_month": 2
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1d628adb955c5",
@@ -635,7 +638,10 @@
       "source": "max",
       "no": 20,
       "views_week": 7,
-      "views_month": 7
+      "views_month": 7,
+      "sold": 1,
+      "sold_week": 1,
+      "sold_month": 1
     },
     {
       "mid": "mid.ffffb8167a965fcf01a16491c9475fd4",
@@ -727,7 +733,10 @@
       "source": "max",
       "no": 24,
       "views_week": 7,
-      "views_month": 7
+      "views_month": 7,
+      "sold": 1,
+      "sold_week": 1,
+      "sold_month": 1
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0d444578d5204",
@@ -1024,7 +1033,10 @@
       "source": "max",
       "no": 37,
       "views_week": 4,
-      "views_month": 4
+      "views_month": 4,
+      "sold": 1,
+      "sold_week": 1,
+      "sold_month": 1
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b36e304e0f20",
@@ -1046,7 +1058,10 @@
       "source": "max",
       "no": 38,
       "views_week": 4,
-      "views_month": 4
+      "views_month": 4,
+      "sold": 1,
+      "sold_week": 1,
+      "sold_month": 1
     },
     {
       "mid": "mid.ffffb8167a965fcf01a0b33c282831bb",
