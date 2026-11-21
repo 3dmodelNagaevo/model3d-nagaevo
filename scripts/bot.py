@@ -7,6 +7,7 @@
 import datetime as dt
 import json
 import os
+import pathlib
 import re
 import time
 import urllib.parse
@@ -149,12 +150,21 @@ def get_owners(token, chat_id, state):
 
 # ---------------------------------------------------------------- отправка
 
+def wants(uid, kind):
+    """Настройки уведомлений админа (settings.json → notify → id → вид: false = не присылать)."""
+    try:
+        st = json.loads((pathlib.Path(__file__).resolve().parent.parent / "settings.json").read_text(encoding="utf-8"))
+        return (st.get("notify") or {}).get(str(uid), {}).get(kind, True) is not False
+    except Exception:
+        return True
+
+
 class Notifier:
     def __init__(self, token):
         self.token, self.owners = token, []
 
-    def send(self, text, user_id=None, menu=False):
-        targets = [user_id] if user_id else self.owners
+    def send(self, text, user_id=None, menu=False, kind="other"):
+        targets = [user_id] if user_id else [u for u in self.owners if wants(u, kind)]
         body = {"text": text[:3900]}
         if menu:
             body["attachments"] = [menu_keyboard()]
@@ -654,14 +664,14 @@ def stats_text(items, state):
 
 def notify_events(notifier, events, site_url):
     for it in events["added"][:10]:
-        notifier.send(f"✅ Добавлено на сайт: №{it['no']} {it['title']} — {_fmt_price(it.get('price'))}\n"
+        notifier.send(kind="catalog", text=f"✅ Добавлено на сайт: №{it['no']} {it['title']} — {_fmt_price(it.get('price'))}\n"
                       f"{site_url}m/{it['no']}.html")
     if len(events["added"]) > 10:
-        notifier.send(f"…и ещё {len(events['added']) - 10} товаров.")
+        notifier.send(f"…и ещё {len(events['added']) - 10} товаров.", kind="catalog")
     for it in events["removed"]:
-        notifier.send(f"🗑 Убрано с сайта (пост удалён или помечен #нетнасайте): №{it['no']} {it['title']}")
+        notifier.send(kind="catalog", text=f"🗑 Убрано с сайта (пост удалён или помечен #нетнасайте): №{it['no']} {it['title']}")
     for title in events["warn"]:
-        notifier.send(f"⚠️ Пост «{title}» не попал на сайт: в нём нет строки «Стоимость: …».\n"
+        notifier.send(kind="catalog", text=f"⚠️ Пост «{title}» не попал на сайт: в нём нет строки «Стоимость: …».\n"
                       "Если это товар — допишите цену. Если нет — всё в порядке.")
 
 
@@ -673,7 +683,7 @@ def maybe_weekly_report(notifier, items, state, site_url, sales=None):
         return
     if not notifier.owners:
         return
-    notifier.send("📅 Отчёт за неделю\n\n" + sales_text(items, sales or [], (7,)) + "\n\n"
+    notifier.send(kind="reports", text="📅 Отчёт за неделю\n\n" + sales_text(items, sales or [], (7,)) + "\n\n"
                   + stats_text(items, state) + f"\n\n{site_url}", menu=True)
     state["last_report"] = int(time.time())
     state["snap_week"] = {"ts": int(time.time()),

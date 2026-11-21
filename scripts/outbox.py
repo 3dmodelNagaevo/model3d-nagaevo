@@ -18,8 +18,11 @@ def _url_ok(url):
 
 def run(doc, token, chat_id, notifier, site_url):
     changed = False
+    import time as _t
     for p in doc.get("posts", []):
         if p.get("done"):
+            continue
+        if p.get("at") and _t.time() < p["at"]:        # отложенный пост — ждём своего времени
             continue
         atts = []
         try:
@@ -51,10 +54,10 @@ def run(doc, token, chat_id, notifier, site_url):
                 raise r
             p["done"] = True
             p["mid"] = ((r.get("message") or {}).get("body") or {}).get("mid")
-            notifier.send(f"📣 Опубликовал в канале пост «{p.get('title') or p['id']}».")
+            notifier.send(kind="posts", text=f"📣 Опубликовал в канале пост «{p.get('title') or p['id']}».")
         except Exception as e:
             p["error"] = str(e)[:300]
             p["done"] = True                      # не повторяем бесконечно; ошибку видно в файле
-            notifier.send(f"⚠️ Пост «{p.get('title') or p['id']}» не вышел: {e}")
+            notifier.send(kind="posts", text=f"⚠️ Пост «{p.get('title') or p['id']}» не вышел: {e}")
         changed = True
     return changed

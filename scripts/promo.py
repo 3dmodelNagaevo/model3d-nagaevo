@@ -111,7 +111,7 @@ def run(doc, token, chat_id, notifier, site_url, now=None):
         if c.get("status") == "active" and c.get("until") and now > c["until"]:
             c["status"], c["ended"] = "ended", int(now)
             _close_post(token, c, "срок действия закончился", site_url)
-            notifier.send(f"⚪️ Промокод {c['code']} закончился по сроку: использовали {c.get('used', 0)} из {c.get('limit') or '∞'}.")
+            notifier.send(kind="promo", text=f"⚪️ Промокод {c['code']} закончился по сроку: использовали {c.get('used', 0)} из {c.get('limit') or '∞'}.")
             changed = True
 
     # 1б) добавить кнопку «Скопировать» к уже опубликованным постам (один раз)
@@ -147,8 +147,8 @@ def run(doc, token, chat_id, notifier, site_url, now=None):
             try:
                 c["mid"] = _post(token, chat_id, c, site_url)
                 c["kb"] = True
-                notifier.send(f"📣 Автовыкладка: опубликовал промокод {c['code']} — {fmt_disc(c)}, "
+                notifier.send(kind="promo", text=f"📣 Автовыкладка: опубликовал промокод {c['code']} — {fmt_disc(c)}, "
                               f"{plural_act(c['limit']) if c.get('limit') else 'без ограничения'}, до {time.strftime('%d.%m', time.gmtime(c['until'] + TZ)) if c.get('until') else '—'}.")
             except Exception as e:
-                notifier.send(f"⚠️ Промокод {c['code']} включён, но пост в канал не вышел: {e}")
+                notifier.send(kind="promo", text=f"⚠️ Промокод {c['code']} включён, но пост в канал не вышел: {e}")
     return changed

@@ -42,6 +42,12 @@ def main():
     to = state.get("chief") or state.get("owners") or []
     if os.environ.get("BACKUP_TO", "").strip().isdigit():          # запросили из бота — только ему
         to = [int(os.environ["BACKUP_TO"])]
+    else:                                                          # еженедельная — тем, кто не отключил
+        try:
+            st = json.loads((ROOT / "settings.json").read_text(encoding="utf-8"))
+            to = [u for u in to if (st.get("notify") or {}).get(str(u), {}).get("backup", True) is not False]
+        except Exception:
+            pass
     date = dt.datetime.now(TZ).strftime("%Y-%m-%d")
     out = pathlib.Path(f"/tmp/backup_3dnagaevo_{date}.zip")
     nice = build(out)

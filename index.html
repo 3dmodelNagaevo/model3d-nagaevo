@@ -325,6 +325,13 @@
   .order{display:flex;flex-direction:column;gap:8px;margin-top:4px}
   .order .btn{width:100%}
   .alt{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .notice-bar{background:var(--cobalt,#2F4BFF);color:#fff;font-weight:600;font-size:14px;line-height:1.4;padding:10px 44px 10px 16px;text-align:center;position:relative}
+  .notice-bar a{color:#fff;text-decoration:underline}
+  .notice-bar button{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:0;color:#fff;font-size:22px;cursor:pointer;padding:4px 8px}
+  .badge-hit,.badge-out{position:absolute;left:10px;bottom:10px;font-size:12px;font-weight:700;border-radius:999px;padding:4px 9px;z-index:1}
+  .badge-hit{background:#FF6B2C;color:#fff}
+  .badge-out{background:#1B1F3B;color:#fff}
+  .card.out .ph img{filter:grayscale(.5);opacity:.85}
   .maint-bar{background:var(--orange);color:#fff;font-weight:600;font-size:14px;line-height:1.4;padding:10px 16px;text-align:center}
   .maint-bar.admin{background:#1B1F3B}
   .maint{position:fixed;inset:0;z-index:80;background:var(--plate,#EEF0F4);display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}
@@ -429,7 +436,7 @@
     <div class="wrap hero-grid">
       <div>
         <h1 class="printing"><span class="layers">Напечатаю то, что вы придумали</span><span class="nozzle" aria-hidden="true"></span></h1>
-        <p class="lead">3D-печать на заказ в Нагаево: фигурки, антистрессы, декор, модели машин и полезные мелочи для дома. Размер и цвет — под вас.</p>
+        <p class="lead" data-text="hero" data-label="Главная: текст под заголовком">3D-печать на заказ в Нагаево: фигурки, антистрессы, декор, модели машин и полезные мелочи для дома. Размер и цвет — под вас.</p>
         <div class="cta">
           <a class="btn btn-primary" href="#catalog">Смотреть каталог</a>
           <a class="btn btn-ghost" href="#find">Найти модель под заказ</a>
@@ -459,6 +466,8 @@
       </div>
     </div>
   </section>
+
+  <div id="colls"></div>
 
   <section id="new" hidden>
     <div class="wrap">
@@ -508,7 +517,7 @@
       <div class="find">
         <div>
           <h2>Не нашли в каталоге?</h2>
-          <p>Пришлите фото, ссылку или просто опишите, что хотите. Помогу найти подходящую 3D-модель, подберу размер и цвет и напечатаю.</p>
+          <p data-text="find" data-label="«Не нашли в каталоге?»: текст">Пришлите фото, ссылку или просто опишите, что хотите. Помогу найти подходящую 3D-модель, подберу размер и цвет и напечатаю.</p>
           <div class="cta">
             <a class="btn btn-primary" data-maxprofile target="_blank" rel="noopener" data-goal="find_max">Описать идею в MAX</a>
             <a class="btn btn-ghost" data-tg target="_blank" rel="noopener" data-goal="find_tg">Telegram</a>
@@ -528,14 +537,14 @@
     <div class="wrap own">
       <div>
         <h2>Есть своя модель?</h2>
-        <p class="sub">Пришлите файл в MAX или Telegram — посмотрю, проверю, что модель напечатается, и назову цену. Нет файла — смоделирую.</p>
+        <p class="sub" data-text="own_sub" data-label="«Своя модель»: подзаголовок">Пришлите файл в MAX или Telegram — посмотрю, проверю, что модель напечатается, и назову цену. Нет файла — смоделирую.</p>
         <div class="formats" aria-label="Форматы файлов">
           <span>STL</span><span>3MF</span><span class="ok2">OBJ</span><span class="ok2">STEP</span>
         </div>
-        <p class="note">Лучше всего STL или 3MF. Ссылка на модель с Thingiverse, Printables или MakerWorld тоже подойдёт. Другой формат — присылайте, разберёмся.</p>
+        <p class="note" data-text="own_formats" data-label="«Своя модель»: про форматы">Лучше всего STL или 3MF. Ссылка на модель с Thingiverse, Printables или MakerWorld тоже подойдёт. Другой формат — присылайте, разберёмся.</p>
         <div class="model-svc">
           <b>Нет готовой модели? Смоделирую сам</b>
-          <p>Пришлите чертёж, эскиз, фото или сломанную деталь с размерами — создам 3D-модель и напечатаю её. Моделирование оплачивается отдельно от печати, цена зависит от сложности модели. Назову её, когда посмотрю задачу.</p>
+          <p data-text="own_model" data-label="«Своя модель»: моделирование">Пришлите чертёж, эскиз, фото или сломанную деталь с размерами — создам 3D-модель и напечатаю её. Моделирование оплачивается отдельно от печати, цена зависит от сложности модели. Назову её, когда посмотрю задачу.</p>
         </div>
         <div class="cta" style="margin-top:16px">
           <a class="btn btn-primary" data-maxprofile target="_blank" rel="noopener" data-goal="own_max">Отправить модель в MAX</a>
@@ -556,7 +565,7 @@
   <section id="how" class="band">
     <div class="wrap">
       <h2>Как заказать</h2>
-      <p class="sub">Всё просто — оформление занимает пару минут.</p>
+      <p class="sub" data-text="how_sub" data-label="«Как заказать»: подзаголовок">Всё просто — оформление занимает пару минут.</p>
       <div class="how">
         <div><b>1</b><span>Выберите модель в каталоге или опишите свою идею</span></div>
         <div><b>2</b><span>Нажмите «Заказать» — откроется чат, текст заказа уже скопирован</span></div>
@@ -564,14 +573,14 @@
         <div><b>4</b><span>Заберите готовое изделие в Нагаево или через ТК33</span></div>
       </div>
       <div class="faq">
-      <details><summary>Можно сделать другой размер?</summary><p>Да. Почти любую модель можно увеличить или уменьшить — напишите, какой размер нужен, и я скажу итоговую цену.</p></details>
-      <details><summary>Какие есть цвета?</summary><p>Цвет согласовываем в личных сообщениях — подскажу, какие цвета пластика есть сейчас. Цвет на фото может немного отличаться от реального.</p></details>
-      <details><summary>Можно заказать несколько моделей сразу?</summary><p>Конечно. Отметьте их ♥ в каталоге, откройте «Избранное» и нажмите «Отправить список» — я получу все модели одним сообщением.</p></details>
-      <details><summary>Можете сделать 3D-модель с нуля?</summary><p>Да. По чертежу, эскизу, фото или образцу детали смоделирую и напечатаю. Моделирование оплачивается отдельно от печати, цена зависит от сложности — назову её, когда посмотрю задачу.</p></details>
-      <details><summary>Нет нужной модели в каталоге — что делать?</summary><p>Пришлите фото, ссылку или описание — помогу найти подходящую 3D-модель и напечатаю её.</p></details>
-      <details><summary>Как получить заказ?</summary><p>Самовывоз или передача на ТК33. Только в Нагаево.</p></details>
-      <details><summary>Подходит ли для детей и для еды?</summary><p>Изделия не предназначены для детей до 3 лет — есть мелкие детали. PLA-пластик не подходит для контакта с пищей и нагрева выше 50 °C.</p></details>
-      <details><summary>Можно вернуть или обменять?</summary><p>Изделия изготавливаются индивидуально под заказ, поэтому возврату и обмену не подлежат.</p></details>
+      <details><summary>Можно сделать другой размер?</summary><p data-text="faq1" data-label="Вопрос: Можно сделать другой размер?">Да. Почти любую модель можно увеличить или уменьшить — напишите, какой размер нужен, и я скажу итоговую цену.</p></details>
+      <details><summary>Какие есть цвета?</summary><p data-text="faq2" data-label="Вопрос: Какие есть цвета?">Цвет согласовываем в личных сообщениях — подскажу, какие цвета пластика есть сейчас. Цвет на фото может немного отличаться от реального.</p></details>
+      <details><summary>Можно заказать несколько моделей сразу?</summary><p data-text="faq3" data-label="Вопрос: Можно заказать несколько моделей сразу?">Конечно. Отметьте их ♥ в каталоге, откройте «Избранное» и нажмите «Отправить список» — я получу все модели одним сообщением.</p></details>
+      <details><summary>Можете сделать 3D-модель с нуля?</summary><p data-text="faq4" data-label="Вопрос: Можете сделать 3D-модель с нуля?">Да. По чертежу, эскизу, фото или образцу детали смоделирую и напечатаю. Моделирование оплачивается отдельно от печати, цена зависит от сложности — назову её, когда посмотрю задачу.</p></details>
+      <details><summary>Нет нужной модели в каталоге — что делать?</summary><p data-text="faq5" data-label="Вопрос: Нет нужной модели в каталоге — что делать?">Пришлите фото, ссылку или описание — помогу найти подходящую 3D-модель и напечатаю её.</p></details>
+      <details><summary>Как получить заказ?</summary><p data-text="faq6" data-label="Вопрос: Как получить заказ?">Самовывоз или передача на ТК33. Только в Нагаево.</p></details>
+      <details><summary>Подходит ли для детей и для еды?</summary><p data-text="faq7" data-label="Вопрос: Подходит ли для детей и для еды?">Изделия не предназначены для детей до 3 лет — есть мелкие детали. PLA-пластик не подходит для контакта с пищей и нагрева выше 50 °C.</p></details>
+      <details><summary>Можно вернуть или обменять?</summary><p data-text="faq8" data-label="Вопрос: Можно вернуть или обменять?">Изделия изготавливаются индивидуально под заказ, поэтому возврату и обмену не подлежат.</p></details>
       </div>
     </div>
   </section>
@@ -587,15 +596,15 @@
   <section id="delivery">
     <div class="wrap">
       <h2>Доставка и условия</h2>
-      <p class="sub">Пожалуйста, прочитайте перед заказом.</p>
+      <p class="sub" data-text="terms_sub" data-label="«Доставка и условия»: подзаголовок">Пожалуйста, прочитайте перед заказом.</p>
       <div class="info">
         <div class="box">
           <h3>📦 Получение</h3>
-          <ul><li>Самовывоз</li><li>Передача на ТК33</li><li><b>Только в Нагаево</b></li></ul>
+          <ul data-text="del_get" data-label="Условия: получение (каждый пункт с новой строки)" data-list="1"><li>Самовывоз</li><li>Передача на ТК33</li><li><b>Только в Нагаево</b></li></ul>
         </div>
         <div class="box">
           <h3>🏠 Только для личного использования</h3>
-          <ul>
+          <ul data-text="del_personal" data-label="Условия: личное использование (с новой строки)" data-list="1">
             <li>Изделия предназначены только для личного некоммерческого использования</li>
             <li>Перепродажа и коммерческое использование изделий запрещены</li>
             <li>Часть моделей создана сторонними авторами — права на дизайн принадлежат им</li>
@@ -603,7 +612,7 @@
         </div>
         <div class="box">
           <h3>⚠️ Безопасность</h3>
-          <ul>
+          <ul data-text="del_safety" data-label="Условия: безопасность (с новой строки)" data-list="1">
             <li>Не предназначено для детей до 3 лет (мелкие детали)</li>
             <li>PLA-пластик — не для контакта с пищей и нагрева выше 50 °C</li>
             <li>Использование на ваш страх и риск</li>
@@ -611,21 +620,21 @@
         </div>
         <div class="box">
           <h3>🔹 Качество и возврат</h3>
-          <ul>
+          <ul data-text="del_quality" data-label="Условия: качество и возврат (с новой строки)" data-list="1">
             <li>FDM-печать: могут быть видны слои, возможна шероховатость</li>
             <li>Цвет на фото может немного отличаться от реального</li>
             <li>Изделия делаются под заказ и возврату/обмену не подлежат</li>
           </ul>
         </div>
       </div>
-      <p class="note">Заказывая изделие, вы подтверждаете согласие с данными условиями.</p>
+      <p class="note" data-text="terms_note" data-label="Условия: строка внизу">Заказывая изделие, вы подтверждаете согласие с данными условиями.</p>
     </div>
   </section>
 
   <section id="contacts">
     <div class="wrap">
       <h2>Контакты</h2>
-      <p class="sub">Напишите, что хотите заказать, или пришлите фото идеи.</p>
+      <p class="sub" data-text="contacts_sub" data-label="«Контакты»: подзаголовок">Напишите, что хотите заказать, или пришлите фото идеи.</p>
       <div class="contacts">
         <div class="ct main">
           <span class="lbl">MAX, отвечаю быстрее всего</span>
@@ -993,11 +1002,12 @@ $("#mRevForm").addEventListener("submit", async e => {
 /* ---------- карточки ---------- */
 function cardEl(m){
   const c = document.createElement("div");
-  c.className = "card"; c.tabIndex = 0; c.setAttribute("role", "button");
+  c.className = "card" + (m.badge === "out" ? " out" : ""); c.tabIndex = 0; c.setAttribute("role", "button");
   c.style.setProperty("--c", catColor(m.category));
   c.innerHTML = `
     <div class="ph">${m.photos[0] ? `<img src="${esc(thumb(m.photos[0]))}" alt="" loading="lazy">` : ""}
       ${isNew(m) ? '<span class="badge-new">Новинка</span>' : ""}
+      ${m.badge === "hit" ? '<span class="badge-hit">🔥 Хит</span>' : m.badge === "out" ? '<span class="badge-out">Нет в наличии — под заказ</span>' : ""}
       <button class="heart" data-no="${m.no}" aria-label="В избранное" aria-pressed="${FAV.has(m.no)}">${HEART}</button></div>
     <div class="body">
       <h3>${esc(m.title)}</h3>
@@ -1052,6 +1062,7 @@ function renderGrid(keep){
   if (s === "pop") list.sort((a,b) => popScore(b) - popScore(a));
   if (s === "cheap") list.sort((a,b) => P(a) - P(b));
   if (s === "dear") list.sort((a,b) => (b.price ?? -1) - (a.price ?? -1));
+  if (s === "new" || s === "pop") list.sort((a, b) => (a.pin || 999) - (b.pin || 999));   // закреплённые — первыми
   $("#count").textContent = list.length ? `Найдено: ${list.length}` : "";
   const g = $("#grid"); g.innerHTML = ""; lastList = list;
   const more = $("#more");
@@ -1276,6 +1287,41 @@ function openFromHash(){
 }
 window.addEventListener("popstate", openFromHash);
 
+/* ---------- объявление, подборки, тексты (настраиваются в приложении управления) ---------- */
+let COLLS = [];
+function showNotice(n){
+  if (!n || !n.text) return;
+  const key = "notice_closed_" + n.text.length + "_" + (n.until || "");
+  try { if (sessionStorage.getItem(key)) return; } catch(e){}
+  if (n.until && n.until < new Date().toISOString().slice(0, 10)) return;
+  const bar = document.createElement("div");
+  bar.className = "notice-bar";
+  bar.innerHTML = "📢 " + esc(n.text) + (n.link ? ` <a href="${esc(n.link)}" target="_blank" rel="noopener">Подробнее</a>` : "") +
+    '<button aria-label="Закрыть объявление">×</button>';
+  bar.querySelector("button").onclick = () => { bar.remove(); try { sessionStorage.setItem(key, "1"); } catch(e){} };
+  document.body.insertBefore(bar, document.body.firstChild);
+}
+function renderColls(){
+  const box = $("#colls"); if (!box) return;
+  box.innerHTML = "";
+  COLLS.forEach(c => {
+    const items = c.nos.map(n => CATALOG.find(m => m.no === n)).filter(Boolean);
+    if (!items.length) return;
+    const sec = document.createElement("section");
+    sec.innerHTML = `<div class="wrap"><div class="head-row"><div><h2>${esc(c.title)}</h2><p class="sub">Подборка</p></div></div><div class="strip"></div></div>`;
+    items.forEach(m => sec.querySelector(".strip").appendChild(miniEl(m)));
+    box.appendChild(sec);
+  });
+}
+function applyTexts(t){
+  if (!t) return;
+  $$("[data-text]").forEach(el => {
+    const v = t[el.dataset.text]; if (!v) return;
+    if (el.dataset.list) el.innerHTML = v.split("\n").map(x => x.trim()).filter(Boolean).map(x => "<li>" + esc(x) + "</li>").join("");
+    else el.innerHTML = esc(v).replace(/\n/g, "<br>");
+  });
+}
+
 /* ---------- технические работы ---------- */
 function showMaint(m){
   if (!m) return;
@@ -1312,12 +1358,15 @@ fetch("catalog.json?v=" + Date.now())
     REVIEWS = data.reviews || [];
     setBotLinks(C.bot || data.bot, data.gift);
     showMaint(data.maint);
+    showNotice(data.notice);
+    applyTexts(data.texts);
+    COLLS = data.collections || [];
     const fromMax = new Set(items.filter(i => i.source === "max").map(i => norm(i.title)));
     CATALOG = items.filter(i => i.source === "max" || !fromMax.has(norm(i.title))).map(i => ({ photos: [], ...i }));
     NEW_SET = new Set([...CATALOG].filter(m => m.ts && Date.now() - m.ts < NEW_MS)
       .sort((a,b) => b.ts - a.ts).slice(0, 8).map(m => m.no));
     $("#factCount").textContent = CATALOG.length;
-    renderChips(); renderGrid(); renderStrips(); renderReviews(); syncFav();
+    renderChips(); renderGrid(); renderStrips(); renderColls(); renderReviews(); syncFav();
     const fresh = [...CATALOG].sort((a,b) => (b.ts||0) - (a.ts||0)).filter(i => i.photos[0]).slice(0, 3);
     $$("#heroPics figure").forEach((fig, k) => {
       const m = fresh[k]; if (!m) return;

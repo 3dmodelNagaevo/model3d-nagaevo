@@ -196,7 +196,7 @@ def maybe_post_reminder(notifier, state):
         return
     days = int(gap // 86400)
     word = "день" if days % 10 == 1 and days % 100 != 11 else ("дня" if 2 <= days % 10 <= 4 and not 12 <= days % 100 <= 14 else "дней")
-    notifier.send(f"📸 В канале нет новых постов уже {days} {word}.\n\n"
+    notifier.send(kind="reminders", text=f"📸 В канале нет новых постов уже {days} {word}.\n\n"
                   "Подписчики и сайт ждут новинок — выложите что-нибудь: новую модель, процесс печати, отзыв покупателя "
                   "или промокод. Готовый образец поста — кнопка «📝 Шаблон», выложить через бота — «📸 Новый пост».")
     state["last_post_reminder"] = int(now)
@@ -421,6 +421,24 @@ def sync(messages, old_items, old_reviews, state, whole_history, ov=None, bot_re
             it["hidden"] = True
         if str(it.get("no")) in prices:
             it["price"] = prices[str(it["no"])]
+        # правки карточки из приложения: название, описание, категория, метка, закрепление
+        orig = it.pop("_orig", None) or {}
+        for f, v in orig.items():
+            it[f] = v
+        key = str(it.get("no"))
+        new_orig = {}
+        for f, src in (("title", "title"), ("desc", "desc"), ("category", "cat")):
+            val = (ov.get(src) or {}).get(key)
+            if val:
+                new_orig[f] = it.get(f)
+                it[f] = val
+        if new_orig:
+            it["_orig"] = new_orig
+        it.pop("badge", None); it.pop("pin", None)
+        if (ov.get("badge") or {}).get(key) in ("hit", "out"):
+            it["badge"] = ov["badge"][key]
+        if it.get("no") in (ov.get("pin") or []):
+            it["pin"] = (ov.get("pin") or []).index(it["no"]) + 1
 
     items = sorted(fresh.values(), key=lambda i: i.get("ts", 0), reverse=True) + manual
     add_bot_reviews(reviews, bot_reviews)
@@ -532,7 +550,7 @@ def main():
         messages, whole = fetch_posts(token, chat_id)
     except ApiError as e:
         log(f"ОШИБКА: {e}")
-        notifier.send(f"⚠️ Синхронизация сайта не удалась:\n{e}")
+        notifier.send(f"⚠️ Синхронизация сайта не удалась:\n{e}", kind="errors")
         dump_json(STATE, state)
         return 1
 
@@ -548,15 +566,24 @@ def main():
     catalog = {"items": items, "reviews": reviews}
     if state.get("bot_link"):
         catalog["bot"] = state["bot_link"]
-    _maint = (load_json(ROOT / "settings.json", {}) if (ROOT / "settings.json").exists() else {}).get("maint") or {}
+    _settings = load_json(ROOT / "settings.json", {}) if (ROOT / "settings.json").exists() else {}
+    _maint = _settings.get("maint") or {}
     if _maint.get("on"):
         catalog["maint"] = {k: _maint.get(k) for k in ("mode", "text", "until")}
+    _notice = _settings.get("notice") or {}
+    if _notice.get("on") and _notice.get("text") and (not _notice.get("until") or _notice["until"] >= dt.date.today().isoformat()):
+        catalog["notice"] = {k: _notice.get(k) for k in ("text", "until", "link")}
+    _cols = [c for c in (_settings.get("collections") or []) if c.get("on") and c.get("nos")]
+    if _cols:
+        catalog["collections"] = [{"id": c["id"], "title": c["title"], "nos": c["nos"]} for c in _cols]
+    if _settings.get("texts"):
+        catalog["texts"] = _settings["texts"]
     _sub = (load_json(PROMOS, {}) if PROMOS.exists() else {}).get("sub") or {}
     if _sub.get("on"):
         catalog["gift"] = {"kind": _sub["kind"], "value": _sub["value"]}
     old_catalog = {"items": old_items, "reviews": old_reviews}
     _oc = load_json(CATALOG, {})
-    for _k in ("bot", "gift", "maint"):
+    for _k in ("bot", "gift", "maint", "notice", "collections", "texts"):
         if _oc.get(_k):
             old_catalog[_k] = _oc[_k]
     if json.dumps(catalog, sort_keys=True, ensure_ascii=False) != json.dumps(old_catalog, sort_keys=True, ensure_ascii=False):

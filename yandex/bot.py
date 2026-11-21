@@ -1275,11 +1275,7 @@ def give_sub_discount(uid, name):
                        "👉 Как получить скидку: выберите модель в каталоге и напишите мастеру заказ, "
                        "добавив в сообщение этот промокод (на сайте его можно вписать в поле — добавится в текст заказа сам).",
                   links=[("✍️ Написать заказ мастеру", MASTER_URL)])
-    for o in config()["owners"]:
-        try:
-            send(o, f"🎁 {name or 'Покупатель'} подписался на канал и получил личный промокод на {disc} (до {until}).", menu=False)
-        except Exception as e:
-            print("notify sub:", e)
+    notify_owners(f"🎁 {name or 'Покупатель'} подписался на канал и получил личный промокод на {disc} (до {until}).", kind="promo")
 
 
 def handle_customer(uid, text, name=""):
@@ -1329,8 +1325,24 @@ def promo_info(code):
     return None, f"{c['code']} — ❌ не действует" + (f" ({why})" if why else "")
 
 
-def notify_owners(text, buttons=None):
+_prefs = {}
+
+
+def wants(uid, kind):
+    """Настройки уведомлений: settings.json → notify → id → вид (false — не присылать)."""
+    if time.time() - _prefs.get("ts", 0) > 120:
+        try:
+            st, _ = gh_file("settings.json")
+            _prefs.update(ts=time.time(), notify=(st or {}).get("notify") or {})
+        except Exception:
+            _prefs.update(ts=time.time(), notify={})
+    return (_prefs.get("notify") or {}).get(str(uid), {}).get(kind, True) is not False
+
+
+def notify_owners(text, buttons=None, kind="other"):
     for o in config()["owners"]:
+        if not wants(o, kind):
+            continue
         try:
             send(o, text, menu=False, buttons=buttons)
         except Exception as e:
@@ -1358,7 +1370,7 @@ def new_order(uid, user, nos, promo):
     notify_owners("🛒 Новый заказ с сайта\n\n" + lines
                   + (f"\n\n🎟 Промокод: {ptxt}" if ptxt else "")
                   + f"\n\n👤 {name}"
-                  + "\n\nОтвечайте кнопкой «💬 Ответить» — сообщение уйдёт от бота, ваш аккаунт писать не нужно.", btns)
+                  + "\n\nОтвечайте кнопкой «💬 Ответить» — сообщение уйдёт от бота, ваш аккаунт писать не нужно.", btns, "orders")
 
 
 def forward_to_owners(uid, user, msg):
@@ -1368,9 +1380,9 @@ def forward_to_owners(uid, user, msg):
     text = (body.get("text") or "").strip()
     has_media = bool(body.get("attachments"))
     notify_owners(f"💬 {name} пишет боту:" + (f"\n\n«{text[:1500]}»" if text else ""),
-                  [[("💬 Ответить", f"/ответ {uid}")]])
+                  [[("💬 Ответить", f"/ответ {uid}")]], "orders")
     if has_media and body.get("mid"):
-        for o in config()["owners"]:
+        for o in [x for x in config()["owners"] if wants(x, "orders")]:
             try:
                 max_api("POST", "/messages", {"user_id": o}, {"text": "", "link": {"type": "forward", "mid": body["mid"]}})
             except Exception as e:
@@ -1445,8 +1457,17 @@ def app_dash(uid):
                        "on" if a["id"] in cfg["owners"] else "off"}
               for k, a in enumerate(cfg.get("admins", []), 1)]
     hidden = set((ov or {}).get("hidden", []))
-    st, _ = gh_file("settings.json")
+    with ThreadPoolExecutor(6) as ex:
+        more = dict(zip(["settings.json", "finance.json", "stock.json", "outbox.json", "log.json"],
+                        ex.map(lambda n: gh_file(n)[0], ["settings.json", "finance.json", "stock.json", "outbox.json", "log.json"])))
+    st = more["settings.json"]
     return {
+        "expenses": (more["finance.json"] or {}).get("expenses", []),
+        "spools": (more["stock.json"] or {}).get("spools", []),
+        "scheduled": [p for p in (more["outbox.json"] or {}).get("posts", []) if not p.get("done") and p.get("at")],
+        "log": ((more["log.json"] or {}).get("log") or [])[-200:] if uid in cfg["chief"] else [],
+        "notice": (st or {}).get("notice") or {}, "collections": (st or {}).get("collections") or [],
+        "texts": (st or {}).get("texts") or {}, "myNotify": ((st or {}).get("notify") or {}).get(str(uid), {}),
         "me": uid, "chief": uid in cfg["chief"], "site": SITE_URL, "real": uid in cfg.get("real", ()),
         "perms": sorted((cfg.get("perms") or {}).get(uid, set())), "permNames": PERMS,
         "adminPerms": {str(k): sorted(v) for k, v in (cfg.get("perms") or {}).items()},
@@ -1587,6 +1608,23 @@ def site_app(event, headers):
         cfg = config()
         if act == "metrika":
             return out(200, ok=True, text=metrika_text(int(req.get("days") or 7)))
+        PERM_OF = {"card": "items", "bulk": "items", "fin_add": "sales", "fin_del": "sales", "export": "sales",
+                   "stock_add": "items", "stock_use": "items", "stock_set": "items", "stock_del": "items",
+                   "post_schedule": "posts", "post_unschedule": "posts"}
+        if act in PERM_OF:
+            if not has_perm(uid, PERM_OF[act], cfg):
+                return out(403, error="Нет прав на этот раздел")
+            fn = {"card": app_card, "bulk": app_bulk, "fin_add": app_fin, "fin_del": app_fin, "stock_add": app_stock,
+                  "stock_use": app_stock, "stock_set": app_stock, "stock_del": app_stock,
+                  "post_schedule": app_schedule, "post_unschedule": app_schedule}.get(act)
+            msg = app_export(uid) if act == "export" else fn(uid, req)
+            log_action(uid, f"[приложение] {act} " + json.dumps({k: v for k, v in req.items() if k not in ("initData", "photos", "action")}, ensure_ascii=False)[:200])
+            return out(200, ok=True, texts=[msg])
+        if act == "set":
+            msg = app_set(uid, req, cfg)
+            if req.get("key") != "notify":
+                log_action(uid, f"[приложение] настройка {req.get('key')}")
+            return out(200, ok=True, texts=[msg])
         if act == "review_add":
             if not has_perm(uid, "reviews", cfg):
                 return out(403, error="Нет прав на отзывы")
@@ -1615,6 +1653,240 @@ def site_app(event, headers):
         print("app:", repr(e))
         return out(500, error=f"Ошибка: {e}")
     return out(400, error="Неизвестное действие")
+
+
+# ---------------------------------------------------------------- приложение: финансы, пластик, карточки, сайт, отложенные посты
+
+def _nid(lst):
+    return max([x.get("id", 0) for x in lst] + [0]) + 1
+
+
+def app_card(uid, req):
+    no = int(req.get("no"))
+    if not _find(catalog_items(), no):
+        return "Нет такого товара."
+    k = str(no)
+    def f(d):
+        for fld, key in (("title", "title"), ("desc", "desc"), ("cat", "cat")):
+            if fld in req:
+                v = str(req.get(fld) or "").strip()[:3000 if fld == "desc" else 120]
+                if v:
+                    d.setdefault(key, {})[k] = v
+                else:
+                    (d.get(key) or {}).pop(k, None)
+        if "badge" in req:
+            b = req.get("badge")
+            if b in ("hit", "out"):
+                d.setdefault("badge", {})[k] = b
+            else:
+                (d.get("badge") or {}).pop(k, None)
+        if "pin" in req:
+            pins = [x for x in d.get("pin", []) if x != no]
+            if req.get("pin"):
+                pins.insert(0, no)
+            d["pin"] = pins
+        if "cost" in req:
+            try:
+                c = float(str(req.get("cost")).replace(",", "."))
+                d.setdefault("cost", {})[k] = round(c, 2)
+            except Exception:
+                (d.get("cost") or {}).pop(k, None)
+    update_overrides(f, f"Приложение: карточка №{no}")
+    run_sync()
+    return f"✅ Карточка №{no} сохранена. На сайте — через 1–3 минуты."
+
+
+def app_bulk(uid, req):
+    op = req.get("op")
+    nos = [int(x) for x in (req.get("nos") or []) if str(x).isdigit()][:300]
+    items = {i["no"]: i for i in catalog_items()}
+    nos = [n for n in nos if n in items]
+    if not nos:
+        return "Не выбрано ни одного товара."
+    val = req.get("value")
+    def f(d):
+        hid = set(d.get("hidden", []))
+        for n in nos:
+            if op == "hide":
+                hid.add(n)
+            elif op == "show":
+                hid.discard(n)
+            elif op == "pct":
+                base = d.get("price", {}).get(str(n), items[n].get("price"))
+                if isinstance(base, (int, float)) and base:
+                    newp = base * (1 + float(val) / 100)
+                    d.setdefault("price", {})[str(n)] = int(round(newp / 10.0) * 10) or int(round(newp))
+            elif op == "price":
+                d.setdefault("price", {})[str(n)] = int(float(val))
+            elif op == "reset":
+                (d.get("price") or {}).pop(str(n), None)
+            elif op == "badge":
+                if val in ("hit", "out"):
+                    d.setdefault("badge", {})[str(n)] = val
+                else:
+                    (d.get("badge") or {}).pop(str(n), None)
+        d["hidden"] = sorted(hid)
+    update_overrides(f, f"Приложение: массово {op} ({len(nos)})")
+    run_sync()
+    names = {"hide": "скрыто", "show": "возвращено на сайт", "pct": f"цены изменены на {val}%", "price": f"цена {val} ₽",
+             "reset": "цены из постов", "badge": "метка изменена"}
+    return f"✅ {len(nos)} товар(ов): {names.get(op, op)}. На сайте — через 1–3 минуты."
+
+
+def app_fin(uid, req):
+    act = req.get("action")
+    def f(d):
+        ex = d.setdefault("expenses", [])
+        if act == "fin_add":
+            amt = float(str(req.get("amount") or "0").replace(",", "."))
+            if amt <= 0:
+                raise ValueError("сумма должна быть больше нуля")
+            ex.append({"id": _nid(ex), "ts": int(req.get("ts") or time.time() * 1000), "amount": round(amt, 2),
+                       "cat": str(req.get("cat") or "Другое")[:40], "note": str(req.get("note") or "")[:200], "by": uid})
+        elif act == "fin_del":
+            d["expenses"] = [x for x in ex if x.get("id") != int(req.get("id"))]
+    update_json("finance.json", f, f"Приложение: {act}", {"expenses": []})
+    return "✅ Расход записан." if act == "fin_add" else "🗑 Расход удалён."
+
+
+def app_stock(uid, req):
+    act = req.get("action")
+    res = {}
+    def f(d):
+        sp = d.setdefault("spools", [])
+        if act == "stock_add":
+            g = int(float(req.get("grams") or 1000))
+            sp.append({"id": _nid(sp), "color": str(req.get("color") or "")[:40], "material": str(req.get("material") or "PLA")[:20],
+                       "total": g, "left": g, "price": float(req.get("price") or 0), "low": int(req.get("low") or 150),
+                       "ts": int(time.time() * 1000)})
+            res["msg"] = "✅ Катушка добавлена."
+        else:
+            x = next((x for x in sp if x.get("id") == int(req.get("id"))), None)
+            if not x:
+                raise ValueError("нет такой катушки")
+            if act == "stock_use":
+                x["left"] = max(0, int(x["left"] - float(req.get("grams") or 0)))
+                res["msg"] = f"✅ Осталось {x['left']} г ({x['color']} {x['material']})."
+                if x["left"] <= x.get("low", 150):
+                    res["low"] = x
+            elif act == "stock_set":
+                x["left"] = max(0, int(float(req.get("grams") or 0)))
+                res["msg"] = f"✅ Остаток: {x['left']} г."
+            elif act == "stock_del":
+                d["spools"] = [y for y in sp if y is not x]
+                res["msg"] = "🗑 Катушка убрана."
+    update_json("stock.json", f, f"Приложение: {act}", {"spools": []})
+    if res.get("low"):
+        x = res["low"]
+        notify_owners(f"🧵 Заканчивается пластик: {x['color']} {x['material']} — осталось {x['left']} г.", kind="stock")
+    return res.get("msg", "Готово")
+
+
+def app_schedule(uid, req):
+    if req.get("action") == "post_unschedule":
+        pid = str(req.get("id"))
+        update_json("outbox.json", lambda d: d.update(posts=[p for p in d.get("posts", []) if not (p.get("id") == pid and not p.get("done"))]),
+                    "Приложение: отменён отложенный пост", {"posts": []})
+        return "🗑 Отложенный пост отменён."
+    text = str(req.get("text") or "").strip()[:3900]
+    at = int(req.get("at") or 0)
+    if not text:
+        return "Нужен текст поста."
+    if at < time.time() + 60:
+        return "Время публикации должно быть в будущем."
+    pid = f"p{int(time.time())}"
+    paths = []
+    for k, blob in enumerate(_b64_images(req.get("photos"), 10)):
+        path = f"img/outbox/{pid}_{k}.jpg"
+        try:
+            gh_put_bytes(path, blob, f"Приложение: фото отложенного поста {pid}")
+            paths.append(path)
+        except Exception as e:
+            print("schedule photo:", e)
+    entry = {"id": pid, "title": text.split("\n", 1)[0][:60], "text": text, "images": paths, "at": at, "by": uid}
+    update_json("outbox.json", lambda d: d.setdefault("posts", []).append(entry), "Приложение: отложенный пост", {"posts": []})
+    when = time.strftime("%d.%m в %H:%M", time.gmtime(at + 5 * 3600))
+    return f"🕒 Пост запланирован на {when} (по Уфе)" + (f", фото: {len(paths)}" if paths else "") + ". Может выйти на 5–15 минут позже."
+
+
+def app_set(uid, req, cfg):
+    key = req.get("key")
+    val = req.get("value")
+    if key == "notify":
+        update_json("settings.json", lambda d: d.setdefault("notify", {}).update({str(uid): {k: bool(v) for k, v in (val or {}).items()}}),
+                    "Приложение: уведомления", {})
+        _prefs.clear()
+        return "✅ Настройки уведомлений сохранены."
+    if not has_perm(uid, "site", cfg):
+        return "🚫 Нет прав на раздел «Сайт»."
+    if key == "notice":
+        v = {"on": bool(val.get("on")), "text": str(val.get("text") or "")[:300], "until": str(val.get("until") or "")[:10],
+             "link": str(val.get("link") or "")[:300]}
+        update_json("settings.json", lambda d: d.update(notice=v), "Приложение: объявление на сайте", {})
+        msg = "📢 Объявление включено." if v["on"] else "📢 Объявление выключено."
+    elif key == "collections":
+        cols = []
+        for c in (val or [])[:20]:
+            cols.append({"id": str(c.get("id") or f"c{len(cols) + 1}")[:20], "title": str(c.get("title") or "Подборка")[:60],
+                         "nos": [int(n) for n in (c.get("nos") or []) if str(n).isdigit()][:40], "on": bool(c.get("on", True))})
+        update_json("settings.json", lambda d: d.update(collections=cols), "Приложение: подборки", {})
+        msg = f"✅ Подборки сохранены ({len(cols)})."
+    elif key == "texts":
+        t = {str(k)[:40]: str(v)[:4000] for k, v in (val or {}).items() if str(v).strip()}
+        update_json("settings.json", lambda d: d.update(texts=t), "Приложение: тексты сайта", {})
+        msg = "✅ Тексты сайта сохранены."
+    else:
+        return "Неизвестная настройка."
+    run_sync()
+    return msg + " На сайте — через 1–3 минуты."
+
+
+def app_export(uid):
+    import io, csv, uuid
+    items = {i["no"]: i for i in catalog_items()}
+    sd, _ = gh_file("sales.json")
+    fin, _ = gh_file("finance.json")
+    ov, _ = gh_file("overrides.json")
+    cost = (ov or {}).get("cost") or {}
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter=";")
+    w.writerow(["Продажи"])
+    w.writerow(["Дата", "№", "Модель", "Кол-во", "Цена", "Сумма", "Себестоимость", "Прибыль"])
+    for r in sorted((sd or {}).get("sales", []), key=lambda r: r.get("ts", 0)):
+        it = items.get(r.get("no")) or {}
+        q = int(r.get("qty") or 1)
+        p = r.get("p") if isinstance(r.get("p"), (int, float)) else it.get("price")
+        p = p if isinstance(p, (int, float)) else 0
+        c = float(cost.get(str(r.get("no"))) or 0)
+        w.writerow([time.strftime("%d.%m.%Y", time.gmtime(r.get("ts", 0) / 1000 + 5 * 3600)), r.get("no"), it.get("title", ""),
+                    q, p, p * q, c * q, p * q - c * q])
+    w.writerow([])
+    w.writerow(["Расходы"])
+    w.writerow(["Дата", "Категория", "Сумма", "Комментарий"])
+    for x in sorted((fin or {}).get("expenses", []), key=lambda x: x.get("ts", 0)):
+        w.writerow([time.strftime("%d.%m.%Y", time.gmtime(x.get("ts", 0) / 1000 + 5 * 3600)), x.get("cat"), x.get("amount"), x.get("note", "")])
+    blob = ("﻿" + buf.getvalue()).encode("utf-8")          # BOM — чтобы Excel понял кириллицу
+    info = max_api("POST", "/uploads", {"type": "file"})
+    boundary = uuid.uuid4().hex
+    name = time.strftime("prodazhi_%Y-%m-%d.csv", time.gmtime(time.time() + 5 * 3600))
+    body = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"data\"; filename=\"{name}\"\r\n"
+            f"Content-Type: text/csv\r\n\r\n").encode() + blob + f"\r\n--{boundary}--\r\n".encode()
+    req = urllib.request.Request(info["url"], data=body, method="POST", headers={
+        "Content-Type": f"multipart/form-data; boundary={boundary}", "Authorization": MAX_TOKEN, "User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=60, context=ctx()) as r:
+        res = json.loads(r.read().decode("utf-8", "replace") or "{}")
+    payload = {"token": res.get("token") or info.get("token")}
+    for attempt in range(5):
+        try:
+            max_api("POST", "/messages", {"user_id": uid}, {"text": "📤 Выгрузка продаж и расходов — откройте в Excel.",
+                                                             "attachments": [{"type": "file", "payload": payload}]})
+            break
+        except Exception as e:
+            if "not.ready" in str(e) and attempt < 4:
+                time.sleep(2)
+                continue
+            raise
+    return "📤 Файл отправлен вам в чат с ботом — откройте его в Excel."
 
 
 # ---------------------------------------------------------------- обработка событий
@@ -1699,6 +1971,28 @@ PERM_RULES = [
     ("site", r"^/?(обновить|копия|бэкап|backup|техработы|тех\.?работы)\b"),
     ("access", r"^/?(доступ|разрешить|запретить|права|admins)\b"),
 ]
+
+
+CHANGE_RE = re.compile(r"^/?(продано|отменить|удалить[ _]продажу|сбросить[ _]продажи|цена\s+\d|скрыть\s+\d|показать\s+\d|"
+                       r"обложка\s+\d+\s+\d|пост|изменить\s+\d+\s*\S|отзыв\s+\S|удалить[ _]отзыв|одобрить\s+\d|отклонить\s+\d|"
+                       r"промо\s+(новый|создать|опубликовать|очередь|черновик|тихо|удалить|стоп|списать|вернуть|расписание\s+\S|подписка\s+\S)|"
+                       r"тех\.?\s?работы\s+\S|права\s+\d+\s+\S|разрешить\s+\d|запретить\s+\d+\s+да|метрика\s+\S|копия|обновить|ответ\s+\d+\s+\S)", re.I)
+
+
+def is_change(text, images=None):
+    t = (text or "").strip()
+    return bool(images) or bool(CHANGE_RE.match(t)) or is_sales_list(t.lower())
+
+
+def log_action(uid, what):
+    """Журнал действий админов (log.json, последние 500)."""
+    try:
+        cfg = config()
+        name = next((a["name"] for a in cfg.get("admins", []) if a["id"] == uid), str(uid))
+        entry = {"ts": int(time.time()), "uid": uid, "name": name, "what": str(what)[:300]}
+        update_json("log.json", lambda d: d.update(log=(d.get("log") or [])[-499:] + [entry]), "Журнал: " + name, {"log": []})
+    except Exception as e:
+        print("log:", e)
 
 
 def perm_for(text):
@@ -2088,11 +2382,7 @@ def site_review(event, headers):
     else:
         msg = f"⭐ Отзыв с сайта — нужна проверка ({verdict['why']})\n\n№{no} «{item['title']}»\n{name}{stars_txt}\n«{text}»"
         btns = [[("✅ Опубликовать", f"/одобрить {entry['id']}"), ("🗑 Удалить", f"/отклонить {entry['id']}")]]
-    for uid in config()["owners"]:
-        try:
-            send(uid, msg, menu=False, buttons=btns)
-        except Exception as e:
-            print("notify review:", e)
+    notify_owners(msg, btns, "reviews")
     return out(200, ok=True, published=verdict["v"] == "ok")
 
 
@@ -2210,7 +2500,9 @@ def record_sales(uid, pairs, bad):
     def add(d):
         nxt = ensure_sale_ids(d)
         d.setdefault("sales", []).extend(
-            {"id": nxt + k, "no": no, "qty": q, "ts": batch, "b": batch} for k, (no, q) in enumerate(good))
+            {"id": nxt + k, "no": no, "qty": q, "ts": batch, "b": batch,
+             **({"p": _find(items, no).get("price")} if isinstance(_find(items, no).get("price"), (int, float)) else {})}
+            for k, (no, q) in enumerate(good))
     data = update_json("sales.json", add,
         "Бот: продано " + ", ".join(f"№{no}×{q}" for no, q in good), {"sales": []})
     lines = []
@@ -2245,6 +2537,8 @@ def handle_owner(uid, text, images):
         "reviews" if images and re.match(r"^/?отзыв", (text or "").lower()) else perm_for(text))
     if need and not has_perm(uid, need):
         return send(uid, f"🚫 У вас нет прав на раздел «{PERMS[need]}». Попросите владельца канала выдать их: «👥 Доступ».")
+    if is_change(text, images):
+        log_action(uid, text if not images else f"{text} (+{len(images)} фото)")
     low = text.lower()
     if low.startswith("/отзыв") and not low.startswith("/отзывы") or low.startswith("отзыв:") or "#отзыв" in low:
         return add_review(uid, text.replace("#отзыв", "").replace("#Отзыв", ""), images)
