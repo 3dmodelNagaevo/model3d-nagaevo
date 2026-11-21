@@ -184,6 +184,33 @@ def parse_price(v):
     return int(digits) if digits else None
 
 
+def maybe_space_warning(notifier, state):
+    """Раз в сутки: сколько места занимает репозиторий на GitHub. Предупреждаем при 60% и 85% от 1 ГБ."""
+    now = time.time()
+    if now - state.get("space_check", 0) < 86400:
+        return
+    state["space_check"] = now
+    import urllib.request
+    repo = os.environ.get("GITHUB_REPOSITORY", "3dmodelNagaevo/model3d-nagaevo")
+    try:
+        req = urllib.request.Request(f"https://api.github.com/repos/{repo}", headers={"User-Agent": "model3d-sync"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            mb = json.loads(r.read()).get("size", 0) / 1024
+    except Exception as e:
+        log(f"место: {e}")
+        return
+    site_mb = sum(f.stat().st_size for f in ROOT.rglob("*") if f.is_file() and ".git" not in f.parts) / 1048576
+    level = 2 if mb > 850 or site_mb > 850 else 1 if mb > 600 or site_mb > 600 else 0
+    last = state.get("space_level", 0)
+    state["space_level"] = level
+    if level and (level > last or now - state.get("space_warned", 0) > 7 * 86400):
+        state["space_warned"] = now
+        notifier.send(kind="errors", text=(
+            ("🔴 На GitHub почти нет места" if level == 2 else "🟡 Место на GitHub заканчивается")
+            + f": репозиторий {mb:.0f} МБ, файлы сайта {site_mb:.0f} МБ (предел — около 1000 МБ).\n\n"
+            "Нажмите «💾 Место» в боте: там можно убрать лишние файлы и сжать историю (сначала сделайте резервную копию)."))
+
+
 def maybe_post_reminder(notifier, state):
     """Если в канале нет новых постов больше суток — напомнить владельцам (раз в сутки, днём по Уфе)."""
     import datetime as _dt
@@ -608,6 +635,7 @@ def main():
         if last:
             state["last_post_ts"] = last
         maybe_post_reminder(notifier, state)
+        maybe_space_warning(notifier, state)
     except Exception as e:
         log(f"  ! напоминание о постах: {e}")
 

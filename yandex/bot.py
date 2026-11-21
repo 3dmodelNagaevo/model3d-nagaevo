@@ -235,7 +235,7 @@ def run_sync():
 MENU_BUTTONS = {
     "📊 Статус": "/статус", "🔥 Топ": "/топ", "📈 Статистика": "/стата", "🔄 Обновить": "/обновить",
     "🙈 Скрыть": "/скрыть", "👁 Вернуть": "/показать", "💰 Цена": "/цена", "🖼 Обложка": "/обложка",
-    "🎟 Промокоды": "/промо", "🗄 Резервная копия": "/копия", "🚧 Тех. работы": "/техработы", "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон", "✏️ Изменить пост": "/изменить",
+    "🎟 Промокоды": "/промо", "🗄 Резервная копия": "/копия", "💾 Место": "/место", "🚧 Тех. работы": "/техработы", "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон", "✏️ Изменить пост": "/изменить",
     "💬 Отзыв": "/отзыв", "🗂 Отзывы": "/отзывы", "👥 Доступ": "/доступ", "📜 История": "/история", "↩️ Отменить": "/отменить", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
     # старые подписи кнопок (из прошлых сообщений)
     "🔥 Топ недели": "/топ", "🙈 Скрыть товар": "/скрыть", "👁 Вернуть товар": "/показать",
@@ -253,7 +253,8 @@ MENU_ROWS = [
     ["📸 Новый пост", "✏️ Изменить пост"],
     ["🎟 Промокоды", "📝 Шаблон"],
     ["👥 Доступ", "🗄 Резервная копия"],
-    ["🚧 Тех. работы", "❓ Помощь"],
+    ["🚧 Тех. работы", "💾 Место"],
+    ["❓ Помощь"],
 ]
 POST_TEMPLATE = """Название модели
 Пара слов о модели (можно удалить эту строку)
@@ -295,6 +296,7 @@ HELP = """🤖 Бот сайта. Кнопки — под этим сообще�
 🚧 Тех. работы — баннер или закрыть сайт на время работ
 /права 2 — какие разделы доступны админу
 /доступ — кто из админов может пользоваться ботом (только для владельца)
+/место — сколько места занято на GitHub и как освободить
 /пригласить — ссылка-приглашение: дать доступ человеку, который не админ канала
 /шаблон — шаблон поста для канала
 /отзыв текст (+ фото) — добавить отзыв на сайт, /отзывы — список
@@ -1516,6 +1518,140 @@ def webapp_user(init_data):
         return None
 
 
+
+# ---------------------------------------------------------------- место на GitHub
+
+SPACE_LIMIT_MB = 1000        # GitHub советует держать репозиторий до 1 ГБ; сайт на Pages — тоже до 1 ГБ
+
+
+def space_info():
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(3) as ex:
+        f_repo = ex.submit(gh, "GET", f"/repos/{REPO}")
+        f_tree = ex.submit(gh, "GET", f"/repos/{REPO}/git/trees/main?recursive=1")
+        f_art = ex.submit(gh, "GET", f"/repos/{REPO}/actions/artifacts?per_page=100")
+    repo_mb = (f_repo.result().get("size") or 0) / 1024
+    tree = f_tree.result().get("tree", [])
+    groups = {}
+    for x in tree:
+        if x["type"] != "blob":
+            continue
+        top = x["path"].split("/")[0] if "/" in x["path"] else "файлы в корне"
+        groups[top] = groups.get(top, 0) + (x.get("size") or 0)
+    cur_mb = sum(groups.values()) / 1048576
+    art = f_art.result()
+    return {"repo": repo_mb, "current": cur_mb, "history": max(0.0, repo_mb - cur_mb), "groups": groups,
+            "artifacts": art.get("total_count", 0), "art_mb": sum(a.get("size_in_bytes", 0) for a in art.get("artifacts", [])) / 1048576,
+            "tree": tree}
+
+
+def space_text(i):
+    pct = i["repo"] / SPACE_LIMIT_MB * 100
+    bar = "█" * min(10, int(pct / 10)) + "░" * (10 - min(10, int(pct / 10)))
+    state = "🟢 всё в порядке" if pct < 60 else "🟡 пора почистить" if pct < 85 else "🔴 места почти нет"
+    top = sorted(i["groups"].items(), key=lambda x: -x[1])[:6]
+    lines = [f"💾 Место на GitHub: {state}", "",
+             f"{bar} {i['repo']:.0f} МБ из {SPACE_LIMIT_MB} МБ ({pct:.0f}%)",
+             f"• текущие файлы сайта: {i['current']:.1f} МБ",
+             f"• история изменений: {i['history']:.1f} МБ", "",
+             "Что больше всего весит сейчас:"]
+    lines += [f"• {name}: {size / 1048576:.1f} МБ" for name, size in top]
+    lines += ["", f"Архивы выкладки сайта (Actions): {i['artifacts']} шт., {i['art_mb']:.0f} МБ — для публичного репозитория бесплатно, удаляются сами через сутки.",
+              "", "Что можно сделать:",
+              "🧹 Убрать лишнее — фото удалённых отзывов и прочие неиспользуемые файлы.",
+              "🗜 Сжать историю — оставить только текущую версию сайта (больше всего освобождает; перед этим — резервная копия).",
+              "🗑 Старые запуски — удалить архивы и журналы старых обновлений сайта."]
+    return "\n".join(lines)
+
+
+def space_unused(tree):
+    """Файлы, которые больше нигде не используются."""
+    rv, _ = gh_file("reviews.json")
+    used_raw = {p for r in (rv or {}).get("reviews", []) + (rv or {}).get("pending", []) for p in r.get("raw") or []}
+    out = []
+    for x in tree:
+        p = x["path"]
+        if x["type"] == "blob" and p.startswith("reviews/raw/") and p not in used_raw and not p.endswith(".gitkeep"):
+            out.append((p, x.get("size") or 0))
+    return out
+
+
+def gh_delete_many(paths, message):
+    """Удалить много файлов одним коммитом."""
+    ref = gh("GET", f"/repos/{REPO}/git/ref/heads/main")["object"]["sha"]
+    base = gh("GET", f"/repos/{REPO}/git/commits/{ref}")["tree"]["sha"]
+    tree = gh("POST", f"/repos/{REPO}/git/trees", {"base_tree": base, "tree": [
+        {"path": p, "mode": "100644", "type": "blob", "sha": None} for p in paths]})
+    c = gh("POST", f"/repos/{REPO}/git/commits", {"message": message, "tree": tree["sha"], "parents": [ref],
+                                                   "author": {"name": "catalog-bot", "email": "catalog-bot@users.noreply.github.com"}})
+    gh("PATCH", f"/repos/{REPO}/git/refs/heads/main", {"sha": c["sha"]})
+
+
+def squash_history():
+    """Оставить в репозитории один коммит с текущими файлами (старая история пропадает с GitHub)."""
+    ref = gh("GET", f"/repos/{REPO}/git/ref/heads/main")["object"]["sha"]
+    tree = gh("GET", f"/repos/{REPO}/git/commits/{ref}")["tree"]["sha"]
+    c = gh("POST", f"/repos/{REPO}/git/commits", {"message": "История сжата ботом: текущая версия сайта", "tree": tree, "parents": [],
+                                                   "author": {"name": "catalog-bot", "email": "catalog-bot@users.noreply.github.com"}})
+    gh("PATCH", f"/repos/{REPO}/git/refs/heads/main", {"sha": c["sha"], "force": True})
+
+
+def space_cmd(uid, text):
+    low = text.lower()
+    cfg = config()
+    try:
+        info = space_info()
+    except Exception as e:
+        return send(uid, f"❌ Не получилось узнать место на GitHub: {e}")
+    if "очист" in low:
+        files = space_unused(info["tree"])
+        if not files:
+            return send(uid, "🧹 Лишних файлов нет — всё используется на сайте.")
+        mb = sum(s for _, s in files) / 1048576
+        if "да" not in low.split():
+            return send(uid, f"🧹 Можно удалить {len(files)} неиспользуемых файлов ({mb:.1f} МБ): фото удалённых отзывов.\nУдалить?",
+                        menu=False, buttons=[[("✅ Да, удалить", "/место очистить да"), ("❌ Отмена", "/отмена")]])
+        gh_delete_many([p for p, _ in files], f"Бот: удалено {len(files)} неиспользуемых файлов")
+        log_action(uid, f"очистка места: {len(files)} файлов")
+        return send(uid, f"✅ Удалено {len(files)} файлов ({mb:.1f} МБ). Место в истории освободится после «🗜 Сжать историю».")
+    if "запуск" in low:
+        runs = gh("GET", f"/repos/{REPO}/actions/runs?per_page=100").get("workflow_runs", [])
+        old = [r for r in runs[30:] if r.get("status") == "completed"]
+        arts = [a for a in gh("GET", f"/repos/{REPO}/actions/artifacts?per_page=100").get("artifacts", [])][3:]
+        n = 0
+        for r in old:
+            try:
+                gh("DELETE", f"/repos/{REPO}/actions/runs/{r['id']}"); n += 1
+            except Exception as e:
+                print("run del:", e)
+        for a in arts:
+            try:
+                gh("DELETE", f"/repos/{REPO}/actions/artifacts/{a['id']}")
+            except Exception as e:
+                print("art del:", e)
+        return send(uid, f"🗑 Удалено старых запусков: {n}, архивов выкладки: {len(arts)}. Последние 30 запусков оставлены.")
+    if "истор" in low:
+        if uid not in cfg.get("real", ()):
+            return send(uid, "Сжимать историю может только владелец канала.")
+        if "подтверждаю" not in low:
+            step2 = "да" in low.split()
+            if not step2:
+                return send(uid, f"🗜 Сжать историю?\n\nНа GitHub останется только текущая версия сайта — освободится примерно {info['history']:.0f} МБ. "
+                                 "Сайт, бот, каталог, продажи и настройки НЕ пострадают, но откатить файл к версии до сжатия (history/restore) "
+                                 "будет нельзя.\n\n⚠️ Сначала сделайте резервную копию — в ней сохранится вся история.",
+                            menu=False, buttons=[[("🗄 Сначала копия", "/копия")], [("Копия есть, дальше", "/место история да"), ("❌ Отмена", "/отмена")]])
+            return send(uid, "⚠️ Точно сжать историю? Это нельзя отменить (кроме восстановления из резервной копии).",
+                        menu=False, buttons=[[("🗜 Да, сжать", "/место история подтверждаю"), ("❌ Отмена", "/отмена")]])
+        try:
+            squash_history()
+        except Exception as e:
+            return send(uid, f"❌ Не получилось: {e}")
+        log_action(uid, "сжал историю репозитория")
+        return send(uid, "✅ История сжата. GitHub пересчитает размер в течение суток (иногда дольше) — проверить: «💾 Место».")
+    return send(uid, space_text(info), menu=False, buttons=[
+        [("🧹 Убрать лишнее", "/место очистить"), ("🗑 Старые запуски", "/место запуски")],
+        [("🗜 Сжать историю", "/место история")]])
+
 # ---------------------------------------------------------------- терминал (только владелец и его аккаунты)
 
 TERM_PROTECT = {"index.html", "app.html", "app.js", "config.js", "CNAME", "catalog.json", "access.json", "state.json",
@@ -2201,7 +2337,7 @@ PERM_RULES = [
     ("promo", r"^/?(промо|код|проверить)\b"),
     ("reviews", r"^/?(отзыв|отзывы|удалить[ _]отзыв|одобрить|опубликовать|отклонить|проверка|на проверке)\b"),
     ("stats", r"^/?(стата|статистика|статус|топ|метрика)\b"),
-    ("site", r"^/?(обновить|копия|бэкап|backup|техработы|тех\.?работы)\b"),
+    ("site", r"^/?(обновить|копия|бэкап|backup|техработы|тех\.?работы|место|space)\b"),
     ("access", r"^/?(доступ|разрешить|запретить|права|admins|пригласить)\b"),
 ]
 
@@ -2870,6 +3006,8 @@ def handle_owner(uid, text, images):
         return maint_cmd(uid, text)
     if re.match(r"^/?права\b", low):
         return perms_cmd(uid, text)
+    if re.match(r"^/?(место|space)\b", low):
+        return space_cmd(uid, text)
     if low in ("/копия", "копия", "/бэкап", "/backup"):
         try:
             gh("POST", f"/repos/{REPO}/actions/workflows/backup.yml/dispatches",

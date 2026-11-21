@@ -727,6 +727,26 @@ $("#inviteBtn").onclick = () => {
 };
 $("#lq").oninput = () => renderLinks();
 
+/* ---------- место на GitHub ---------- */
+$("#spaceBtn").onclick = async () => {
+  let d;
+  try { d = await api({ action: "cmd", text: "/место" }); } catch (e) { return toast("❌ " + e.message); }
+  sheet(`<div class="top"><h3>💾 Место на GitHub</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+    <pre class="metr" style="white-space:pre-wrap">${esc((d.texts || []).join("\n\n").split("\n\nЧто можно сделать:")[0])}</pre>
+    <div class="btns full" style="flex-direction:column">
+      <button class="btn ghost" id="spClean">🧹 Убрать лишние файлы</button>
+      <button class="btn ghost" id="spRuns">🗑 Удалить старые запуски обновлений</button>
+      ${D.real ? `<button class="btn red" id="spSquash">🗜 Сжать историю (освобождает больше всего)</button>` : ""}
+    </div>
+    <p class="muted" style="font-size:13px">Предел — около 1 ГБ. Бот сам предупредит, когда место начнёт заканчиваться.</p>`);
+  const run = async (text, title) => { try { const r = await api({ action: "cmd", text }); confirmOnly(title, (r.texts || []).join("\n\n")); } catch (e) { toast("❌ " + e.message); } };
+  const confirmOnly = (title, text) => sheet(`<div class="top"><h3>${title}</h3><button class="x" onclick="__appCloseSheet()">×</button></div><pre class="metr" style="white-space:pre-wrap">${esc(text)}</pre>`);
+  $("#spClean").onclick = () => confirmBox("Убрать лишние файлы?", "Удалятся фото удалённых отзывов и другие файлы, которые нигде не используются.", "🧹 Да, убрать", "", () => run("/место очистить да", "🧹 Очистка"));
+  $("#spRuns").onclick = () => confirmBox("Удалить старые запуски?", "Журналы старых обновлений сайта на GitHub. Последние 30 останутся.", "🗑 Да, удалить", "", () => run("/место запуски", "🗑 Старые запуски"));
+  if ($("#spSquash")) $("#spSquash").onclick = () => confirmBox("Сначала резервная копия!", "Сжатие оставит на GitHub только текущую версию сайта. Откатить файлы к старым версиям станет нельзя. Сайт, бот, продажи и настройки не пострадают. Вся история сохранится только в резервной копии.",
+    "Копия уже есть — дальше", "red", () => confirmBox("Точно сжать историю?", "Это нельзя отменить (только восстановлением из копии).", "🗜 Да, сжать", "red", () => run("/место история подтверждаю", "🗜 Сжатие истории")));
+};
+
 /* ---------- терминал (только владелец) ---------- */
 const TERM_HELP = `Команды терминала:
   ls [папка]          — файлы (нажмите на файл — откроется редактор)
