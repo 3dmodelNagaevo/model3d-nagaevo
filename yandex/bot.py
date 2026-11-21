@@ -101,7 +101,7 @@ def gh(method, path, body=None):
 # Ключ выводится из SECRET (переменная функции), в репозитории его нет. Только стандартная библиотека:
 # поток HMAC-SHA256 в режиме счётчика + проверка целостности HMAC (encrypt-then-MAC).
 
-PRIVATE = {"sales.json", "finance.json", "stock.json", "log.json"}
+PRIVATE = {"sales.json", "finance.json", "stock.json", "log.json", "contracts.json"}
 _plain_seen = set()
 
 
@@ -235,7 +235,7 @@ def run_sync():
 MENU_BUTTONS = {
     "📊 Статус": "/статус", "🔥 Топ": "/топ", "📈 Статистика": "/стата", "🔄 Обновить": "/обновить",
     "🙈 Скрыть": "/скрыть", "👁 Вернуть": "/показать", "💰 Цена": "/цена", "🖼 Обложка": "/обложка",
-    "🎟 Промокоды": "/промо", "🗄 Резервная копия": "/копия", "💾 Место": "/место", "🚧 Тех. работы": "/техработы", "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон", "✏️ Изменить пост": "/изменить",
+    "🎟 Промокоды": "/промо", "🗄 Резервная копия": "/копия", "💾 Место": "/место", "📄 Договор": "/договор", "🚧 Тех. работы": "/техработы", "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон", "✏️ Изменить пост": "/изменить",
     "💬 Отзыв": "/отзыв", "🗂 Отзывы": "/отзывы", "👥 Доступ": "/доступ", "📜 История": "/история", "↩️ Отменить": "/отменить", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
     # старые подписи кнопок (из прошлых сообщений)
     "🔥 Топ недели": "/топ", "🙈 Скрыть товар": "/скрыть", "👁 Вернуть товар": "/показать",
@@ -254,7 +254,7 @@ MENU_ROWS = [
     ["🎟 Промокоды", "📝 Шаблон"],
     ["👥 Доступ", "🗄 Резервная копия"],
     ["🚧 Тех. работы", "💾 Место"],
-    ["❓ Помощь"],
+    ["📄 Договор", "❓ Помощь"],
 ]
 POST_TEMPLATE = """Название модели
 Пара слов о модели (можно удалить эту строку)
@@ -296,6 +296,7 @@ HELP = """🤖 Бот сайта. Кнопки — под этим сообще�
 🚧 Тех. работы — баннер или закрыть сайт на время работ
 /права 2 — какие разделы доступны админу
 /доступ — кто из админов может пользоваться ботом (только для владельца)
+/договор — договор на оказание услуг (PDF и Word), /договоры — список
 /место — сколько места занято на GitHub и как освободить
 /пригласить — ссылка-приглашение: дать доступ человеку, который не админ канала
 /шаблон — шаблон поста для канала
@@ -1519,6 +1520,210 @@ def webapp_user(init_data):
 
 
 
+
+# ---------------------------------------------------------------- договоры (PDF + Word)
+
+_cmod = {}
+
+
+def contract_mod():
+    """yandex/contract.py и шрифты берём из репозитория (кэш на 10 минут)."""
+    if _cmod.get("ts", 0) > time.time() - 600:
+        return _cmod["m"], _cmod["reg"], _cmod["bold"]
+    import types
+    def raw(path):
+        d = gh("GET", f"/repos/{REPO}/contents/{path}?ref=main")
+        return base64.b64decode(d["content"])
+    m = types.ModuleType("contract")
+    exec(compile(raw("yandex/contract.py").decode(), "contract.py", "exec"), m.__dict__)
+    _cmod.update(ts=time.time(), m=m, reg=raw("fonts/contract-Regular.ttf"), bold=raw("fonts/contract-Bold.ttf"))
+    return m, _cmod["reg"], _cmod["bold"]
+
+
+def max_send_file(uid, name, blob, mime, text):
+    import uuid
+    info = max_api("POST", "/uploads", {"type": "file"})
+    boundary = uuid.uuid4().hex
+    body = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"data\"; filename=\"{name}\"\r\n"
+            f"Content-Type: {mime}\r\n\r\n").encode() + blob + f"\r\n--{boundary}--\r\n".encode()
+    req = urllib.request.Request(info["url"], data=body, method="POST", headers={
+        "Content-Type": f"multipart/form-data; boundary={boundary}", "Authorization": MAX_TOKEN, "User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=60, context=ctx()) as r:
+        res = json.loads(r.read().decode("utf-8", "replace") or "{}")
+    payload = {"token": res.get("token") or info.get("token")}
+    for attempt in range(6):
+        try:
+            max_api("POST", "/messages", {"user_id": uid}, {"text": text, "attachments": [{"type": "file", "payload": payload}]})
+            return
+        except Exception as e:
+            if "not.ready" in str(e) and attempt < 5:
+                time.sleep(2)
+                continue
+            raise
+
+
+CONTRACT_DEFAULTS = {"name": "", "phone": "", "city": "с. Нагаево", "days": "7 дней", "prepay": 50,
+                     "delivery": "самовывоз (с. Нагаево)", "warranty_days": 7}
+
+CONTRACT_HELP = ("📄 Договор на оказание услуг — бот пришлёт PDF (отправить покупателю) и Word (если нужно поправить).\n"
+                 "Подписи не нужны: покупатель отвечает в чате «Ознакомлен, согласен» — и договор заключён.\n\n"
+                 "Напишите одним сообщением, например:\n\n"
+                 "/договор\nЗаказчик: Петров Пётр Петрович\nТелефон: +7 900 000-00-00\n38 2\n12 1 250\n"
+                 "Моделирование по фото — 500\nСрок: 5 дней\nПредоплата: 50%\nПолучение: самовывоз\n\n"
+                 "• «38 2» — модель №38, 2 шт. (цена с сайта); «12 1 250» — №12, 1 шт. по 250 ₽;\n"
+                 "• «Название — 500» или «Название — 2 × 500» — любая услуга;\n"
+                 "• Заказчика и телефон можно не писать — в договоре останутся пустые строки, их заполнят от руки;\n"
+                 "• срок, предоплата и получение — необязательно, иначе возьмутся ваши настройки.\n\n"
+                 "Ваши данные (один раз): /договор данные ФИО; телефон; населённый пункт")
+
+
+def contract_settings():
+    d, _ = gh_file("contracts.json")
+    return {**CONTRACT_DEFAULTS, **((d or {}).get("settings") or {})}
+
+
+def make_contract(uid, req):
+    """req: customer{name, phone}, items[{no?, name?, qty, price?}], days, prepay, delivery. → текст ответа."""
+    st = contract_settings()
+    cat = {i["no"]: i for i in catalog_items()}
+    items = []
+    for it in req.get("items") or []:
+        qty = float(str(it.get("qty") or 1).replace(",", "."))
+        no = it.get("no")
+        price = it.get("price")
+        if no is not None and str(no).strip().isdigit():
+            m = cat.get(int(no))
+            if not m:
+                raise ValueError(f"Модели №{no} нет на сайте.")
+            name = f"№{m['no']} {m['title']}"
+            if price in (None, ""):
+                price = m.get("price")
+                if not isinstance(price, (int, float)):
+                    raise ValueError(f"У №{no} нет цены на сайте — укажите цену: {no} {int(qty)} 300")
+        else:
+            name = str(it.get("name") or "").strip()
+            if not name:
+                continue
+        try:
+            price = float(str(price).replace(",", ".").replace(" ", ""))
+        except Exception:
+            raise ValueError(f"Не понял цену у «{name}».")
+        items.append({"name": name[:200], "qty": qty, "price": price})
+    if not items:
+        raise ValueError("Нет ни одной позиции — добавьте модель или услугу.")
+    if not st.get("name"):
+        raise ValueError("Сначала укажите свои данные: /договор данные ФИО; телефон; населённый пункт "
+                         "(или в приложении: Продажи → Договор → Мои данные).")
+    holder = {}
+    def f(d):
+        n = int(d.get("next") or 1)
+        holder["n"] = n
+        d["next"] = n + 1
+    update_json("contracts.json", f, "Бот: номер договора", {"next": 1})
+    n = holder["n"]
+    date = time.strftime("%d.%m.%Y", time.gmtime(time.time() + 5 * 3600))
+    data = {"number": str(n), "date": date, "city": st.get("city"),
+            "executor": {"name": st.get("name"), "phone": st.get("phone")},
+            "customer": {"name": str((req.get("customer") or {}).get("name") or "").strip()[:120],
+                         "phone": str((req.get("customer") or {}).get("phone") or "").strip()[:40]},
+            "items": items, "days": str(req.get("days") or st.get("days") or "").strip(),
+            "prepay": int(float(str(req.get("prepay") if req.get("prepay") not in (None, "") else st.get("prepay")).strip("% ") or 0)),
+            "delivery": str(req.get("delivery") or st.get("delivery") or "самовывоз"),
+            "warranty_days": st.get("warranty_days") or 7}
+    m, reg, bold = contract_mod()
+    blocks = m.build(data)
+    pdf = m.to_pdf(blocks, reg, bold, f"Договор № {n} от {date}")
+    docx = m.to_docx(blocks)
+    total = sum(i["qty"] * i["price"] for i in items)
+    who = data["customer"]["name"]
+    fname = f"Dogovor_{n}_{date.replace('.', '-')}"
+    max_send_file(uid, fname + ".pdf", pdf, "application/pdf",
+                  f"📄 Договор № {n} от {date}" + (f" — {who}" if who else "") + f", сумма {m.money(total)} руб.\n"
+                  "Перешлите это сообщение покупателю и попросите ответить «Ознакомлен, согласен» — "
+                  "после этого договор считается заключённым, подписи не нужны.")
+    max_send_file(uid, fname + ".docx", docx, "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "✏️ То же в Word — если нужно что-то поправить.")
+    update_json("contracts.json", lambda d: d.setdefault("issued", []).append(
+        {"n": n, "date": date, "total": total, "customer": who, "by": uid, "ts": int(time.time())}),
+        "Бот: договор выдан", {"next": n + 1})
+    log_action(uid, f"договор № {n} на {m.money(total)} руб.")
+    return (f"📄 Договор № {n} на {m.money(total)} руб. отправлен вам в чат с ботом: PDF и Word.\n"
+            "Перешлите PDF покупателю — пусть ответит «Ознакомлен, согласен».")
+
+
+def parse_contract(text):
+    body = re.sub(r"^/?договор\s*", "", text.strip(), flags=re.I)
+    req = {"customer": {}, "items": []}
+    for line in re.split(r"[\n;]+", body):
+        ln = line.strip().strip("•-").strip()
+        if not ln:
+            continue
+        kv = re.match(r"^(заказчик|покупатель|клиент|фио|телефон|тел\.?|срок|предоплата|получение|доставка)\s*[:：]\s*(.+)$", ln, re.I)
+        if kv:
+            k, v = kv.group(1).lower(), kv.group(2).strip()
+            if k in ("заказчик", "покупатель", "клиент", "фио"):
+                req["customer"]["name"] = v
+            elif k.startswith("тел"):
+                req["customer"]["phone"] = v
+            elif k == "срок":
+                req["days"] = v
+            elif k == "предоплата":
+                req["prepay"] = re.sub(r"[^\d]", "", v) or "0"
+            else:
+                req["delivery"] = v
+            continue
+        m = re.match(r"^№?\s*(\d+)(?:\s*[x×х*]\s*|\s+)?(\d+)?(?:\s*(?:шт\.?)?\s*(?:по|[x×х*@]|\s)\s*(\d+(?:[.,]\d+)?))?\s*(?:₽|руб\.?)?$", ln, re.I)
+        if m:
+            req["items"].append({"no": m.group(1), "qty": m.group(2) or 1, "price": m.group(3)})
+            continue
+        m = re.match(r"^(.+?)\s*[—–\-:]\s*(?:(\d+(?:[.,]\d+)?)\s*(?:шт\.?)?\s*[x×х*]\s*)?(\d+(?:[.,]\d+)?)\s*(?:₽|руб\.?)?$", ln, re.I)
+        if m:
+            req["items"].append({"name": m.group(1).strip(), "qty": m.group(2) or 1, "price": m.group(3)})
+            continue
+        raise ValueError(f"Не понял строку: «{ln}»")
+    return req
+
+
+def contract_cmd(uid, text):
+    low = text.lower().strip()
+    if re.match(r"^/?договор\s+данные", low):
+        rest = re.sub(r"^/?договор\s+данные\s*", "", text.strip(), flags=re.I)
+        parts = [x.strip() for x in re.split(r"[;\n]+", rest) if x.strip()]
+        if not parts:
+            st = contract_settings()
+            return send(uid, "👤 Ваши данные в договоре:\n"
+                             f"ФИО: {st['name'] or '— не указано'}\nТелефон: {st['phone'] or '—'}\nНаселённый пункт: {st['city']}\n"
+                             f"Срок по умолчанию: {st['days']}\nПредоплата: {st['prepay']}%\nПолучение: {st['delivery']}\n"
+                             f"Гарантия на переделку: {st['warranty_days']} дней\n\n"
+                             "Изменить: /договор данные ФИО; телефон; населённый пункт")
+        def f(d):
+            s2 = d.setdefault("settings", {})
+            s2["name"] = parts[0][:120]
+            if len(parts) > 1:
+                s2["phone"] = parts[1][:40]
+            if len(parts) > 2:
+                s2["city"] = parts[2][:60]
+        update_json("contracts.json", f, "Бот: данные для договора", {"next": 1})
+        return send(uid, "✅ Данные для договоров сохранены (в зашифрованном виде).\nТеперь: /договор — как составить.")
+    if re.match(r"^/?договоры\b", low) or low in ("/договор список",):
+        d, _ = gh_file("contracts.json")
+        iss = ((d or {}).get("issued") or [])[-15:]
+        if not iss:
+            return send(uid, "Договоров пока не было. /договор — как составить.")
+        return send(uid, "📄 Последние договоры:\n" + "\n".join(
+            f"№{x['n']} от {x['date']} — {x.get('customer') or 'без имени'}, {x['total']:.0f} руб." for x in reversed(iss)))
+    body = re.sub(r"^/?договор\s*", "", text.strip(), flags=re.I)
+    if not body:
+        return send(uid, CONTRACT_HELP, buttons=[[("👤 Мои данные", "/договор данные"), ("📋 Договоры", "/договоры")]])
+    try:
+        req = parse_contract(text)
+        return send(uid, make_contract(uid, req))
+    except ValueError as e:
+        return send(uid, f"⚠️ {e}\n\n/договор — как составить.")
+    except Exception as e:
+        print("contract:", e)
+        return send(uid, f"❌ Не получилось сделать договор: {e}")
+
 # ---------------------------------------------------------------- место на GitHub
 
 SPACE_LIMIT_MB = 1000        # GitHub советует держать репозиторий до 1 ГБ; сайт на Pages — тоже до 1 ГБ
@@ -1970,6 +2175,28 @@ def site_app(event, headers):
                 return out(400, error=str(e))
             except urllib.error.HTTPError as e:
                 return out(400, error="GitHub: " + ("не найдено" if e.code == 404 else f"ошибка {e.code}"))
+        if act == "contract":
+            if not has_perm(uid, "sales", cfg):
+                return out(403, error="Нет прав на продажи")
+            try:
+                if req.get("op") == "settings":
+                    v = req.get("value") or {}
+                    def fs(d):
+                        s2 = d.setdefault("settings", {})
+                        for k in ("name", "phone", "city", "days", "delivery"):
+                            if k in v:
+                                s2[k] = str(v[k] or "").strip()[:120]
+                        for k in ("prepay", "warranty_days"):
+                            if k in v:
+                                s2[k] = max(0, min(100 if k == "prepay" else 365, int(float(v[k] or 0))))
+                    update_json("contracts.json", fs, "Приложение: данные для договора", {"next": 1})
+                    return out(200, ok=True, texts=["✅ Данные для договоров сохранены"])
+                if req.get("op") == "get":
+                    d, _ = gh_file("contracts.json")
+                    return out(200, ok=True, data={"settings": contract_settings(), "issued": ((d or {}).get("issued") or [])[-30:]})
+                return out(200, ok=True, texts=[make_contract(uid, req)])
+            except ValueError as e:
+                return out(400, error=str(e))
         if act == "invite":
             try:
                 link, perms = make_invite(uid, req.get("perms"))
@@ -2331,7 +2558,7 @@ PERMS = {
     "access": "👥 Доступ и права админов",
 }
 PERM_RULES = [
-    ("sales", r"^/?(продано|продажи|история|отменить|удалить[ _]продажу|сбросить[ _]продажи|ответ)\b"),
+    ("sales", r"^/?(продано|продажи|история|отменить|удалить[ _]продажу|сбросить[ _]продажи|ответ|договор\w*)\b"),
     ("items", r"^/?(цена|скрыть|показать|обложка)\b"),
     ("posts", r"^/?(пост|изменить)\b"),
     ("promo", r"^/?(промо|код|проверить)\b"),
@@ -2957,6 +3184,7 @@ def record_sales(uid, pairs, bad):
         btns.append([("🎟 Другой промокод (личный)", "/код")])
     except Exception as e:
         print("sales promo buttons:", e)
+    btns.append([("📄 Договор на эту продажу", "/договор\n" + "\n".join(f"{no} {q}" for no, q in good))])
     return send(uid, msg + "\n\nЗаказ был с промокодом? Нажмите его ниже — активация засчитается.\n"
                      "Ошиблись с продажей — /отменить (отменит всю эту пачку).", buttons=btns)
 
@@ -3006,6 +3234,8 @@ def handle_owner(uid, text, images):
         return maint_cmd(uid, text)
     if re.match(r"^/?права\b", low):
         return perms_cmd(uid, text)
+    if re.match(r"^/?договор", low):
+        return contract_cmd(uid, text)
     if re.match(r"^/?(место|space)\b", low):
         return space_cmd(uid, text)
     if low in ("/копия", "копия", "/бэкап", "/backup"):
