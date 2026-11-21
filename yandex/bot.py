@@ -20,6 +20,9 @@ MAX присылает сюда каждое событие (webhook):
 Первичная настройка: открыть в браузере  <адрес функции>?setup=<SECRET>
 """
 import base64
+import hashlib
+import hmac
+import secrets
 import html
 import json
 import os
@@ -214,6 +217,7 @@ HELP = """🤖 Бот сайта. Кнопки — под этим сообще�
 🚧 Тех. работы — баннер или закрыть сайт на время работ
 /права 2 — какие разделы доступны админу
 /доступ — кто из админов может пользоваться ботом (только для владельца)
+/пригласить — ссылка-приглашение: дать доступ человеку, который не админ канала
 /шаблон — шаблон поста для канала
 /отзыв текст (+ фото) — добавить отзыв на сайт, /отзывы — список
 /проверка — отзывы покупателей с сайта, /одобрить 5 или /отклонить 5
@@ -242,7 +246,9 @@ def send(uid, text, menu=True, buttons=None):
         _capture[-1]["texts"].append(text)
         return
     body = {"text": text[:3900]}
-    rows = [[{"type": "callback", "text": lbl[:60], "payload": cmd[:1000]} for lbl, cmd in row] for row in (buttons or []) if row]
+    rows = [[{"type": "callback", "text": b[0][:60], "payload": b[1][:1000]} if len(b) == 2 else
+             {"type": "clipboard", "text": b[0][:60], "payload": b[1][:1000]} if b[2] == "clipboard" else
+             {"type": "link", "text": b[0][:60], "url": b[1]} for b in row] for row in (buttons or []) if row]
     if menu:
         kb = keyboard()
         kb["payload"]["buttons"] = rows + kb["payload"]["buttons"]
@@ -1454,7 +1460,7 @@ def app_dash(uid):
     admins = [{"k": k, "name": a["name"], "id": a["id"],
                "role": "owner" if a["owner"] and a["id"] in cfg.get("real", ()) else
                        "full" if a["id"] in cfg.get("full", ()) else
-                       "on" if a["id"] in cfg["owners"] else "off"}
+                       "on" if a["id"] in cfg["owners"] else "off", "guest": bool(a.get("guest"))}
               for k, a in enumerate(cfg.get("admins", []), 1)]
     hidden = set((ov or {}).get("hidden", []))
     with ThreadPoolExecutor(6) as ex:
@@ -1620,6 +1626,13 @@ def site_app(event, headers):
             msg = app_export(uid) if act == "export" else fn(uid, req)
             log_action(uid, f"[приложение] {act} " + json.dumps({k: v for k, v in req.items() if k not in ("initData", "photos", "action")}, ensure_ascii=False)[:200])
             return out(200, ok=True, texts=[msg])
+        if act == "invite":
+            try:
+                link, perms = make_invite(uid, req.get("perms"))
+            except ValueError as e:
+                return out(400, error=str(e))
+            log_action(uid, "[приложение] создал приглашение")
+            return out(200, ok=True, link=link, texts=["✅ Ссылка-приглашение создана"])
         if act == "set":
             msg = app_set(uid, req, cfg)
             if req.get("key") != "notify":
@@ -1919,21 +1932,25 @@ def config():
     except Exception as e:
         print("admins:", e)
     access, _ = gh_file("access.json")
+    known = {a["id"] for a in admins}
+    for gid, gname in ((access or {}).get("guests") or {}).items():   # приглашённые по ссылке (не админы канала)
+        if int(gid) not in known:
+            admins.append({"id": int(gid), "name": gname, "owner": False, "guest": True})
     allowed = set((access or {}).get("allowed", []))
     full = set((access or {}).get("full", []))     # админы с полными правами — как у владельца
     chief = {a["id"] for a in admins if a["owner"]}
     real = set(chief)
-    if not admins:                                 # MAX не ответил — берём последний известный список
+    if not any(not a.get("guest") for a in admins):  # MAX не ответил — берём последний известный список
         owners = set((state or {}).get("owners", []))
         chief = set((state or {}).get("chief", [])) or owners
     elif not chief:                                # MAX не сообщил, кто владелец — пускаем всех админов, как раньше
-        chief = {a["id"] for a in admins}
-        owners = chief
+        chief = {a["id"] for a in admins if not a.get("guest")}
+        owners = chief | (allowed & {a["id"] for a in admins})
     else:
         ids = {a["id"] for a in admins}
         chief = chief | (full & ids)
         owners = chief | (allowed & ids)
-    if not admins:
+    if not any(not a.get("guest") for a in admins):
         chief |= full; owners |= full | allowed
     perms = {}
     raw = (access or {}).get("perms") or {}
@@ -1969,7 +1986,7 @@ PERM_RULES = [
     ("reviews", r"^/?(отзыв|отзывы|удалить[ _]отзыв|одобрить|опубликовать|отклонить|проверка|на проверке)\b"),
     ("stats", r"^/?(стата|статистика|статус|топ|метрика)\b"),
     ("site", r"^/?(обновить|копия|бэкап|backup|техработы|тех\.?работы)\b"),
-    ("access", r"^/?(доступ|разрешить|запретить|права|admins)\b"),
+    ("access", r"^/?(доступ|разрешить|запретить|права|admins|пригласить)\b"),
 ]
 
 
@@ -2019,11 +2036,12 @@ def access_text(cfg):
         mark = "👑 владелец" if a["owner"] and a["id"] in cfg.get("real", ()) else (
             "⭐ полные права" if a["id"] in cfg.get("full", ()) else
             "✅ есть доступ" if a["id"] in cfg["owners"] else "🚫 нет доступа")
-        lines.append(f"{k}. {a['name']} — {mark}")
+        lines.append(f"{k}. {a['name']}{' (по приглашению)' if a.get('guest') else ''} — {mark}")
     if not lines:
         return "Не удалось получить список админов канала. Попробуйте позже."
     return ("👥 Админы канала и доступ к боту:\n" + "\n".join(lines) +
-            "\n\nДать или забрать доступ — кнопками ниже.\n\n"
+            "\n\nДать или забрать доступ — кнопками ниже.\n"
+            "➕ Дать доступ человеку, который не админ канала, — кнопка «Пригласить» (одноразовая ссылка на 24 часа).\n\n"
             "⭐ Полные права — всё как у владельца, включая выдачу доступа.\n"
             "⚙️ Какие разделы доступны админу — /права (или кнопка «⚙️ Права» в приложении).\n"
             "Без доступа админ не может пользоваться ботом: команды, продажи, цены, отзывы.")
@@ -2159,6 +2177,7 @@ def change_access(uid, text, allow):
         d["allowed"] = sorted(s)
         if not allow:
             d["full"] = sorted(set(d.get("full", [])) - {target["id"]})
+            (d.get("guests") or {}).pop(str(target["id"]), None)
     update_json("access.json", f, f"Бот: доступ {'выдан' if allow else 'снят'}", {"allowed": []})
     _cache.clear()
     try:
@@ -2168,6 +2187,70 @@ def change_access(uid, text, allow):
         print("notify admin:", e)
     return send(uid, (f"✅ {target['name']} теперь может пользоваться ботом." if allow
                       else f"🚫 {target['name']} больше не может пользоваться ботом.") + "\n\n" + access_text(config()))
+
+
+def invite_hash(token):
+    return hmac.new((SECRET or "salt").encode(), f"inv{token}".encode(), hashlib.sha256).hexdigest()[:24]
+
+
+def make_invite(uid, perms=None):
+    """Одноразовая ссылка-приглашение на 24 часа. В репозитории хранится только хэш."""
+    cfg = config()
+    if uid not in cfg["chief"]:
+        raise ValueError("Приглашать может только владелец канала или админ с полными правами.")
+    perms = [p for p in (perms or [p for p in PERMS if p != "access"]) if p in PERMS]
+    if "access" in perms and uid not in cfg.get("real", ()):
+        perms.remove("access")
+    if not perms:
+        raise ValueError("Отметьте хотя бы один раздел.")
+    token = secrets.token_urlsafe(9).replace("-", "x").replace("_", "y")
+    now = int(time.time())
+    def f(d):
+        inv = {k: v for k, v in (d.get("invites") or {}).items() if v.get("exp", 0) > now}
+        inv[invite_hash(token)] = {"exp": now + 86400, "perms": perms, "by": uid}
+        d["invites"] = inv
+    update_json("access.json", f, "Бот: приглашение", {"allowed": []})
+    return BOT_URL + ("&" if "?" in BOT_URL else "?") + "start=inv_" + token, perms
+
+
+def invite_cmd(uid, text):
+    try:
+        link, perms = make_invite(uid)
+    except ValueError as e:
+        return send(uid, str(e))
+    send(uid, "➕ Приглашение готово. Перешлите ссылку ниже человеку, которому хотите дать доступ к боту и приложению управления.\n\n"
+              "• работает 24 часа и только один раз;\n"
+              "• права: " + ", ".join(PERMS[p].split(" ", 1)[1] for p in perms) + " (поменять потом — «⚙️ Права» в «👥 Доступ»);\n"
+              "• забрать доступ можно в любой момент в «👥 Доступ».\n\nНе выкладывайте ссылку в канал и группы.", menu=False)
+    return send(uid, link, menu=False, buttons=[[("📋 Скопировать ссылку", link, "clipboard")]])
+
+
+def accept_invite(uid, name, token):
+    now = int(time.time())
+    h = invite_hash(token)
+    got = {}
+    def f(d):
+        inv = d.get("invites") or {}
+        v = inv.pop(h, None)
+        if v and v.get("exp", 0) > now:
+            got.update(v)
+            d.setdefault("guests", {})[str(uid)] = (name or f"Пользователь {uid}")[:40]
+            d["allowed"] = sorted(set(d.get("allowed", [])) | {uid})
+            d.setdefault("perms", {})[str(uid)] = sorted(v.get("perms") or [])
+        d["invites"] = {k: x for k, x in inv.items() if x.get("exp", 0) > now}
+    update_json("access.json", f, "Бот: приглашение принято", {"allowed": []})
+    if not got:
+        return send(uid, "😔 Ссылка-приглашение уже использована или устарела. Попросите владельца прислать новую.", menu=False)
+    _cache.clear()
+    log_action(uid, "принял приглашение")
+    for chief in config()["chief"]:
+        if chief != uid:
+            try:
+                send(chief, f"➕ «{name}» принял приглашение и получил доступ к боту.\nПрава и доступ: /доступ")
+            except Exception as e:
+                print("notify chief:", e)
+    return send(uid, "✅ Готово! У вас есть доступ к управлению ботом сайта «3D модели в Нагаево».\n"
+                     "Пользуйтесь кнопками меню или откройте «🛠 Приложение управления».")
 
 
 def deny(uid, cfg):
@@ -2546,6 +2629,10 @@ def handle_owner(uid, text, images):
         return list_reviews(uid)
     if re.match(r"^/?удалить[ _]отзыв", low):
         return delete_review(uid, text)
+    if re.match(r"^/start\s+inv_", low):
+        return send(uid, "У вас уже есть доступ к боту — приглашение не понадобилось. Его можно переслать другому человеку.")
+    if low in ("/пригласить", "пригласить", "➕ пригласить"):
+        return invite_cmd(uid, text)
     if low in ("/доступ", "доступ", "/admins"):
         cfg = config()
         if uid not in cfg["chief"]:
@@ -2557,6 +2644,7 @@ def handle_owner(uid, text, images):
             short = a["name"][:20]
             btns.append([(f"⚙️ Права", f"/права {k}"), (f"🚫 Забрать: {short}", f"/запретить {k}")] if a["id"] in cfg["owners"]
                         else [(f"✅ Дать доступ: {short}", f"/разрешить {k}")])
+        btns.append([("➕ Пригласить по ссылке", "/пригласить")])
         return send(uid, access_text(cfg), menu=False, buttons=btns)
     if low.startswith("/разрешить"):
         return change_access(uid, text, True)
@@ -3026,6 +3114,8 @@ def handle_update(u):
         name = user.get("first_name") or user.get("name") or ""
         if t == "bot_started":
             payload = u.get("payload") or ""
+            if payload.startswith("inv_"):
+                return accept_invite(uid, name, payload[4:])
             if payload.lower() in ("skidka", "discount", "promo"):
                 return give_sub_discount(uid, name)
             nos, promo = parse_start(payload)
@@ -3036,6 +3126,8 @@ def handle_update(u):
             return
         text = ((msg.get("body") or {}).get("text") or "").strip()
         sm = re.match(r"^/start\s+(\S+)", text)
+        if sm and sm.group(1).startswith("inv_"):
+            return accept_invite(uid, name, sm.group(1)[4:])
         if sm:                                          # ссылка открыта в уже начатом чате
             nos, promo = parse_start(sm.group(1))
             if nos:

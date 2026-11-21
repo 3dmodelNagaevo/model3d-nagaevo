@@ -680,8 +680,9 @@ function renderMore(){
       ? `<button class="btn sm" data-cmd="/разрешить ${a.k}">Дать доступ</button>`
       : `<button class="btn ghost sm" data-perms="${a.k}">⚙️ Права</button><button class="btn ghost sm" data-revoke="${a.k}" data-name="${esc(a.name)}" data-full="${a.role === "full" ? 1 : ""}">Забрать</button>`;
     const pc = a.role === "on" ? ((D.adminPerms || {})[String(a.id)] || []).length : 0;
-    return `<div class="row" style="cursor:default;flex-wrap:wrap"><div class="t"><b>${esc(a.name)}</b><small><span class="pill ${c}">${t}</span>${pc ? ` · разделов: ${pc} из ${Object.keys(D.permNames || {}).length}` : ""}</small></div><div class="btns">${btn}</div></div>`; }).join("")
+    return `<div class="row" style="cursor:default;flex-wrap:wrap"><div class="t"><b>${esc(a.name)}</b><small>${a.guest ? "по приглашению · " : ""}<span class="pill ${c}">${t}</span>${pc ? ` · разделов: ${pc} из ${Object.keys(D.permNames || {}).length}` : ""}</small></div><div class="btns">${btn}</div></div>`; }).join("")
     || `<div class="empty">Список админов недоступен</div>`;
+  $("#inviteBtn").hidden = !D.chief;
   renderLinks();
 }
 $("#admins").addEventListener("click", e => {      // забрать доступ — с подтверждением
@@ -694,6 +695,33 @@ $("#admins").addEventListener("click", e => {      // забрать досту�
     <div class="btns full"><button class="btn red" id="revYes">🚫 Да, забрать</button><button class="btn ghost" onclick="__appCloseSheet()">Отмена</button></div>`);
   $("#revYes").onclick = () => { closeSheet(); cmd(`/запретить ${k} да`); };
 });
+$("#inviteBtn").onclick = () => {
+  const names = D.permNames || {};
+  sheet(`<div class="top"><h3>➕ Пригласить по ссылке</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+    <p class="muted" style="font-size:13px">Что сможет делать новый человек (потом можно поменять через «⚙️ Права»):</p>
+    <div class="form">
+      ${Object.entries(names).filter(([k]) => k !== "access" || D.real).map(([k, n]) => `<label class="chk"><input type="checkbox" value="${k}" ${k !== "access" ? "checked" : ""}> ${esc(n)}</label>`).join("")}
+      <button class="btn" id="invGo">🔗 Создать ссылку</button>
+    </div>`);
+  $("#invGo").onclick = async () => {
+    const perms = $$('#sheet input[type=checkbox]:checked').map(i => i.value);
+    if (!perms.length) return toast("Отметьте хотя бы один раздел");
+    const d = await act({ action: "invite", perms }, false);
+    if (!d || !d.link) return;
+    sheet(`<div class="top"><h3>🔗 Ссылка готова</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+      <p>Перешлите её человеку, которому даёте доступ. Он откроет бота — и доступ появится сразу, а вам придёт уведомление.</p>
+      <div class="form"><input id="invLink" readonly value="${esc(d.link)}">
+      <button class="btn" id="invCopy">📋 Скопировать ссылку</button></div>
+      <p class="muted" style="font-size:13px">Работает 24 часа и только один раз. Не выкладывайте её в канал и группы. Забрать доступ — кнопка «Забрать» в списке.</p>`);
+    $("#invCopy").onclick = async () => {
+      const inp = $("#invLink");
+      try { await navigator.clipboard.writeText(inp.value); }
+      catch (e) { inp.focus(); inp.select(); try { document.execCommand("copy"); } catch (e2) {} }
+      toast("Ссылка скопирована");
+    };
+    setTimeout(load, 800);
+  };
+};
 $("#lq").oninput = () => renderLinks();
 function renderLinks(){
   const q = $("#lq").value.trim().toLowerCase();
