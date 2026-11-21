@@ -114,6 +114,14 @@
   .starpick{display:flex;gap:4px}.starpick button{font-size:28px;background:none;border:0;color:#d5d8e2;cursor:pointer;padding:0 2px}
   .starpick button.on{color:#F5A524}
   textarea{min-height:120px;resize:vertical}
+  .row .sel{width:22px;height:22px;flex:0 0 auto;accent-color:var(--cobalt)}
+  .why{display:block;color:#c24a12;font-size:12px}
+  .mbar{display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:center;font-size:13px;margin:6px 0}
+  .mbar i{display:block;height:10px;border-radius:5px;background:var(--cobalt)}
+  .mbar i.neg{background:#d33}
+  .spbar{height:8px;border-radius:4px;background:var(--plate);overflow:hidden;margin-top:6px}
+  .spbar u{display:block;height:100%;background:var(--cobalt)}
+  .spbar u.low{background:#d33}
   .loading{position:fixed;top:0;left:0;height:3px;background:var(--orange);z-index:30;width:0;transition:width .3s}
 </style>
 </head>
@@ -141,6 +149,7 @@
     <div class="list" id="top"></div>
     <h2>Действия</h2>
     <div class="card" id="maintCard" hidden style="margin-bottom:10px"></div>
+    <div id="schedBox" hidden><h2 style="margin-top:0">🕒 Отложенные посты</h2><div class="list" id="schedList" style="margin-bottom:10px"></div></div>
     <div class="btns full">
       <button class="btn" id="newPost" data-perm="posts">📸 Новый пост</button>
       <button class="btn ghost" id="maintBtn" data-perm="site">🚧 Тех. работы</button>
@@ -159,6 +168,16 @@
     <div class="seg" id="itemSeg">
       <button data-f="all" class="on">Все</button><button data-f="hidden">Скрытые</button>
       <button data-f="views">По просмотрам</button><button data-f="sold">Продаются</button>
+      <button data-f="check">⚠️ Проверка</button>
+    </div>
+    <div class="btns" style="margin-bottom:8px"><button class="btn ghost sm" id="selMode">☑️ Выбрать несколько</button><button class="btn ghost sm" id="catPct">％ Цены по категории</button></div>
+    <div class="card" id="bulkBar" hidden style="position:sticky;top:64px;z-index:4;margin-bottom:8px">
+      <b id="bulkCount">Выбрано: 0</b>
+      <div class="btns" style="margin-top:6px">
+        <button class="btn sm red" data-bulk="hide">🙈 Скрыть</button><button class="btn sm ghost" data-bulk="show">👁 Показать</button>
+        <button class="btn sm ghost" data-bulk="pct">％ Цена</button><button class="btn sm ghost" data-bulk="badge">🏷 Метка</button>
+        <button class="btn sm ghost" data-bulk="reset">↩️ Цены из постов</button>
+      </div>
     </div>
     <div class="list" id="items"></div>
   </section>
@@ -173,7 +192,27 @@
       </div>
       <div class="btns full"><button class="btn" id="sAdd">✅ Продано</button><button class="btn ghost" data-cmd="/отменить">↩️ Отменить последнюю</button></div>
     </div>
-    <h2>История</h2>
+    <h2>💰 Финансы</h2>
+    <div class="seg" id="finSeg"><button data-f="month" class="on">Этот месяц</button><button data-f="prev">Прошлый месяц</button><button data-f="year">Год</button><button data-f="all">Всё время</button></div>
+    <div class="grid2" id="finKpi"></div>
+    <h2>По месяцам</h2>
+    <div class="card" id="finMonths"></div>
+    <h2>Топ моделей по выручке</h2>
+    <div class="card" id="finTop"></div>
+    <h2>Расходы</h2>
+    <div class="card form">
+      <div class="grid2">
+        <label>Сумма, ₽<input id="exAmt" inputmode="decimal" placeholder="1200"></label>
+        <label>На что<select id="exCat"><option>Пластик</option><option>Электричество</option><option>Детали и ремонт</option><option>Доставка</option><option>Реклама</option><option>Упаковка</option><option>Другое</option></select></label>
+        <label>Дата<input type="date" id="exDate"></label>
+        <label>Комментарий<input id="exNote" placeholder="2 катушки PLA"></label>
+      </div>
+      <button class="btn" id="exAdd">➕ Записать расход</button>
+    </div>
+    <div class="list" id="expenses" style="margin-top:8px"></div>
+    <button class="btn ghost" id="exportBtn" style="width:100%;margin-top:10px">📤 Выгрузить продажи и расходы в Excel</button>
+    <p class="muted" style="font-size:13px">Себестоимость модели (пластик + работа на 1 шт.) задаётся в карточке товара — тогда прибыль считается точнее.</p>
+    <h2>История продаж</h2>
     <div class="list" id="sales"></div>
   </section>
 
@@ -244,11 +283,58 @@
 
   <!-- Ещё -->
   <section class="tab" id="t-more">
+    <div class="seg" id="moreSeg" style="margin-top:2px">
+      <button data-m="site" class="on">🌐 Сайт</button><button data-m="stock">🧵 Пластик</button><button data-m="admins">👥 Доступ</button>
+      <button data-m="notify">🔔 Уведомления</button><button data-m="log">📜 Журнал</button><button data-m="links">🔗 Ссылки</button>
+    </div>
+    <div data-mp="site">
+      <h2>📢 Объявление на сайте</h2>
+      <div class="card form">
+        <label class="chk"><input type="checkbox" id="ntOn"> Показывать объявление</label>
+        <label>Текст<input id="ntText" placeholder="Скидка 10% до 3 декабря! / Не работаем 31.12–2.01"></label>
+        <div class="grid2"><label>Показывать до (вкл.)<input type="date" id="ntUntil"></label><label>Ссылка (необязательно)<input id="ntLink" placeholder="https://…"></label></div>
+        <button class="btn" id="ntSave">Сохранить объявление</button>
+      </div>
+      <h2>🗂 Подборки на сайте</h2>
+      <div class="list" id="colls"></div>
+      <button class="btn ghost" id="collAdd" style="width:100%;margin-top:8px">➕ Новая подборка</button>
+      <h2>✏️ Тексты сайта</h2>
+      <button class="btn ghost" id="textsBtn" style="width:100%">Редактировать тексты (главная, FAQ, условия…)</button>
+    </div>
+    <div data-mp="stock" hidden>
+      <h2 style="margin-top:4px">🧵 Пластик</h2>
+      <div class="list" id="spools"></div>
+      <h2>Новая катушка</h2>
+      <div class="card form">
+        <div class="grid2">
+          <label>Цвет<input id="spColor" placeholder="Чёрный"></label>
+          <label>Пластик<input id="spMat" value="PLA"></label>
+          <label>Вес, г<input id="spG" inputmode="numeric" value="1000"></label>
+          <label>Цена, ₽<input id="spPrice" inputmode="numeric" placeholder="1200"></label>
+          <label>Предупредить при остатке, г<input id="spLow" inputmode="numeric" value="150"></label>
+        </div>
+        <label class="chk"><input type="checkbox" id="spExp" checked> Записать покупку в расходы</label>
+        <button class="btn" id="spAdd">➕ Добавить катушку</button>
+      </div>
+    </div>
+    <div data-mp="notify" hidden>
+      <h2 style="margin-top:4px">🔔 Какие сообщения присылать мне</h2>
+      <div class="form" id="notifyBox"></div>
+      <button class="btn" id="notifySave" style="width:100%;margin-top:10px">Сохранить</button>
+    </div>
+    <div data-mp="log" hidden>
+      <h2 style="margin-top:4px">📜 Кто что менял</h2>
+      <div class="list" id="logList"></div>
+    </div>
+    <div data-mp="admins" hidden>
     <h2 style="margin-top:4px">Доступ к боту</h2>
     <div class="list" id="admins"></div>
-    <h2>Библиотека ссылок</h2>
+    </div>
+    <div data-mp="links" hidden>
+    <h2 style="margin-top:4px">Библиотека ссылок</h2>
     <input class="search" id="lq" type="search" placeholder="Поиск по ссылкам, тегам, сайтам">
     <div class="list" id="links"></div>
+    </div>
   </section>
 </main>
 

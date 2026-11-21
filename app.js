@@ -83,7 +83,206 @@ function render(){
   $("#appMain").hidden = false; $("#nav").hidden = false; $("#gate").hidden = true;
   $("#siteLink").href = D.site;
   renderHome(); renderItems(); renderSales(); renderPromos(); renderReviews(); renderMore();
-  applyPerms(); renderMaintCard();
+  applyPerms(); renderMaintCard(); renderSched(); renderFin(); renderSite(); renderSpools(); renderNotify(); renderLog();
+}
+
+/* ---------- отложенные посты ---------- */
+function renderSched(){
+  const list = [...(D.scheduled || [])].sort((a, b) => a.at - b.at);
+  $("#schedBox").hidden = !list.length || !can("posts");
+  $("#schedList").innerHTML = list.map(p => `<div class="row" style="cursor:default"><div class="t"><b>${esc(p.title || "Пост")}</b>
+    <small>${new Date(p.at * 1000).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}${(p.images || []).length ? " · фото: " + p.images.length : ""}</small></div>
+    <button class="btn ghost sm" data-unsched="${esc(p.id)}">Отменить</button></div>`).join("");
+}
+$("#schedList").addEventListener("click", e => {
+  const b = e.target.closest("[data-unsched]"); if (!b) return;
+  confirmBox("Отменить отложенный пост?", "Пост не выйдет в канале.", "🗑 Да, отменить", "red", () => { closeSheet(); act({ action: "post_unschedule", id: b.dataset.unsched }); });
+});
+
+/* ---------- финансы ---------- */
+let finF = "month";
+$$("#finSeg button").forEach(b => b.onclick = () => { $$("#finSeg button").forEach(x => x.classList.toggle("on", x === b)); finF = b.dataset.f; renderFin(); });
+const costOf = no => +((D.overrides.cost || {})[String(no)] || 0);
+const salePrice = s => typeof s.p === "number" ? s.p : (item(s.no) && typeof priceOf(item(s.no)) === "number" ? priceOf(item(s.no)) : 0);
+function finRange(f){
+  const t = new Date();
+  if (f === "month") return [new Date(t.getFullYear(), t.getMonth(), 1).getTime(), Infinity];
+  if (f === "prev") return [new Date(t.getFullYear(), t.getMonth() - 1, 1).getTime(), new Date(t.getFullYear(), t.getMonth(), 1).getTime()];
+  if (f === "year") return [new Date(t.getFullYear(), 0, 1).getTime(), Infinity];
+  return [0, Infinity];
+}
+function finCalc(from, to){
+  const ss = D.sales.filter(s => s.ts >= from && s.ts < to);
+  const ex = (D.expenses || []).filter(x => x.ts >= from && x.ts < to);
+  const rev = ss.reduce((a, s) => a + salePrice(s) * (+s.qty || 1), 0);
+  const cost = ss.reduce((a, s) => a + costOf(s.no) * (+s.qty || 1), 0);
+  const exp = ex.reduce((a, x) => a + (+x.amount || 0), 0);
+  const orders = new Set(ss.map(s => s.b || s.ts)).size;
+  return { rev, cost, exp, profit: rev - cost - exp, qty: ss.reduce((a, s) => a + (+s.qty || 1), 0), orders, avg: orders ? rev / orders : 0, ss, ex };
+}
+function renderFin(){
+  if (!can("sales")) return;
+  const [from, to] = finRange(finF);
+  const f = finCalc(from, to);
+  const r0 = n => Math.round(n).toLocaleString("ru-RU") + " ₽";
+  $("#finKpi").innerHTML = `
+    <div class="card kpi"><b>${r0(f.rev)}</b><span>выручка · ${f.qty} шт.</span></div>
+    <div class="card kpi"><b style="color:${f.profit < 0 ? "#d33" : "var(--green)"}">${r0(f.profit)}</b><span>прибыль</span></div>
+    <div class="card kpi"><b>${r0(f.exp)}</b><span>расходы</span></div>
+    <div class="card kpi"><b>${r0(f.avg)}</b><span>средний чек · заказов ${f.orders}</span></div>
+    ${f.cost ? `<div class="card kpi"><b>${r0(f.cost)}</b><span>себестоимость проданного</span></div>` : ""}`;
+  // по месяцам (6 последних)
+  const t = new Date(), months = [];
+  for (let k = 5; k >= 0; k--) {
+    const a = new Date(t.getFullYear(), t.getMonth() - k, 1), z = new Date(t.getFullYear(), t.getMonth() - k + 1, 1);
+    const c = finCalc(a.getTime(), z.getTime());
+    months.push({ label: a.toLocaleDateString("ru-RU", { month: "short" }).replace(".", ""), ...c });
+  }
+  const mx = Math.max(1, ...months.map(m => Math.max(m.rev, Math.abs(m.profit))));
+  $("#finMonths").innerHTML = months.map(m => `<div class="mbar"><span>${esc(m.label)}</span>
+      <div><i style="width:${Math.max(1, m.rev / mx * 100)}%" title="Выручка"></i><i class="${m.profit < 0 ? "neg" : ""}" style="width:${Math.max(1, Math.abs(m.profit) / mx * 100)}%;margin-top:3px;opacity:.55" title="Прибыль"></i></div>
+      <b>${Math.round(m.rev).toLocaleString("ru-RU")} ₽<br><small class="muted">прибыль ${Math.round(m.profit).toLocaleString("ru-RU")}</small></b></div>`).join("")
+    + `<p class="muted" style="font-size:12px;margin:6px 0 0">Тёмная полоса — выручка, светлая — прибыль (красная — убыток).</p>`;
+  const byModel = {};
+  f.ss.forEach(s => { const k = s.no; byModel[k] = byModel[k] || { rev: 0, qty: 0, profit: 0 }; const q = +s.qty || 1;
+    byModel[k].rev += salePrice(s) * q; byModel[k].qty += q; byModel[k].profit += (salePrice(s) - costOf(s.no)) * q; });
+  const top = Object.entries(byModel).sort((a, b) => b[1].rev - a[1].rev).slice(0, 7);
+  $("#finTop").innerHTML = top.length ? top.map(([no, v]) => { const i = item(+no);
+    return `<div class="mbar" style="grid-template-columns:1fr auto"><span>№${no} ${esc(i ? i.title : "")} · ${v.qty} шт.</span><b>${Math.round(v.rev).toLocaleString("ru-RU")} ₽</b></div>`; }).join("")
+    : `<div class="muted">Продаж за период нет</div>`;
+  const ex = [...(D.expenses || [])].sort((a, b) => b.ts - a.ts).slice(0, 60);
+  $("#expenses").innerHTML = ex.map(x => `<div class="row" style="cursor:default"><div class="t"><b>${r0(x.amount)} · ${esc(x.cat)}</b><small>${day(x.ts)}${x.note ? " · " + esc(x.note) : ""}</small></div>
+    <button class="btn ghost sm" data-exdel="${x.id}">🗑</button></div>`).join("") || `<div class="empty">Расходов пока нет</div>`;
+}
+$("#exDate").value = new Date().toISOString().slice(0, 10);
+$("#exAdd").onclick = () => {
+  const amount = parseFloat(($("#exAmt").value || "").replace(",", "."));
+  if (!amount) return toast("Введите сумму");
+  const ts = $("#exDate").value ? new Date($("#exDate").value + "T12:00").getTime() : Date.now();
+  act({ action: "fin_add", amount, cat: $("#exCat").value, note: $("#exNote").value.trim(), ts }).then(() => { $("#exAmt").value = ""; $("#exNote").value = ""; });
+};
+$("#expenses").addEventListener("click", e => {
+  const b = e.target.closest("[data-exdel]"); if (!b) return;
+  confirmBox("Удалить расход?", "Запись исчезнет из финансов.", "🗑 Удалить", "red", () => { closeSheet(); act({ action: "fin_del", id: +b.dataset.exdel }); });
+});
+$("#exportBtn").onclick = () => act({ action: "export" }, false);
+
+/* ---------- «Ещё»: разделы ---------- */
+$$("#moreSeg button").forEach(b => b.onclick = () => {
+  $$("#moreSeg button").forEach(x => x.classList.toggle("on", x === b));
+  $$("[data-mp]").forEach(p => p.hidden = p.dataset.mp !== b.dataset.m);
+});
+function renderSite(){
+  const n = D.notice || {};
+  $("#ntOn").checked = !!n.on; $("#ntText").value = n.text || ""; $("#ntUntil").value = n.until || ""; $("#ntLink").value = n.link || "";
+  const cols = D.collections || [];
+  $("#colls").innerHTML = cols.map((c, k) => `<div class="row" data-coll="${k}"><div class="t"><b>${esc(c.title)}</b><small>${c.nos.length} мод.${c.on === false ? " · выключена" : ""}</small></div><div class="r">›</div></div>`).join("")
+    || `<div class="empty">Подборок пока нет. Например: «Подарки к Новому году», «Для дома».</div>`;
+  $$('#moreSeg [data-m="site"]').forEach(b => b.hidden = !can("site"));
+  $$('#moreSeg [data-m="stock"]').forEach(b => b.hidden = !can("items"));
+  $$('#moreSeg [data-m="log"]').forEach(b => b.hidden = !D.chief);
+}
+$("#ntSave").onclick = () => {
+  const v = { on: $("#ntOn").checked, text: $("#ntText").value.trim(), until: $("#ntUntil").value, link: $("#ntLink").value.trim() };
+  if (v.on && !v.text) return toast("Напишите текст объявления");
+  act({ action: "set", key: "notice", value: v });
+};
+function saveColls(cols){ return act({ action: "set", key: "collections", value: cols }); }
+function editColl(k){
+  const cols = JSON.parse(JSON.stringify(D.collections || []));
+  const c = k == null ? { id: "c" + Date.now(), title: "", nos: [], on: true } : cols[k];
+  const sel = new Set(c.nos);
+  sheet(`<div class="top"><h3>🗂 ${k == null ? "Новая подборка" : "Подборка"}</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+    <div class="form">
+      <label>Название<input id="clTitle" value="${esc(c.title)}" placeholder="Подарки к Новому году"></label>
+      <label class="chk"><input type="checkbox" id="clOn" ${c.on !== false ? "checked" : ""}> Показывать на сайте</label>
+      <input id="clQ" type="search" placeholder="Поиск модели">
+      <div class="list" id="clList" style="max-height:46vh;overflow:auto"></div>
+      <button class="btn" id="clSave">Сохранить подборку</button>
+      ${k != null ? `<button class="btn red" id="clDel">🗑 Удалить подборку</button>` : ""}
+    </div>`);
+  const draw = () => {
+    const q = $("#clQ").value.trim().toLowerCase();
+    $("#clList").innerHTML = [...D.items].filter(i => !q || (i.title + " " + i.no).toLowerCase().includes(q)).sort((a, b) => (sel.has(b.no) - sel.has(a.no)) || b.ts - a.ts)
+      .map(i => `<label class="chk"><input type="checkbox" value="${i.no}" ${sel.has(i.no) ? "checked" : ""}> №${i.no} ${esc(i.title)}</label>`).join("");
+  };
+  draw();
+  $("#clQ").oninput = draw;
+  $("#clList").addEventListener("change", e => { const n = +e.target.value; e.target.checked ? sel.add(n) : sel.delete(n); });
+  $("#clSave").onclick = () => {
+    c.title = $("#clTitle").value.trim(); c.on = $("#clOn").checked; c.nos = [...sel];
+    if (!c.title) return toast("Назовите подборку");
+    if (!c.nos.length) return toast("Отметьте хотя бы одну модель");
+    if (k == null) cols.push(c);
+    closeSheet(); saveColls(cols);
+  };
+  if ($("#clDel")) $("#clDel").onclick = () => confirmBox("Удалить подборку?", "Она исчезнет с сайта.", "🗑 Удалить", "red", () => { cols.splice(k, 1); closeSheet(); saveColls(cols); });
+}
+$("#collAdd").onclick = () => editColl(null);
+$("#colls").addEventListener("click", e => { const r = e.target.closest("[data-coll]"); if (r) editColl(+r.dataset.coll); });
+$("#textsBtn").onclick = async () => {
+  try {
+    const html = await (await fetch("index.html?v=" + Date.now())).text();
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const fields = [...doc.querySelectorAll("[data-text]")].map(el => ({ key: el.dataset.text, label: el.dataset.label || el.dataset.text, list: !!el.dataset.list,
+      def: el.dataset.list ? [...el.querySelectorAll("li")].map(li => li.textContent.trim()).join("\n") : el.textContent.trim().replace(/\s+/g, " ") }));
+    const cur = D.texts || {};
+    sheet(`<div class="top"><h3>✏️ Тексты сайта</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+      <p class="muted" style="font-size:13px">Меняйте текст и нажмите «Сохранить». Пустое поле — вернётся исходный текст. В списках каждый пункт — с новой строки.</p>
+      <div class="form">${fields.map(f => `<label>${esc(f.label)}<textarea data-k="${esc(f.key)}" data-def="${esc(f.def)}" style="min-height:${f.list ? 110 : 80}px">${esc(cur[f.key] || f.def)}</textarea></label>`).join("")}
+      <button class="btn" id="txSave">Сохранить тексты</button></div>`);
+    $("#txSave").onclick = () => {
+      const out = {};
+      $$("#sheet textarea[data-k]").forEach(t => { const v = t.value.trim(); if (v && v !== t.dataset.def) out[t.dataset.k] = v; });
+      closeSheet(); act({ action: "set", key: "texts", value: out });
+    };
+  } catch (e) { toast("❌ Не удалось загрузить тексты: " + e.message); }
+};
+
+/* ---------- пластик ---------- */
+function renderSpools(){
+  const sp = [...(D.spools || [])].sort((a, b) => (a.left / a.total) - (b.left / b.total));
+  $("#spools").innerHTML = sp.map(x => { const low = x.left <= (x.low || 150);
+    return `<div class="card"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(x.color)} · ${esc(x.material)}</b><b style="color:${low ? "#d33" : "inherit"}">${x.left} г</b></div>
+      <div class="spbar"><u class="${low ? "low" : ""}" style="width:${Math.max(2, Math.round(x.left / x.total * 100))}%"></u></div>
+      <div class="muted" style="font-size:13px;margin:4px 0 8px">из ${x.total} г${x.price ? " · " + rub(x.price) : ""}${low ? " · ⚠️ заканчивается" : ""}</div>
+      <div class="btns"><button class="btn sm" data-spuse="${x.id}">➖ Потратил</button><button class="btn ghost sm" data-spset="${x.id}">✏️ Остаток</button><button class="btn ghost sm" data-spdel="${x.id}">🗑</button></div></div>`; }).join("")
+    || `<div class="empty">Катушек пока нет — добавьте ниже.</div>`;
+}
+$("#spAdd").onclick = async () => {
+  const color = $("#spColor").value.trim(); if (!color) return toast("Укажите цвет");
+  const price = parseFloat($("#spPrice").value) || 0;
+  await act({ action: "stock_add", color, material: $("#spMat").value.trim() || "PLA", grams: +$("#spG").value || 1000, price, low: +$("#spLow").value || 150 }, false);
+  if ($("#spExp").checked && price && can("sales")) await act({ action: "fin_add", amount: price, cat: "Пластик", note: color + " " + ($("#spMat").value.trim() || "PLA") }, false);
+  $("#spColor").value = ""; $("#spPrice").value = ""; setTimeout(load, 600);
+};
+$("#spools").addEventListener("click", e => {
+  const u = e.target.closest("[data-spuse]"), st = e.target.closest("[data-spset]"), dl = e.target.closest("[data-spdel]");
+  if (u || st) {
+    const id = +(u || st).dataset[u ? "spuse" : "spset"];
+    sheet(`<div class="top"><h3>${u ? "➖ Сколько потратили?" : "✏️ Сколько осталось?"}</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+      <div class="form"><label>Грамм<input id="spg" inputmode="numeric" placeholder="${u ? "120" : "640"}"></label><button class="btn" id="spOk">Сохранить</button></div>`);
+    $("#spOk").onclick = () => { const g = +$("#spg").value; if (!g && g !== 0) return toast("Введите граммы"); closeSheet(); act({ action: u ? "stock_use" : "stock_set", id, grams: g }); };
+  }
+  if (dl) confirmBox("Убрать катушку?", "Она исчезнет из учёта пластика.", "🗑 Убрать", "red", () => { closeSheet(); act({ action: "stock_del", id: +dl.dataset.spdel }); });
+});
+
+/* ---------- уведомления ---------- */
+const NOTIFY = [["orders", "🛒 Заказы и сообщения покупателей"], ["reviews", "💬 Новые отзывы с сайта"], ["promo", "🎟 Промокоды (выдача, окончание, автовыкладка)"],
+  ["catalog", "🧩 Добавлено/убрано на сайте"], ["reports", "📅 Отчёт за неделю"], ["reminders", "📸 Напоминание о постах"], ["stock", "🧵 Заканчивается пластик"],
+  ["posts", "📣 Отложенные посты вышли"], ["errors", "⚠️ Ошибки обновления сайта"], ["backup", "🗄 Еженедельная резервная копия"]];
+function renderNotify(){
+  const my = D.myNotify || {};
+  $("#notifyBox").innerHTML = NOTIFY.map(([k, n]) => `<label class="chk"><input type="checkbox" data-nk="${k}" ${my[k] === false ? "" : "checked"}> ${n}</label>`).join("");
+}
+$("#notifySave").onclick = () => { const v = {}; $$("#notifyBox [data-nk]").forEach(c => v[c.dataset.nk] = c.checked); act({ action: "set", key: "notify", value: v }); };
+
+/* ---------- журнал ---------- */
+function renderLog(){
+  const l = [...(D.log || [])].reverse().slice(0, 150);
+  $("#logList").innerHTML = l.map(x => `<div class="row" style="cursor:default"><div class="t"><b>${esc(x.name)}</b>
+    <small>${new Date(x.ts * 1000).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · ${esc(x.what)}</small></div></div>`).join("")
+    || `<div class="empty">Пока пусто — здесь появятся действия админов.</div>`;
 }
 
 /* ---------- права: скрываем разделы, на которые нет прав ---------- */
@@ -131,6 +330,7 @@ $("#newPost").onclick = () => {
       <button class="btn ghost sm" id="npTpl">📝 Вставить шаблон</button>
       <label>Фото (до 10)<input type="file" id="npPh" accept="image/*" multiple></label>
       <div class="thumbs" id="npThumbs"></div>
+      <label>Опубликовать позже (необязательно)<input type="datetime-local" id="npAt"></label>
       <button class="btn" id="npGo">📣 Опубликовать в канал</button>
       <p class="muted" style="font-size:13px;margin:0">Если в тексте есть «Стоимость:», пост появится на сайте как товар.</p>
     </div>`);
@@ -139,6 +339,14 @@ $("#newPost").onclick = () => {
   $("#npGo").onclick = () => {
     const text = $("#npText").value.trim();
     if (!text && !photos.length) return toast("Добавьте текст или фото");
+    const atv = $("#npAt").value;
+    if (atv) {
+      const at = Math.floor(new Date(atv).getTime() / 1000);
+      if (!at || at < Date.now() / 1000 + 60) return toast("Время публикации должно быть в будущем");
+      if (!text) return toast("Для отложенного поста нужен текст");
+      return confirmBox("Запланировать пост?", "Пост выйдет в канале " + new Date(at * 1000).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + " (может на 5–15 минут позже).",
+        "🕒 Да, запланировать", "", () => { closeSheet(); toast("Сохраняю…"); act({ action: "post_schedule", text, photos, at }); });
+    }
     confirmBox("Опубликовать пост?", "Пост сразу появится в канале — его увидят подписчики.", "📣 Да, опубликовать", "",
       () => { closeSheet(); toast("Публикую…"); act({ action: "post_new", text, photos }); });
   };
@@ -267,23 +475,65 @@ let itemFilter = "all";
 $$("#itemSeg button").forEach(b => b.onclick = () => { $$("#itemSeg button").forEach(x => x.classList.toggle("on", x === b)); itemFilter = b.dataset.f; renderItems(); });
 $("#q").oninput = () => renderItems();
 function rowItem(i, right){
+  const pr = itemFilter === "check" ? problems(i) : [];
   return `<div class="row ${i.hidden ? "dim" : ""}" data-no="${i.no}">
+    ${selMode ? `<input type="checkbox" class="sel" value="${i.no}" ${SEL.has(i.no) ? "checked" : ""} onclick="event.stopPropagation()">` : ""}
     <img src="${esc(thumb((i.photos || [])[0]) || "")}" alt="" loading="lazy">
-    <div class="t"><b>${esc(i.title)}</b><small>№${i.no} · ${esc(i.category || "")}${i.hidden ? " · <span class='pill o'>скрыт</span>" : ""}</small></div>
+    <div class="t"><b>${i.pin ? "📌 " : ""}${esc(i.title)}</b><small>№${i.no} · ${esc(i.category || "")}${i.hidden ? " · <span class='pill o'>скрыт</span>" : ""}${i.badge === "hit" ? " · 🔥 хит" : i.badge === "out" ? " · нет в наличии" : ""}</small>${pr.length ? `<span class="why">⚠️ ${pr.join(", ")}</span>` : ""}</div>
     <div class="r">${right != null ? right : rub(priceOf(i))}</div></div>`;
 }
-function bindRows(sel){ $$(sel + " .row[data-no]").forEach(r => r.onclick = () => openItem(+r.dataset.no)); }
+function bindRows(sel){ $$(sel + " .row[data-no]").forEach(r => r.onclick = () => { if (selMode && sel === "#items") { const c = r.querySelector(".sel"); c.checked = !c.checked; c.dispatchEvent(new Event("change", { bubbles: true })); return; } openItem(+r.dataset.no); }); }
 function renderItems(){
   const q = $("#q").value.trim().toLowerCase();
   let list = D.items.filter(i => !q || (i.title + " " + i.no).toLowerCase().includes(q));
   if (itemFilter === "hidden") list = list.filter(i => i.hidden);
   if (itemFilter === "views") list.sort((a, b) => (b.views || 0) - (a.views || 0));
   else if (itemFilter === "sold") list = list.filter(i => soldOf(i.no)).sort((a, b) => soldOf(b.no) - soldOf(a.no));
-  else list.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  else if (itemFilter === "check") list = list.filter(i => problems(i).length);
+  else list.sort((a, b) => (a.pin || 999) - (b.pin || 999) || (b.ts || 0) - (a.ts || 0));
   $("#items").innerHTML = list.map(i => rowItem(i, itemFilter === "views" ? `${i.views || 0} 👁` : itemFilter === "sold" ? `${soldOf(i.no)} шт.` : undefined)).join("")
-    || `<div class="empty">Ничего не нашлось</div>`;
+    || `<div class="empty">${itemFilter === "check" ? "✅ Всё в порядке — у всех моделей есть фото, цена, описание и категория." : "Ничего не нашлось"}</div>`;
   bindRows("#items");
 }
+function problems(i){
+  const p = [];
+  if (!(i.photos || []).length) p.push("нет фото");
+  if (typeof priceOf(i) !== "number") p.push("нет цены");
+  if ((i.desc || "").trim().length < 20) p.push("короткое описание");
+  if (!i.category || i.category === "Разное") p.push("категория «Разное»");
+  if ((i.photos || []).length === 1) p.push("всего 1 фото");
+  return p;
+}
+let selMode = false; const SEL = new Set();
+$("#selMode").onclick = () => { selMode = !selMode; SEL.clear(); $("#selMode").textContent = selMode ? "✖️ Отменить выбор" : "☑️ Выбрать несколько"; updBulk(); renderItems(); };
+function updBulk(){ $("#bulkBar").hidden = !selMode; $("#bulkCount").textContent = "Выбрано: " + SEL.size; }
+$("#items").addEventListener("change", e => { if (!e.target.classList.contains("sel")) return; const n = +e.target.value; e.target.checked ? SEL.add(n) : SEL.delete(n); updBulk(); });
+$$("[data-bulk]").forEach(b => b.onclick = () => {
+  const op = b.dataset.bulk, nos = [...SEL];
+  if (!nos.length) return toast("Отметьте товары галочками");
+  const run = value => { closeSheet(); act({ action: "bulk", op, nos, value }).then(() => { SEL.clear(); updBulk(); }); };
+  if (op === "pct") return sheet(`<div class="top"><h3>％ Изменить цены (${nos.length})</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+    <div class="form"><label>На сколько процентов (минус — снизить)<input id="bpct" inputmode="decimal" placeholder="10 или -15"></label>
+    <p class="muted" style="font-size:13px;margin:0">Цены округляются до 10 ₽. Модели с ценой «по запросу» не меняются.</p><button class="btn" id="bpOk">Применить</button></div>`)
+    || ($("#bpOk").onclick = () => { const v = parseFloat($("#bpct").value); if (!v) return toast("Введите процент"); confirmBox("Изменить цены?", `${nos.length} товар(ов): ${v > 0 ? "+" : ""}${v}%.`, "Да, изменить", "", () => run(v)); });
+  if (op === "badge") return sheet(`<div class="top"><h3>🏷 Метка (${nos.length})</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+    <div class="btns full"><button class="btn" data-bv="hit">🔥 Хит</button><button class="btn ghost" data-bv="out">Нет в наличии</button><button class="btn ghost" data-bv="">Убрать метку</button></div>`)
+    || $$("#sheet [data-bv]").forEach(x => x.onclick = () => run(x.dataset.bv));
+  const names = { hide: "Скрыть с сайта", show: "Вернуть на сайт", reset: "Вернуть цены из постов" };
+  confirmBox(names[op] + "?", `Товаров: ${nos.length}.`, "Да", op === "hide" ? "red" : "", () => run(null));
+});
+$("#catPct").onclick = () => {
+  const cats = [...new Set(D.items.map(i => i.category))].sort();
+  sheet(`<div class="top"><h3>％ Цены по категории</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+    <div class="form"><label>Категория<select id="cpCat">${cats.map(c => `<option>${esc(c)}</option>`).join("")}</select></label>
+    <label>На сколько процентов (минус — снизить)<input id="cpPct" inputmode="decimal" placeholder="10"></label><button class="btn" id="cpOk">Применить</button></div>`);
+  $("#cpOk").onclick = () => {
+    const cat = $("#cpCat").value, v = parseFloat($("#cpPct").value);
+    if (!v) return toast("Введите процент");
+    const nos = D.items.filter(i => i.category === cat).map(i => i.no);
+    confirmBox("Изменить цены?", `«${esc(cat)}»: ${nos.length} товар(ов), ${v > 0 ? "+" : ""}${v}%.`, "Да, изменить", "", () => { closeSheet(); act({ action: "bulk", op: "pct", nos, value: v }); });
+  };
+};
 function sheet(html){ $("#sheet").innerHTML = html; $("#sheetBg").classList.add("on"); }
 function closeSheet(){ $("#sheetBg").classList.remove("on"); }
 $("#sheetBg").onclick = e => { if (e.target.id === "sheetBg") closeSheet(); };
@@ -309,6 +559,17 @@ function openItem(no){
         <div style="display:flex;align-items:flex-end"><button class="btn" id="iSold" style="width:100%">✅ Продано</button></div></div>
       ${soldOf(no) ? `<button class="btn ghost sm" data-cmd="/сбросить продажи ${no}">🧹 Обнулить «Продано»</button>` : ""}
     </div>
+    ${can("items") ? `<h2>Карточка на сайте</h2>
+    <div class="card form">
+      <label>Название<input id="cTitle" value="${esc(i.title)}"></label>
+      <label>Описание<textarea id="cDesc">${esc(i.desc || "")}</textarea></label>
+      <label>Категория<input id="cCat" list="cats" value="${esc(i.category || "")}"><datalist id="cats">${[...new Set(D.items.map(x => x.category))].map(c => `<option value="${esc(c)}">`).join("")}</datalist></label>
+      <label>Метка<select id="cBadge"><option value="">— нет —</option><option value="hit" ${i.badge === "hit" ? "selected" : ""}>🔥 Хит</option><option value="out" ${i.badge === "out" ? "selected" : ""}>Нет в наличии (под заказ)</option></select></label>
+      <label class="chk"><input type="checkbox" id="cPin" ${i.pin ? "checked" : ""}> 📌 Закрепить вверху каталога</label>
+      ${can("sales") ? `<label>Себестоимость 1 шт., ₽ (пластик + работа)<input id="cCost" inputmode="decimal" value="${esc((D.overrides.cost || {})[String(no)] || "")}" placeholder="например 60"></label>` : ""}
+      <button class="btn" id="cSave">💾 Сохранить карточку</button>
+      <p class="muted" style="font-size:13px;margin:0">Меняется только сайт, пост в канале остаётся прежним. Очистите поле — вернётся текст из поста.</p>
+    </div>` : ""}
     ${base.length > 1 ? `<h2>Главное фото</h2><div class="covers">${base.slice(0, 10).map((p, k) =>
       `<button class="${k + 1 === cover ? "on" : ""}" data-cmd="/обложка ${no} ${k + 1}"><img src="${esc(thumb(p))}" alt="Фото ${k + 1}"></button>`).join("")}</div>` : ""}
     <h2>Ещё</h2>
@@ -330,6 +591,16 @@ function openItem(no){
         <p class="muted" style="font-size:13px;margin:0">Фото останутся прежними. Бот может менять только посты, которые сам опубликовал.</p></div>`);
       $("#peSave").onclick = () => { const t = $("#peText").value.trim(); if (!t) return toast("Пустой текст"); closeSheet(); cmd("/изменить " + no + "\n" + t); };
     } catch (e) { toast("❌ " + e.message); }
+  };
+  if ($("#cSave")) $("#cSave").onclick = () => {
+    const ovr = D.overrides || {};
+    const body = { action: "card", no, badge: $("#cBadge").value, pin: $("#cPin").checked };
+    const t = $("#cTitle").value.trim(), d = $("#cDesc").value.trim(), c = $("#cCat").value.trim();
+    body.title = t === ((i._orig || {}).title || i.title) && !(ovr.title || {})[String(no)] ? "" : t;
+    body.desc = d === ((i._orig || {}).desc || i.desc || "") && !(ovr.desc || {})[String(no)] ? "" : d;
+    body.cat = c === ((i._orig || {}).category || i.category) && !(ovr.cat || {})[String(no)] ? "" : c;
+    if ($("#cCost")) body.cost = $("#cCost").value.trim();
+    closeSheet(); act(body);
   };
   $("#iPriceSave").onclick = () => { const p = parseInt($("#iPrice").value, 10); if (!p) return toast("Введите цену числом"); cmd(`/цена ${no} ${p}`); };
   $("#iSold").onclick = () => { const q = parseInt($("#iQty").value, 10) || 1; cmd(`/продано ${no} ${q}`); };

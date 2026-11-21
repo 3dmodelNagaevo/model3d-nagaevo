@@ -1473,7 +1473,7 @@ def app_dash(uid):
         "adminPerms": {str(k): sorted(v) for k, v in (cfg.get("perms") or {}).items()},
         "maint": (st or {}).get("maint") or {}, "template": POST_TEMPLATE if "POST_TEMPLATE" in globals() else "",
         "items": [{k: i.get(k) for k in ("no", "title", "price", "category", "views", "views_week", "views_month",
-                                         "sold", "photos", "photos_orig", "url", "ts", "hidden")}
+                                         "sold", "photos", "photos_orig", "url", "ts", "hidden", "desc", "badge", "pin", "size", "color")}
                   | {"hidden": i.get("no") in hidden} for i in items],
         "hiddenNos": sorted(hidden),
         "overrides": ov or {},
