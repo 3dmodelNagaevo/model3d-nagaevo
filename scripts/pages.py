@@ -20,6 +20,9 @@ TEMPLATE = """<!DOCTYPE html>
 <title>{title} — {site}</title>
 <meta name="description" content="{desc}">
 <link rel="canonical" href="{url}">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="120x120" href="/favicon-120.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:type" content="product">
 <meta property="og:site_name" content="{site}">
 <meta property="og:title" content="{og_title}">
