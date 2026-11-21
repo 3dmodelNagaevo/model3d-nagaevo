@@ -55,6 +55,12 @@ HASHTAG_CATEGORIES = {
     "подарки": "Подарки", "подарок": "Подарки",
     "геймерам": "Для геймеров", "игры": "Для геймеров",
     "набор": "Наборы", "наборы": "Наборы",
+    "длядетей": "Игрушки и антистресс", "детям": "Игрушки и антистресс", "спиннер": "Игрушки и антистресс",
+    "волчок": "Игрушки и антистресс", "фиджет": "Игрушки и антистресс",
+    "интерьер": "Фигурки и декор", "статуэтка": "Фигурки и декор", "ваза": "Фигурки и декор",
+    "длякухни": "Для дома", "органайзер": "Для дома", "подставка": "Для дома", "хозяйство": "Для дома",
+    "сувенир": "Подарки", "сувениры": "Подарки", "брелок": "Подарки",
+    "автомобили": "Авто", "модели_авто": "Авто", "моделиавто": "Авто",
 }
 KEYWORD_CATEGORIES = [
     ("Наборы", r"\bнабор|комплект"),
@@ -177,8 +183,28 @@ def parse_price(v):
     return int(digits) if digits else None
 
 
+def maybe_post_reminder(notifier, state):
+    """Если в канале нет новых постов больше суток — напомнить владельцам (раз в сутки, днём по Уфе)."""
+    import datetime as _dt
+    last = state.get("last_post_ts") or 0
+    if not last or not notifier.owners:
+        return
+    now = time.time()
+    hour = (_dt.datetime.utcnow() + _dt.timedelta(hours=5)).hour
+    gap = now - last
+    if gap < 86400 or not 11 <= hour < 21 or now - state.get("last_post_reminder", 0) < 86400:
+        return
+    days = int(gap // 86400)
+    word = "день" if days % 10 == 1 and days % 100 != 11 else ("дня" if 2 <= days % 10 <= 4 and not 12 <= days % 100 <= 14 else "дней")
+    notifier.send(f"📸 В канале нет новых постов уже {days} {word}.\n\n"
+                  "Подписчики и сайт ждут новинок — выложите что-нибудь: новую модель, процесс печати, отзыв покупателя "
+                  "или промокод. Готовый образец поста — кнопка «📝 Шаблон», выложить через бота — «📸 Новый пост».")
+    state["last_post_reminder"] = int(now)
+
+
 def guess_category(tags, text):
     for t in tags:
+        t = t.replace("_", "")                     # #Для_дома = #длядома
         if t in HASHTAG_CATEGORIES:
             return HASHTAG_CATEGORIES[t]
     low = text.lower()
@@ -190,7 +216,7 @@ def guess_category(tags, text):
 
 def split_post(text):
     """Текст поста → (хэштеги, поля {price,size,color,material}, прочие строки)."""
-    tags = [t.lower() for t in HASHTAG_RE.findall(text)]
+    tags = [t.lower().replace("ё", "е") for t in HASHTAG_RE.findall(text)]
     fields, rest = {}, []
     for raw in text.splitlines():
         line = BULLET_RE.sub("", HASHTAG_RE.sub("", raw)).strip()
@@ -238,7 +264,7 @@ def classify(msg):
     if not text:
         return None, None
     tags, fields, rest = split_post(text)
-    if HIDE_TAGS & set(tags):
+    if HIDE_TAGS & {t.replace("_", "") for t in tags}:
         return None, None
     base = {
         "mid": str(body.get("mid")),
@@ -247,7 +273,7 @@ def classify(msg):
         "_photo_urls": image_urls(body)[:MAX_PHOTOS],
     }
     views = (msg.get("stat") or {}).get("views")
-    if REVIEW_TAGS & set(tags):
+    if REVIEW_TAGS & {t.replace("_", "") for t in tags}:
         return "review", {**base, "text": " ".join(rest)[:800], "_photo_urls": base["_photo_urls"][:1]}
     # нет строки «Стоимость:», но цена есть в первой строке и есть фото — это тоже товар (наборы и т.п.)
     if "price" not in fields and rest and base["_photo_urls"]:
@@ -542,6 +568,15 @@ def main():
             log(f"  ! ответ на команду: {e}")
     bot.notify_events(notifier, events, SITE_URL)
     bot.maybe_weekly_report(notifier, items, state, SITE_URL, sales_doc.get("sales", []))
+
+    # 4б) напоминание: в канале давно не было постов
+    try:
+        last = max([int((m.get("timestamp") or 0) / 1000) for m in messages] + [0])
+        if last:
+            state["last_post_ts"] = last
+        maybe_post_reminder(notifier, state)
+    except Exception as e:
+        log(f"  ! напоминание о постах: {e}")
 
     # 5) разовые посты от бота (outbox.json)
     ob = ROOT / "outbox.json"
