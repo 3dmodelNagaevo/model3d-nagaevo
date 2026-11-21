@@ -93,3 +93,10 @@ jobs:
           path: _site
       - id: deploy
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+      # GitHub иногда не сразу «видит» загруженный архив сайта — ждём и пробуем ещё раз
+      - if: steps.deploy.outcome == 'failure'
+        run: sleep 30
+      - id: deploy2
+        if: steps.deploy.outcome == 'failure'
+        uses: actions/deploy-pages@v4
