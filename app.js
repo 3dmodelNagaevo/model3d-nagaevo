@@ -740,7 +740,7 @@ $("#ctBtn").onclick = async () => {
       <button class="btn ghost sm" data-del="${k}" style="align-self:end">🗑 Убрать</button></div>
       <small class="muted" data-title></small></div>`;
   sheet(`<div class="top"><h3>📄 Договор</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
-    <p class="muted" style="font-size:13px;margin-top:0">Бот пришлёт в чат PDF (переслать покупателю) и Word (если нужно поправить). Подписи не нужны: покупатель отвечает в чате «Ознакомлен, согласен».</p>
+    <p class="muted" style="font-size:13px;margin-top:0">Бот пришлёт в чат PDF (переслать покупателю) и Word (если нужно поправить). Подписи не нужны: покупатель отвечает в чате «Ознакомлен, согласен» или ставит реакцию.</p>
     <div class="form">
       <label>Заказчик — имя аккаунта в MAX<input id="ctName" placeholder="как подписан в MAX, можно пусто"></label>
       <label>Телефон заказчика (необязательно)<input id="ctPhone" inputmode="tel" placeholder="можно оставить пустым"></label>
