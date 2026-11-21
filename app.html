@@ -123,6 +123,13 @@
   .spbar u{display:block;height:100%;background:var(--cobalt)}
   .spbar u.low{background:#d33}
   .loading{position:fixed;top:0;left:0;height:3px;background:var(--orange);z-index:30;width:0;transition:width .3s}
+.term{background:#0f1720;color:#d6e2ee;font:12.5px/1.45 ui-monospace,Menlo,Consolas,monospace;border-radius:14px;padding:10px 12px;min-height:260px;max-height:58vh;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.term .c{color:#7ee2a8}.term .e{color:#ff8a8a}.term .m{color:#8aa0b5}.term a,.term .l{color:#7cc4ff;text-decoration:underline;cursor:pointer}
+.termIn{display:flex;gap:6px;align-items:center;margin-top:8px;background:#0f1720;border-radius:12px;padding:4px 6px 4px 12px}
+.termIn span{color:#7ee2a8;font-family:ui-monospace,monospace}.termIn input{flex:1;background:transparent;border:0;color:#fff;font:14px ui-monospace,monospace;padding:8px 0;outline:none}
+.termIn button{background:#2b3a4a;color:#fff;border:0;border-radius:9px;padding:8px 12px;font-size:15px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.chips button{border:1px solid #d5dbe6;background:#fff;border-radius:999px;padding:6px 11px;font:13px ui-monospace,monospace}
+.editor{width:100%;min-height:62vh;font:12.5px/1.45 ui-monospace,Menlo,Consolas,monospace;white-space:pre;overflow:auto;tab-size:2;border-radius:10px;border:1px solid #d5dbe6;padding:10px;box-sizing:border-box}
 </style>
 </head>
 <body>
@@ -285,7 +292,7 @@
   <section class="tab" id="t-more">
     <div class="seg" id="moreSeg" style="margin-top:2px">
       <button data-m="site" class="on">🌐 Сайт</button><button data-m="stock">🧵 Пластик</button><button data-m="admins">👥 Доступ</button>
-      <button data-m="notify">🔔 Уведомления</button><button data-m="log">📜 Журнал</button><button data-m="links">🔗 Ссылки</button>
+      <button data-m="notify">🔔 Уведомления</button><button data-m="log">📜 Журнал</button><button data-m="links">🔗 Ссылки</button><button data-m="term">💻 Терминал</button>
     </div>
     <div data-mp="site">
       <h2>📢 Объявление на сайте</h2>
@@ -321,6 +328,14 @@
       <h2 style="margin-top:4px">🔔 Какие сообщения присылать мне</h2>
       <div class="form" id="notifyBox"></div>
       <button class="btn" id="notifySave" style="width:100%;margin-top:10px">Сохранить</button>
+    </div>
+    <div data-mp="term" hidden>
+      <div class="term" id="termOut"></div>
+      <div class="termIn"><span>$</span><input id="termIn" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="help — список команд"><button id="termGo">⏎</button></div>
+      <div class="chips" id="termChips">
+        <button data-t="help">help</button><button data-t="ls">ls</button><button data-t="find ">find</button><button data-t="edit ">edit</button>
+        <button data-t="history">history</button><button data-t="runs">runs</button><button data-t="sync">sync</button><button data-t="/статус">/статус</button><button data-t="clear">clear</button>
+      </div>
     </div>
     <div data-mp="log" hidden>
       <h2 style="margin-top:4px">📜 Кто что менял</h2>

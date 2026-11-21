@@ -181,6 +181,8 @@ function renderSite(){
   $$('#moreSeg [data-m="site"]').forEach(b => b.hidden = !can("site"));
   $$('#moreSeg [data-m="stock"]').forEach(b => b.hidden = !can("items"));
   $$('#moreSeg [data-m="log"]').forEach(b => b.hidden = !D.chief);
+  $$('#moreSeg [data-m="term"]').forEach(b => b.hidden = !D.real);
+  if ($("#termOut") && !$("#termOut").childNodes.length) tw("Терминал сайта. help — список команд, ls — файлы.", "m");
 }
 $("#ntSave").onclick = () => {
   const v = { on: $("#ntOn").checked, text: $("#ntText").value.trim(), until: $("#ntUntil").value, link: $("#ntLink").value.trim() };
@@ -536,7 +538,8 @@ $("#catPct").onclick = () => {
 };
 function sheet(html){ $("#sheet").innerHTML = html; $("#sheetBg").classList.add("on"); }
 function closeSheet(){ $("#sheetBg").classList.remove("on"); }
-$("#sheetBg").onclick = e => { if (e.target.id === "sheetBg") closeSheet(); };
+let editorOpen = false;
+$("#sheetBg").onclick = e => { if (e.target.id === "sheetBg" && !editorOpen) closeSheet(); };
 
 function openItem(no){
   const i = item(no); if (!i) return;
@@ -723,6 +726,150 @@ $("#inviteBtn").onclick = () => {
   };
 };
 $("#lq").oninput = () => renderLinks();
+
+/* ---------- терминал (только владелец) ---------- */
+const TERM_HELP = `Команды терминала:
+  ls [папка]          — файлы (нажмите на файл — откроется редактор)
+  find <слово>        — найти файлы по имени
+  cat <файл>          — показать файл
+  edit <файл>         — редактировать и сохранить
+  new <файл>          — создать новый файл
+  rm <файл>           — удалить файл (с подтверждением)
+  history [файл]      — последние изменения (всего сайта или файла)
+  restore <файл> <версия> — вернуть файл к прошлой версии
+  runs                — обновления сайта на GitHub (успех/ошибка)
+  sync                — обновить сайт прямо сейчас
+  /команда            — любая команда бота: /статус, /цена 5 300, /промо …
+  clear               — очистить экран
+
+Что где лежит:
+  index.html — сайт; config.js — телефон, ссылки; app.html/app.js — это приложение
+  yandex/bot.py — бот; scripts/ — синхронизация с каналом
+  *.json — данные: overrides (цены, скрытые), sales, promos, reviews, settings, access…
+JSON и Python проверяются перед сохранением — сломать бота опечаткой не выйдет.
+Любую правку можно откатить: history <файл> → restore.`;
+let termHist = []; try { termHist = JSON.parse(localStorage.getItem("termHist") || "[]"); } catch (e) {}
+let termPos = -1;
+function tw(text, cls){ const o = $("#termOut"); const d = document.createElement("div"); if (cls) d.className = cls; d.textContent = text; o.appendChild(d); o.scrollTop = o.scrollHeight; return d; }
+function twLink(text, run, cls){ const d = tw(text, "l" + (cls ? " " + cls : "")); d.onclick = () => termRun(run); return d; }
+async function term(op, extra){
+  try { const d = await api({ action: "term", op, ...extra }); return d.data; }
+  catch (e) { tw("✖ " + e.message, "e"); return null; }
+}
+const kb = n => n == null ? "" : n > 1024 ? (n / 1024).toFixed(1) + " КБ" : n + " Б";
+const dt = s => new Date(s).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+async function termRun(line){
+  line = (line || "").trim(); if (!line) return;
+  tw("$ " + line, "c");
+  if (termHist[0] !== line) { termHist.unshift(line); termHist = termHist.slice(0, 50); try { localStorage.setItem("termHist", JSON.stringify(termHist)); } catch (e) {} }
+  termPos = -1;
+  const [c, ...rest] = line.split(/\s+/); const arg = rest.join(" "); const cmdl = c.toLowerCase();
+  if (line.startsWith("/")) {
+    try { const d = await api({ action: "cmd", text: line }); tw((d.texts || []).join("\n\n") || "Готово"); } catch (e) { tw("✖ " + e.message, "e"); }
+    return;
+  }
+  if (cmdl === "help" || cmdl === "помощь") return tw(TERM_HELP, "m");
+  if (cmdl === "clear") { $("#termOut").innerHTML = ""; return; }
+  if (cmdl === "ls") {
+    const d = await term("ls", { path: arg }); if (!d) return;
+    const base = arg.replace(/^\/+|\/+$/g, "");
+    if (base) twLink("📁 ..", "ls " + base.split("/").slice(0, -1).join("/"));
+    d.files.forEach(f => { const full = (base ? base + "/" : "") + f.name;
+      f.type === "dir" ? twLink("📁 " + f.name + "/", "ls " + full) : twLink("📄 " + f.name + "  " + kb(f.size), "edit " + full); });
+    return;
+  }
+  if (cmdl === "find") {
+    if (!arg) return tw("Напишите, что искать: find promo", "e");
+    const d = await term("find", { q: arg }); if (!d) return;
+    if (!d.paths.length) return tw("Ничего не нашлось", "m");
+    d.paths.forEach(p => twLink("📄 " + p, "edit " + p));
+    return;
+  }
+  if (cmdl === "cat") {
+    const d = await term("cat", { path: arg }); if (!d) return;
+    if (d.binary) return tw(`Это не текстовый файл (${kb(d.size)}). Скачать: ${d.url}`, "m");
+    const lines = d.text.split("\n");
+    tw(lines.slice(0, 400).join("\n") + (lines.length > 400 ? `\n… ещё ${lines.length - 400} строк — откройте edit ${arg}` : ""));
+    return;
+  }
+  if (cmdl === "edit" || cmdl === "new") {
+    if (!arg) return tw("Укажите файл: " + cmdl + " index.html", "e");
+    let d = { text: "", sha: null };
+    if (cmdl === "edit") { d = await term("cat", { path: arg }); if (!d) return; if (d.binary) return tw("Это не текстовый файл — редактировать здесь нельзя.", "e"); }
+    return openEditor(arg.replace(/^\/+/, ""), d.text, d.sha);
+  }
+  if (cmdl === "rm") {
+    if (!arg) return tw("Укажите файл: rm старый.txt", "e");
+    return confirmBox("Удалить файл?", `«${esc(arg)}» будет удалён. Вернуть можно через history → restore.`, "🗑 Удалить", "red",
+      () => confirmBox("Точно удалить?", "Второе подтверждение.", "🗑 Да, удалить", "red", async () => { closeSheet(); const d = await term("rm", { path: arg }); if (d) tw(d.msg, "c"); }));
+  }
+  if (cmdl === "history") {
+    const d = await term("history", { path: arg }); if (!d) return;
+    d.commits.forEach(x => { const el = tw(`${x.sha.slice(0, 7)}  ${dt(x.date)}  ${x.msg}`); if (arg) { el.className = "l"; el.onclick = () => { $("#termIn").value = `restore ${arg} ${x.sha}`; $("#termIn").focus(); }; } });
+    if (arg) tw("Нажмите на строку — подставится команда возврата к этой версии.", "m");
+    else tw("history <файл> — изменения конкретного файла и откат.", "m");
+    return;
+  }
+  if (cmdl === "restore") {
+    const [path, ref] = rest;
+    if (!path || !ref) return tw("Нужно: restore <файл> <версия> (версию возьмите из history <файл>)", "e");
+    return confirmBox("Вернуть старую версию?", `«${esc(path)}» станет таким, каким был в версии ${esc(ref.slice(0, 7))}. Текущая версия останется в истории.`, "↩️ Вернуть", "",
+      async () => { closeSheet(); const d = await term("restore", { path, ref }); if (d) tw(d.msg, "c"); });
+  }
+  if (cmdl === "runs") {
+    const d = await term("runs"); if (!d) return;
+    d.runs.forEach(r => tw(`${r.status !== "completed" ? "⏳" : r.result === "success" ? "✅" : "❌"} ${dt(r.date)}  ${r.name}: ${r.title}`, r.result === "failure" ? "e" : ""));
+    return;
+  }
+  if (cmdl === "sync") { const d = await term("sync"); if (d) tw(d.msg, "c"); return; }
+  tw(`Не знаю команду «${c}». help — список команд. Команды бота пишутся со слэшем: /статус`, "e");
+}
+function openEditor(path, text, sha){
+  sheet(`<div class="top"><h3 style="font-family:ui-monospace,monospace;font-size:14px;word-break:break-all">✏️ ${esc(path)}</h3><button class="x" id="edX">×</button></div>
+    <div style="display:flex;gap:6px;margin-bottom:8px"><input id="edQ" placeholder="Найти в файле" style="flex:1"><button class="btn ghost sm" id="edFind">Найти ↓</button></div>
+    <textarea class="editor" id="edT" spellcheck="false" autocapitalize="off" autocomplete="off" wrap="off"></textarea>
+    <div class="muted" id="edInfo" style="font-size:12px;margin:6px 2px"></div>
+    <div class="btns full" id="edBtns"><button class="btn" id="edSave">💾 Сохранить</button><button class="btn ghost" id="edCancel">Закрыть</button></div>
+    <div class="card" id="edAsk" hidden><p id="edAskT" style="margin:0 0 10px"></p><div class="btns full"><button class="btn" id="edYes"></button><button class="btn ghost" id="edNo">Вернуться к правке</button></div></div>`);
+  editorOpen = true;
+  const t = $("#edT"); t.value = text;
+  const info = () => { const n = t.value.split("\n").length; $("#edInfo").textContent = `${n} строк · ${kb(new Blob([t.value]).size)}${t.value !== text ? " · есть несохранённые изменения" : ""}`; };
+  info(); t.oninput = info;
+  const ask = (msg, yes, cls, fn) => { $("#edAskT").innerHTML = msg; $("#edYes").textContent = yes; $("#edYes").className = "btn " + cls;
+    $("#edBtns").hidden = true; $("#edAsk").hidden = false; $("#edYes").onclick = fn; $("#edAsk").scrollIntoView({ block: "end" }); };
+  $("#edNo").onclick = () => { $("#edAsk").hidden = true; $("#edYes").hidden = false; $("#edBtns").hidden = false; };
+  const done = () => { editorOpen = false; closeSheet(); };
+  const quit = () => t.value === text ? done() : ask("Закрыть без сохранения? Изменения пропадут.", "Закрыть", "red", done);
+  $("#edX").onclick = quit; $("#edCancel").onclick = quit;
+  $("#edFind").onclick = () => { const q = $("#edQ").value; if (!q) return;
+    let i = t.value.toLowerCase().indexOf(q.toLowerCase(), t.selectionEnd); if (i < 0) i = t.value.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return toast("Не найдено");
+    t.focus(); t.setSelectionRange(i, i + q.length);
+    t.scrollTop = Math.max(0, (t.value.slice(0, i).split("\n").length - 5) * 18); };
+  $("#edSave").onclick = () => {
+    if (t.value === text && sha) return toast("Изменений нет");
+    const a = text.split("\n"), b = t.value.split("\n"); let ch = 0;
+    for (let k = 0; k < Math.max(a.length, b.length); k++) if (a[k] !== b[k]) ch++;
+    const val = t.value;
+    ask(`Сохранить <b>${esc(path)}</b>? Изменено строк ≈ ${ch}. Изменение попадёт на сайт через 1–3 минуты. Откатить можно: history ${esc(path)}.`, "💾 Да, сохранить", "",
+      async () => {
+        $("#edYes").disabled = true;
+        try {
+          const d = await api({ action: "term", op: "write", path, text: val, sha });
+          done(); tw(d.data.msg, "c");
+        } catch (e) { $("#edAskT").innerHTML = "❌ " + esc(e.message); $("#edYes").hidden = true; }
+        finally { $("#edYes").disabled = false; }
+      });
+  };
+}
+$("#termGo").onclick = () => { const v = $("#termIn").value; $("#termIn").value = ""; termRun(v); };
+$("#termIn").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); $("#termGo").onclick(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); if (termPos < termHist.length - 1) $("#termIn").value = termHist[++termPos]; }
+  else if (e.key === "ArrowDown") { e.preventDefault(); termPos = Math.max(-1, termPos - 1); $("#termIn").value = termPos < 0 ? "" : termHist[termPos]; }
+});
+$$("#termChips [data-t]").forEach(b => b.onclick = () => { const v = b.dataset.t; if (v.endsWith(" ")) { $("#termIn").value = v; $("#termIn").focus(); } else termRun(v); });
+
 function renderLinks(){
   const q = $("#lq").value.trim().toLowerCase();
   const list = [...D.links].reverse().filter(l => !q || [l.title, l.note, l.site, l.url, (l.tags || []).join(" ")].join(" ").toLowerCase().includes(q)).slice(0, 80);

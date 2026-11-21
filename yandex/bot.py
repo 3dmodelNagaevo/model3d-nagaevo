@@ -1438,6 +1438,113 @@ def webapp_user(init_data):
         return None
 
 
+# ---------------------------------------------------------------- терминал (только владелец и его аккаунты)
+
+TERM_PROTECT = {"index.html", "app.html", "app.js", "config.js", "CNAME", "catalog.json", "access.json", "state.json",
+                "yandex/bot.py", "yandex/index.py", "scripts/sync_max.py", "scripts/maxapi.py", "channel_id.txt"}
+
+
+def _term_path(p):
+    p = str(p or "").strip().strip("/").replace("\\", "/")
+    if ".." in p.split("/") or p.startswith(".git/"):
+        raise ValueError("Недопустимый путь")
+    return p
+
+
+def app_term(uid, req):
+    op = req.get("op")
+    path = _term_path(req.get("path"))
+    q = urllib.parse.quote(path)
+    if op == "ls":
+        d = gh("GET", f"/repos/{REPO}/contents/{q}?ref=main")
+        if isinstance(d, dict):
+            return {"files": [{"name": d["name"], "type": "file", "size": d.get("size")}]}
+        return {"files": sorted([{"name": x["name"], "type": x["type"], "size": x.get("size")} for x in d],
+                                key=lambda x: (x["type"] != "dir", x["name"].lower()))}
+    if op == "find":
+        word = str(req.get("q") or "").lower()
+        t = gh("GET", f"/repos/{REPO}/git/trees/main?recursive=1")
+        return {"paths": [x["path"] for x in t.get("tree", []) if x["type"] == "blob" and word in x["path"].lower()][:200]}
+    if op == "cat":
+        d = gh("GET", f"/repos/{REPO}/contents/{q}?ref=main")
+        if isinstance(d, list):
+            raise ValueError("Это папка — используйте ls")
+        raw = base64.b64decode(d["content"]) if d.get("content") else urllib.request.urlopen(
+            urllib.request.Request(d["download_url"], headers={"User-Agent": UA}), timeout=25).read()
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            return {"binary": True, "size": d.get("size"), "url": d.get("download_url"), "sha": d["sha"]}
+        return {"text": text, "sha": d["sha"], "size": d.get("size")}
+    if op in ("write", "rm"):
+        if not path:
+            raise ValueError("Укажите файл")
+        if op == "rm":
+            if path in TERM_PROTECT:
+                raise ValueError("Этот файл нужен для работы сайта или бота — удалять нельзя. Можно отредактировать.")
+            d = gh("GET", f"/repos/{REPO}/contents/{q}?ref=main")
+            gh("DELETE", f"/repos/{REPO}/contents/{q}", {"message": f"Терминал: удалён {path}", "sha": d["sha"], "branch": "main",
+                                                         "committer": {"name": "catalog-bot", "email": "catalog-bot@users.noreply.github.com"}})
+            log_action(uid, f"[терминал] удалил {path}")
+            return {"msg": f"🗑 {path} удалён. Вернуть: history {path} → restore"}
+        text = str(req.get("text") if req.get("text") is not None else "")
+        if path.endswith(".json"):
+            try:
+                json.loads(text)
+            except Exception as e:
+                raise ValueError(f"Ошибка в JSON, файл НЕ сохранён: {e}")
+        if path.endswith(".py"):
+            try:
+                compile(text, path, "exec")
+            except SyntaxError as e:
+                raise ValueError(f"Ошибка в Python (строка {e.lineno}: {e.msg}), файл НЕ сохранён — иначе бот перестанет работать.")
+        body = {"message": f"Терминал: {path}", "branch": "main", "content": base64.b64encode(text.encode()).decode(),
+                "committer": {"name": "catalog-bot", "email": "catalog-bot@users.noreply.github.com"}}
+        if req.get("sha"):
+            body["sha"] = req["sha"]
+        try:
+            r = gh("PUT", f"/repos/{REPO}/contents/{q}", body)
+        except urllib.error.HTTPError as e:
+            if e.code in (409, 422):
+                raise ValueError("Файл успели изменить (бот или синхронизация). Откройте его заново и повторите правку.")
+            if e.code in (403, 404) and path.startswith(".github/"):
+                raise ValueError("GitHub не даёт менять файлы .github/ этим ключом — правьте их на github.com.")
+            raise
+        log_action(uid, f"[терминал] изменил {path}")
+        return {"msg": f"💾 {path} сохранён. Сайт обновится через 1–3 минуты" + (", бот — до 5 минут." if path.startswith("yandex/") else "."),
+                "sha": (r.get("content") or {}).get("sha")}
+    if op == "history":
+        cs = gh("GET", f"/repos/{REPO}/commits?per_page=20" + (f"&path={q}" if path else ""))
+        return {"commits": [{"sha": c["sha"][:10], "msg": c["commit"]["message"].split("\n")[0][:90],
+                             "date": c["commit"]["committer"]["date"]} for c in cs]}
+    if op == "restore":
+        ref = re.sub(r"[^0-9a-f]", "", str(req.get("ref") or "").lower())
+        if not path or len(ref) < 7:
+            raise ValueError("Нужно: restore <файл> <версия>")
+        old = gh("GET", f"/repos/{REPO}/contents/{q}?ref={ref}")
+        try:
+            cur = gh("GET", f"/repos/{REPO}/contents/{q}?ref=main")["sha"]
+        except urllib.error.HTTPError:
+            cur = None
+        content = old.get("content") or base64.b64encode(urllib.request.urlopen(
+            urllib.request.Request(old["download_url"], headers={"User-Agent": UA}), timeout=25).read()).decode()
+        body = {"message": f"Терминал: {path} возвращён к версии {ref[:7]}", "branch": "main", "content": content.replace("\n", ""),
+                "committer": {"name": "catalog-bot", "email": "catalog-bot@users.noreply.github.com"}}
+        if cur:
+            body["sha"] = cur
+        gh("PUT", f"/repos/{REPO}/contents/{q}", body)
+        log_action(uid, f"[терминал] вернул {path} к {ref[:7]}")
+        return {"msg": f"↩️ {path} возвращён к версии {ref[:7]}."}
+    if op == "runs":
+        r = gh("GET", f"/repos/{REPO}/actions/runs?per_page=10")
+        return {"runs": [{"name": x["name"], "title": (x.get("display_title") or "")[:70], "status": x["status"],
+                          "result": x.get("conclusion"), "date": x["created_at"], "url": x["html_url"]} for x in r.get("workflow_runs", [])]}
+    if op == "sync":
+        run_sync()
+        return {"msg": "🔄 Обновление сайта запущено (1–3 минуты)."}
+    raise ValueError("Неизвестная команда терминала")
+
+
 def app_dash(uid):
     from concurrent.futures import ThreadPoolExecutor
     names = ["sales.json", "reviews.json", "promos.json", "overrides.json", "links.json", "catalog.json"]
@@ -1626,6 +1733,15 @@ def site_app(event, headers):
             msg = app_export(uid) if act == "export" else fn(uid, req)
             log_action(uid, f"[приложение] {act} " + json.dumps({k: v for k, v in req.items() if k not in ("initData", "photos", "action")}, ensure_ascii=False)[:200])
             return out(200, ok=True, texts=[msg])
+        if act == "term":
+            if uid not in cfg.get("real", ()):
+                return out(403, error="Терминал доступен только владельцу")
+            try:
+                return out(200, ok=True, data=app_term(uid, req))
+            except ValueError as e:
+                return out(400, error=str(e))
+            except urllib.error.HTTPError as e:
+                return out(400, error="GitHub: " + ("не найдено" if e.code == 404 else f"ошибка {e.code}"))
         if act == "invite":
             try:
                 link, perms = make_invite(uid, req.get("perms"))
