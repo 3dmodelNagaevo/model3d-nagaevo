@@ -96,6 +96,57 @@ def gh(method, path, body=None):
                  "X-GitHub-Api-Version": "2022-11-28"}, body)
 
 
+# ---------------------------------------------------------------- шифрование финансовых файлов
+# Репозиторий публичный, поэтому продажи, расходы, себестоимость, пластик и журнал хранятся зашифрованными.
+# Ключ выводится из SECRET (переменная функции), в репозитории его нет. Только стандартная библиотека:
+# поток HMAC-SHA256 в режиме счётчика + проверка целостности HMAC (encrypt-then-MAC).
+
+PRIVATE = {"sales.json", "finance.json", "stock.json", "log.json"}
+_plain_seen = set()
+
+
+def _keys():
+    base = hashlib.sha256(("model3d-data-v1:" + SECRET).encode()).digest()
+    return (hmac.new(base, b"enc", hashlib.sha256).digest(), hmac.new(base, b"mac", hashlib.sha256).digest())
+
+
+def _stream(key, nonce, n):
+    out, i = bytearray(), 0
+    while len(out) < n:
+        out += hmac.new(key, nonce + i.to_bytes(8, "big"), hashlib.sha256).digest()
+        i += 1
+    return bytes(out[:n])
+
+
+def seal(data):
+    import zlib
+    ke, km = _keys()
+    raw = zlib.compress(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode(), 9)
+    nonce = os.urandom(16)
+    ct = bytes(a ^ b for a, b in zip(raw, _stream(ke, nonce, len(raw))))
+    tag = hmac.new(km, nonce + ct, hashlib.sha256).digest()[:16]
+    return {"encrypted": "Зашифровано: финансовые данные видит только бот и приложение управления.", "v": 1,
+            "n": base64.b64encode(nonce).decode(), "c": base64.b64encode(ct).decode(), "t": base64.b64encode(tag).decode()}
+
+
+def unseal(doc):
+    import zlib
+    ke, km = _keys()
+    nonce, ct, tag = (base64.b64decode(doc[k]) for k in ("n", "c", "t"))
+    if not hmac.compare_digest(hmac.new(km, nonce + ct, hashlib.sha256).digest()[:16], tag):
+        raise RuntimeError("Не удалось расшифровать данные: SECRET функции изменился?")
+    return json.loads(zlib.decompress(bytes(a ^ b for a, b in zip(ct, _stream(ke, nonce, len(ct))))))
+
+
+def _open(name, data):
+    if name in PRIVATE and isinstance(data, dict):
+        if "c" in data and "n" in data and "t" in data:
+            return unseal(data)
+        if SECRET:
+            _plain_seen.add(name)
+    return data
+
+
 def gh_file(name):
     """(данные, sha) файла из репозитория."""
     try:
@@ -108,17 +159,44 @@ def gh_file(name):
     if not raw:  # файл больше 1 МБ — через raw
         req = urllib.request.Request(d["download_url"], headers={"User-Agent": UA})
         with urllib.request.urlopen(req, timeout=20) as r:
-            return json.loads(r.read()), d["sha"]
-    return json.loads(base64.b64decode(raw)), d["sha"]
+            return _open(name, json.loads(r.read())), d["sha"]
+    return _open(name, json.loads(base64.b64decode(raw))), d["sha"]
 
 
 def gh_put(name, data, sha, message):
+    plain = data
+    if name in PRIVATE and SECRET:
+        data = seal(data)
+        _plain_seen.discard(name)
     body = {"message": message, "branch": "main",
             "content": base64.b64encode((json.dumps(data, ensure_ascii=False, indent=2) + "\n").encode()).decode(),
             "committer": {"name": "catalog-bot", "email": "catalog-bot@users.noreply.github.com"}}
     if sha:
         body["sha"] = sha
     gh("PUT", f"/repos/{REPO}/contents/{name}", body)
+    if name == "sales.json":
+        publish_sold(plain)
+
+
+def publish_sold(sd):
+    """Для сайта («Продано: N шт.») — только номер модели, количество и день. Без цен и сумм."""
+    rows = [{"no": r.get("no"), "qty": int(r.get("qty") or 1), "ts": int(r.get("ts") or 0) // 86400000 * 86400000}
+            for r in (sd or {}).get("sales", [])]
+    try:
+        old, sha = gh_file("sold.json")
+        if (old or {}).get("sales") != rows:
+            gh_put("sold.json", {"sales": rows}, sha, "Бот: счётчики «Продано» для сайта")
+    except Exception as e:
+        print("sold.json:", e)
+
+
+def migrate_private():
+    """Файлы, ещё лежащие открыто, перезаписываем зашифрованными (один раз)."""
+    for name in list(_plain_seen):
+        try:
+            update_json(name, lambda d: None, "Бот: шифрование финансовых данных", {})
+        except Exception as e:
+            print("migrate", name, e)
 
 
 def gh_put_bytes(name, data, message):
@@ -1471,6 +1549,9 @@ def app_term(uid, req):
             raise ValueError("Это папка — используйте ls")
         raw = base64.b64decode(d["content"]) if d.get("content") else urllib.request.urlopen(
             urllib.request.Request(d["download_url"], headers={"User-Agent": UA}), timeout=25).read()
+        if path in PRIVATE:                         # финансовые файлы показываем расшифрованными
+            return {"text": json.dumps(_open(path, json.loads(raw)), ensure_ascii=False, indent=2) + "\n", "sha": d["sha"],
+                    "size": d.get("size"), "note": "🔒 Файл хранится зашифрованным, здесь показан расшифрованным."}
         try:
             text = raw.decode("utf-8")
         except UnicodeDecodeError:
@@ -1490,9 +1571,18 @@ def app_term(uid, req):
         text = str(req.get("text") if req.get("text") is not None else "")
         if path.endswith(".json"):
             try:
-                json.loads(text)
+                parsed = json.loads(text)
             except Exception as e:
                 raise ValueError(f"Ошибка в JSON, файл НЕ сохранён: {e}")
+            if path in PRIVATE:                     # сохраняем снова зашифрованным
+                try:
+                    gh_put(path, parsed, req.get("sha"), f"Терминал: {path}")
+                except urllib.error.HTTPError as e:
+                    if e.code in (409, 422):
+                        raise ValueError("Файл успели изменить. Откройте его заново и повторите правку.")
+                    raise
+                log_action(uid, f"[терминал] изменил {path}")
+                return {"msg": f"💾 {path} сохранён (зашифрован)."}
         if path.endswith(".py"):
             try:
                 compile(text, path, "exec")
@@ -1574,6 +1664,8 @@ def app_dash(uid):
         more = dict(zip(["settings.json", "finance.json", "stock.json", "outbox.json", "log.json"],
                         ex.map(lambda n: gh_file(n)[0], ["settings.json", "finance.json", "stock.json", "outbox.json", "log.json"])))
     st = more["settings.json"]
+    if _plain_seen:
+        migrate_private()
     return {
         "expenses": (more["finance.json"] or {}).get("expenses", []),
         "spools": (more["stock.json"] or {}).get("spools", []),
@@ -1589,7 +1681,7 @@ def app_dash(uid):
                                          "sold", "photos", "photos_orig", "url", "ts", "hidden", "desc", "badge", "pin", "size", "color")}
                   | {"hidden": i.get("no") in hidden} for i in items],
         "hiddenNos": sorted(hidden),
-        "overrides": ov or {},
+        "overrides": {**(ov or {}), "cost": (more["finance.json"] or {}).get("cost") or {}},
         "sales": (sd or {}).get("sales", []),
         "reviews": (cat or {}).get("reviews", []),
         "reviewsBot": (rv or {}).get("reviews", []),
@@ -1814,13 +1906,17 @@ def app_card(uid, req):
             if req.get("pin"):
                 pins.insert(0, no)
             d["pin"] = pins
-        if "cost" in req:
+        d.pop("cost", None)                       # себестоимость — в зашифрованном finance.json
+    update_overrides(f, f"Приложение: карточка №{no}")
+    if "cost" in req:
+        k = str(no)
+        def fc(d):
             try:
                 c = float(str(req.get("cost")).replace(",", "."))
                 d.setdefault("cost", {})[k] = round(c, 2)
             except Exception:
                 (d.get("cost") or {}).pop(k, None)
-    update_overrides(f, f"Приложение: карточка №{no}")
+        update_json("finance.json", fc, "Приложение: себестоимость", {"expenses": []})
     run_sync()
     return f"✅ Карточка №{no} сохранена. На сайте — через 1–3 минуты."
 
@@ -1975,8 +2071,7 @@ def app_export(uid):
     items = {i["no"]: i for i in catalog_items()}
     sd, _ = gh_file("sales.json")
     fin, _ = gh_file("finance.json")
-    ov, _ = gh_file("overrides.json")
-    cost = (ov or {}).get("cost") or {}
+    cost = (fin or {}).get("cost") or {}
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")
     w.writerow(["Продажи"])

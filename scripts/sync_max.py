@@ -34,7 +34,8 @@ import outbox
 CATALOG = ROOT / "catalog.json"
 STATE = ROOT / "state.json"
 OVERRIDES = ROOT / "overrides.json"   # /скрыть и /цена из бота (правят и GitHub, и Yandex Cloud)
-SALES = ROOT / "sales.json"           # отметки «/продано» из бота
+SALES = ROOT / "sales.json"           # отметки «/продано» из бота (зашифрованы ботом — репозиторий публичный)
+SOLD = ROOT / "sold.json"             # открытая выжимка для сайта: номер, количество, день — без цен
 REVIEWS = ROOT / "reviews.json"       # отзывы, присланные боту (/отзыв)
 PROMOS = ROOT / "promos.json"         # промокоды (управление — в боте)
 PHOTOS = ROOT / "photos"
@@ -538,9 +539,11 @@ def main():
 
         # 1) команды от владельца (до синхронизации, чтобы /скрыть и /пост сработали сразу)
         sales_doc = load_json(SALES, {"sales": []})
+        if "c" in sales_doc and "n" in sales_doc:        # зашифровано — здесь не трогаем, счётчики берём из sold.json
+            sales_doc = None
         sales_before = json.dumps(sales_doc, sort_keys=True)
         deferred = bot.process_commands(token, chat_id, owners, state, notifier, ov, sales_doc)
-        if json.dumps(sales_doc, sort_keys=True) != sales_before:
+        if sales_doc is not None and json.dumps(sales_doc, sort_keys=True) != sales_before:
             dump_json(SALES, sales_doc)
         dump_json(STATE, state)   # сохраняем сразу: команды не выполнятся повторно
         if json.dumps(ov, sort_keys=True) != ov_before or not OVERRIDES.exists():
@@ -557,7 +560,7 @@ def main():
     bot_reviews = load_json(REVIEWS, {}).get("reviews", [])
     items, reviews, events = sync(messages, old_items, old_reviews, state, whole, ov, bot_reviews)
     update_views(items, old_items, state)
-    apply_sales(items, sales_doc.get("sales", []))
+    apply_sales(items, (sales_doc or load_json(SOLD, {})).get("sales", []))
 
     # 3) страницы товаров, QR
     pages.generate(items, SITE_URL)
@@ -597,7 +600,7 @@ def main():
         except Exception as e:
             log(f"  ! ответ на команду: {e}")
     bot.notify_events(notifier, events, SITE_URL)
-    bot.maybe_weekly_report(notifier, items, state, SITE_URL, sales_doc.get("sales", []))
+    bot.maybe_weekly_report(notifier, items, state, SITE_URL, (sales_doc or load_json(SOLD, {})).get("sales", []))
 
     # 4б) напоминание: в канале давно не было постов
     try:

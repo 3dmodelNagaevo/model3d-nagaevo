@@ -796,6 +796,7 @@ async function termRun(line){
     if (!arg) return tw("Укажите файл: " + cmdl + " index.html", "e");
     let d = { text: "", sha: null };
     if (cmdl === "edit") { d = await term("cat", { path: arg }); if (!d) return; if (d.binary) return tw("Это не текстовый файл — редактировать здесь нельзя.", "e"); }
+    if (d.note) tw(d.note, "m");
     return openEditor(arg.replace(/^\/+/, ""), d.text, d.sha);
   }
   if (cmdl === "rm") {
