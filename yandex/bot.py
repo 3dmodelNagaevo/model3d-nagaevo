@@ -1562,19 +1562,19 @@ def max_send_file(uid, name, blob, mime, text):
             raise
 
 
-CONTRACT_DEFAULTS = {"name": "", "phone": "", "city": "с. Нагаево", "days": "7 дней", "prepay": 50,
-                     "delivery": "самовывоз (с. Нагаево)", "warranty_days": 7}
+CONTRACT_DEFAULTS = {"name": "3D модели Нагаево", "phone": "", "city": "с. Нагаево", "days": "по договорённости", "prepay": 0,
+                     "delivery": "по договорённости"}
 
 CONTRACT_HELP = ("📄 Договор на оказание услуг — бот пришлёт PDF (отправить покупателю) и Word (если нужно поправить).\n"
                  "Подписи не нужны: покупатель отвечает в чате «Ознакомлен, согласен» — и договор заключён.\n\n"
                  "Напишите одним сообщением, например:\n\n"
-                 "/договор\nЗаказчик: Петров Пётр Петрович\nТелефон: +7 900 000-00-00\n38 2\n12 1 250\n"
-                 "Моделирование по фото — 500\nСрок: 5 дней\nПредоплата: 50%\nПолучение: самовывоз\n\n"
+                 "/договор\nЗаказчик: Анна П.\n38 2\n12 1 250\n"
+                 "Моделирование по фото — 500\nПредоплата: 50%\n\n"
                  "• «38 2» — модель №38, 2 шт. (цена с сайта); «12 1 250» — №12, 1 шт. по 250 ₽;\n"
                  "• «Название — 500» или «Название — 2 × 500» — любая услуга;\n"
-                 "• Заказчика и телефон можно не писать — в договоре останутся пустые строки, их заполнят от руки;\n"
-                 "• срок, предоплата и получение — необязательно, иначе возьмутся ваши настройки.\n\n"
-                 "Ваши данные (один раз): /договор данные ФИО; телефон; населённый пункт")
+                 "• Заказчик — имя его аккаунта в MAX (можно не писать); телефон — «Телефон: …», если нужен;\n"
+                 "• срок, получение и порядок оплаты по умолчанию — «по договорённости» (предоплату можно указать: «Предоплата: 50%»); можно указать «Срок: 5 дней», «Получение: самовывоз».\n\n"
+                 "Исполнитель в договоре — «3D модели Нагаево». Изменить: /договор данные Название; телефон; населённый пункт")
 
 
 def contract_settings():
@@ -1611,9 +1611,6 @@ def make_contract(uid, req):
         items.append({"name": name[:200], "qty": qty, "price": price})
     if not items:
         raise ValueError("Нет ни одной позиции — добавьте модель или услугу.")
-    if not st.get("name"):
-        raise ValueError("Сначала укажите свои данные: /договор данные ФИО; телефон; населённый пункт "
-                         "(или в приложении: Продажи → Договор → Мои данные).")
     holder = {}
     def f(d):
         n = int(d.get("next") or 1)
@@ -1629,7 +1626,7 @@ def make_contract(uid, req):
             "items": items, "days": str(req.get("days") or st.get("days") or "").strip(),
             "prepay": int(float(str(req.get("prepay") if req.get("prepay") not in (None, "") else st.get("prepay")).strip("% ") or 0)),
             "delivery": str(req.get("delivery") or st.get("delivery") or "самовывоз"),
-            "warranty_days": st.get("warranty_days") or 7}
+            }
     m, reg, bold = contract_mod()
     blocks = m.build(data)
     pdf = m.to_pdf(blocks, reg, bold, f"Договор № {n} от {date}")
@@ -1692,10 +1689,9 @@ def contract_cmd(uid, text):
         if not parts:
             st = contract_settings()
             return send(uid, "👤 Ваши данные в договоре:\n"
-                             f"ФИО: {st['name'] or '— не указано'}\nТелефон: {st['phone'] or '—'}\nНаселённый пункт: {st['city']}\n"
-                             f"Срок по умолчанию: {st['days']}\nПредоплата: {st['prepay']}%\nПолучение: {st['delivery']}\n"
-                             f"Гарантия на переделку: {st['warranty_days']} дней\n\n"
-                             "Изменить: /договор данные ФИО; телефон; населённый пункт")
+                             f"Исполнитель: {st['name']}\nТелефон: {st['phone'] or '— не указан'}\nНаселённый пункт: {st['city']}\n"
+                             f"Предоплата по умолчанию: {st['prepay']}%\n\n"
+                             "Изменить: /договор данные Название; телефон; населённый пункт")
         def f(d):
             s2 = d.setdefault("settings", {})
             s2["name"] = parts[0][:120]
@@ -2186,9 +2182,8 @@ def site_app(event, headers):
                         for k in ("name", "phone", "city", "days", "delivery"):
                             if k in v:
                                 s2[k] = str(v[k] or "").strip()[:120]
-                        for k in ("prepay", "warranty_days"):
-                            if k in v:
-                                s2[k] = max(0, min(100 if k == "prepay" else 365, int(float(v[k] or 0))))
+                        if "prepay" in v:
+                            s2["prepay"] = max(0, min(100, int(float(v["prepay"] or 0))))
                     update_json("contracts.json", fs, "Приложение: данные для договора", {"next": 1})
                     return out(200, ok=True, texts=["✅ Данные для договоров сохранены"])
                 if req.get("op") == "get":

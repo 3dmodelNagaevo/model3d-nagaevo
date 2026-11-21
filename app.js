@@ -742,21 +742,20 @@ $("#ctBtn").onclick = async () => {
   sheet(`<div class="top"><h3>📄 Договор</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
     <p class="muted" style="font-size:13px;margin-top:0">Бот пришлёт в чат PDF (переслать покупателю) и Word (если нужно поправить). Подписи не нужны: покупатель отвечает в чате «Ознакомлен, согласен».</p>
     <div class="form">
-      <label>Заказчик (ФИО)<input id="ctName" placeholder="можно оставить пустым"></label>
-      <label>Телефон заказчика<input id="ctPhone" inputmode="tel" placeholder="можно оставить пустым"></label>
+      <label>Заказчик — имя аккаунта в MAX<input id="ctName" placeholder="как подписан в MAX, можно пусто"></label>
+      <label>Телефон заказчика (необязательно)<input id="ctPhone" inputmode="tel" placeholder="можно оставить пустым"></label>
       <b>Что делаем</b>
       <div id="ctRows" style="display:flex;flex-direction:column;gap:8px"></div>
       <div class="btns"><button class="btn ghost sm" id="ctAddM">➕ Модель с сайта</button><button class="btn ghost sm" id="ctAddS">➕ Услуга</button></div>
-      <div class="grid2"><label>Срок<input id="ctDays" value="${esc(st.days || "7 дней")}"></label><label>Предоплата, %<input id="ctPre" inputmode="numeric" value="${esc(st.prepay != null ? st.prepay : 50)}"></label></div>
-      <label>Получение<input id="ctDel" value="${esc(st.delivery || "самовывоз")}"></label>
+      <div class="grid2"><label>Срок<input id="ctDays" value="${esc(st.days || "по договорённости")}"></label><label>Предоплата, %<input id="ctPre" inputmode="numeric" value="${esc(st.prepay ? st.prepay : "")}" placeholder="по договорённости"></label></div>
+      <label>Получение<input id="ctDel" value="${esc(st.delivery || "по договорённости")}"></label>
       <div id="ctSum" class="muted"></div>
       <button class="btn" id="ctGo">📄 Сформировать договор</button>
-      <details style="margin-top:6px"><summary><b>👤 Мои данные в договоре</b>${st.name ? "" : " — <span style='color:#d33'>заполните</span>"}</summary>
+      <details style="margin-top:6px"><summary><b>👤 Исполнитель в договоре</b></summary>
         <div class="form" style="margin-top:8px">
-          <label>Ваши ФИО<input id="ctMeName" value="${esc(st.name || "")}" placeholder="Иванов Иван Иванович"></label>
+          <label>Исполнитель<input id="ctMeName" value="${esc(st.name || "3D модели Нагаево")}"></label>
           <label>Ваш телефон<input id="ctMePhone" value="${esc(st.phone || "")}" inputmode="tel"></label>
           <label>Населённый пункт<input id="ctMeCity" value="${esc(st.city || "с. Нагаево")}"></label>
-          <label>Срок переделки брака, дней<input id="ctMeW" inputmode="numeric" value="${esc(st.warranty_days || 7)}"></label>
           <button class="btn ghost" id="ctMeSave">💾 Сохранить мои данные</button>
         </div></details>
       ${(info.issued || []).length ? `<details><summary><b>📋 Выданные договоры</b></summary>${info.issued.slice().reverse().map(x => `<div class="muted" style="font-size:13px;margin:4px 0">№${x.n} от ${esc(x.date)} — ${esc(x.customer || "без имени")}, ${Math.round(x.total)} ₽</div>`).join("")}</details>` : ""}
@@ -786,13 +785,12 @@ $("#ctBtn").onclick = async () => {
   $("#ctAddM").onclick = () => { upd(); rows.push({ kind: "model", qty: 1 }); draw(); };
   $("#ctAddS").onclick = () => { upd(); rows.push({ kind: "service", qty: 1 }); draw(); };
   rows.push({ kind: "model", qty: 1 }); draw();
-  $("#ctMeSave").onclick = () => act({ action: "contract", op: "settings", value: { name: $("#ctMeName").value, phone: $("#ctMePhone").value, city: $("#ctMeCity").value, warranty_days: $("#ctMeW").value } }, false);
+  $("#ctMeSave").onclick = () => act({ action: "contract", op: "settings", value: { name: $("#ctMeName").value, phone: $("#ctMePhone").value, city: $("#ctMeCity").value } }, false);
   $("#ctGo").onclick = async () => {
     upd();
     const items = rows.filter(r => r.kind === "model" ? r.no : r.name).map(r => r.kind === "model" ? { no: r.no, qty: r.qty, price: r.price } : { name: r.name, qty: r.qty, price: r.price });
     if (!items.length) return toast("Добавьте модель или услугу");
-    if (!$("#ctMeName").value.trim()) { $("details").open = true; return toast("Заполните «Мои данные» — ваши ФИО"); }
-    if ($("#ctMeName").value.trim() !== (st.name || "")) await act({ action: "contract", op: "settings", value: { name: $("#ctMeName").value, phone: $("#ctMePhone").value, city: $("#ctMeCity").value, warranty_days: $("#ctMeW").value } }, false);
+    if ($("#ctMeName").value.trim() && $("#ctMeName").value.trim() !== (st.name || "")) await act({ action: "contract", op: "settings", value: { name: $("#ctMeName").value, phone: $("#ctMePhone").value, city: $("#ctMeCity").value } }, false);
     $("#ctGo").disabled = true; $("#ctGo").textContent = "Готовлю…";
     try {
       const d = await api({ action: "contract", customer: { name: $("#ctName").value, phone: $("#ctPhone").value }, items,
