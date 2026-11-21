@@ -1,0 +1,60 @@
+name: Отложенные посты — точно по времени
+
+# Расписание GitHub (cron) часто опаздывает на 20–60 минут. Поэтому, когда в приложении
+# планируют пост, бот запускает этот процесс: он ждёт до нужной минуты и сразу запускает
+# обновление (sync.yml), которое публикует пост. Новый запуск отменяет старый — ждём всегда
+# самый ранний пост. Время ожидания одного запуска — до 5,5 часа, дальше он перезапускает сам себя.
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: outbox-wait
+  cancel-in-progress: true
+
+jobs:
+  wait:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Ждём время публикации
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import base64, json, os, time, urllib.request
+          repo, tok = os.environ["REPO"], os.environ["GH_TOKEN"]
+          start = time.time()
+          def api(method, path, body=None):
+              req = urllib.request.Request("https://api.github.com" + path, method=method,
+                  data=json.dumps(body).encode() if body is not None else None,
+                  headers={"Authorization": "Bearer " + tok, "Accept": "application/vnd.github+json", "User-Agent": "outbox-wait"})
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  raw = r.read()
+                  return json.loads(raw) if raw.strip() else {}
+          def pending():
+              d = api("GET", f"/repos/{repo}/contents/outbox.json?ref=main")
+              posts = json.loads(base64.b64decode(d["content"])).get("posts", [])
+              return sorted(p["at"] for p in posts if p.get("at") and not p.get("done"))
+          fired = set()
+          while True:
+              ats = [a for a in pending() if a not in fired]
+              if not ats:
+                  print("Отложенных постов нет"); break
+              at = ats[0]
+              now = time.time()
+              if now - start > 5.3 * 3600:
+                  print("Перезапускаю ожидание"); api("POST", f"/repos/{repo}/actions/workflows/outbox-wait.yml/dispatches", {"ref": "main"}); break
+              if at - now > 60:
+                  time.sleep(min(at - now - 30, 120))     # проверяем раз в 2 минуты: пост могли отменить или перенести
+                  continue
+              time.sleep(max(0, at - time.time()))
+              print("Пора публиковать:", time.strftime("%H:%M", time.gmtime(at + 5 * 3600)), "по Уфе")
+              api("POST", f"/repos/{repo}/actions/workflows/sync.yml/dispatches", {"ref": "main"})
+              fired.add(at)
+              time.sleep(90)
+          PY

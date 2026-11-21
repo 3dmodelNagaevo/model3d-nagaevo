@@ -346,7 +346,7 @@ $("#newPost").onclick = () => {
       const at = Math.floor(new Date(atv).getTime() / 1000);
       if (!at || at < Date.now() / 1000 + 60) return toast("Время публикации должно быть в будущем");
       if (!text) return toast("Для отложенного поста нужен текст");
-      return confirmBox("Запланировать пост?", "Пост выйдет в канале " + new Date(at * 1000).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + " (может на 5–15 минут позже).",
+      return confirmBox("Запланировать пост?", "Пост выйдет в канале " + new Date(at * 1000).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + " (в течение 1–3 минут после этого времени).",
         "🕒 Да, запланировать", "", () => { closeSheet(); toast("Сохраняю…"); act({ action: "post_schedule", text, photos, at }); });
     }
     confirmBox("Опубликовать пост?", "Пост сразу появится в канале — его увидят подписчики.", "📣 Да, опубликовать", "",

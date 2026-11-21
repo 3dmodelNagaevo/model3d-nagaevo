@@ -2388,8 +2388,12 @@ def app_schedule(uid, req):
             print("schedule photo:", e)
     entry = {"id": pid, "title": text.split("\n", 1)[0][:60], "text": text, "images": paths, "at": at, "by": uid}
     update_json("outbox.json", lambda d: d.setdefault("posts", []).append(entry), "Приложение: отложенный пост", {"posts": []})
+    try:                                    # «будильник» на GitHub: опубликует точно в срок, не дожидаясь расписания
+        gh("POST", f"/repos/{REPO}/actions/workflows/outbox-wait.yml/dispatches", {"ref": "main"})
+    except Exception as e:
+        print("outbox-wait:", e)
     when = time.strftime("%d.%m в %H:%M", time.gmtime(at + 5 * 3600))
-    return f"🕒 Пост запланирован на {when} (по Уфе)" + (f", фото: {len(paths)}" if paths else "") + ". Может выйти на 5–15 минут позже."
+    return f"🕒 Пост запланирован на {when} (по Уфе)" + (f", фото: {len(paths)}" if paths else "") + ". Выйдет в течение 1–3 минут после этого времени."
 
 
 def app_set(uid, req, cfg):
