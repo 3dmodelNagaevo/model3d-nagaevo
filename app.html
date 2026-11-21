@@ -107,6 +107,13 @@
   .hint{font-size:13px;color:var(--muted);margin:-4px 0 8px}
   input[type=date]{min-width:0;max-width:100%;-webkit-appearance:none;appearance:none;padding:10px 8px}
   .grid2 > *{min-width:0}
+  .chk{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-weight:600;color:var(--ink);cursor:pointer}
+  .chk input{width:22px;height:22px;flex:0 0 auto;accent-color:var(--cobalt)}
+  .thumbs{display:flex;flex-wrap:wrap;gap:6px}
+  .thumbs img{width:64px;height:64px;object-fit:cover;border-radius:10px}
+  .starpick{display:flex;gap:4px}.starpick button{font-size:28px;background:none;border:0;color:#d5d8e2;cursor:pointer;padding:0 2px}
+  .starpick button.on{color:#F5A524}
+  textarea{min-height:120px;resize:vertical}
   .loading{position:fixed;top:0;left:0;height:3px;background:var(--orange);z-index:30;width:0;transition:width .3s}
 </style>
 </head>
@@ -133,10 +140,14 @@
     <h2>Популярное за неделю</h2>
     <div class="list" id="top"></div>
     <h2>Действия</h2>
+    <div class="card" id="maintCard" hidden style="margin-bottom:10px"></div>
     <div class="btns full">
-      <button class="btn ghost" data-cmd="/обновить">🔄 Обновить сайт</button>
-      <button class="btn ghost" data-cmd="/копия">🗄 Резервная копия</button>
-      <button class="btn ghost" id="metrBtn">📈 Статистика сайта</button>
+      <button class="btn" id="newPost" data-perm="posts">📸 Новый пост</button>
+      <button class="btn ghost" id="maintBtn" data-perm="site">🚧 Тех. работы</button>
+      <button class="btn ghost" id="statusBtn" data-perm="stats">📊 Статус сайта</button>
+      <button class="btn ghost" data-cmd="/обновить" data-perm="site">🔄 Обновить сайт</button>
+      <button class="btn ghost" data-cmd="/копия" data-perm="site">🗄 Резервная копия</button>
+      <button class="btn ghost" id="metrBtn" data-perm="stats">📈 Статистика сайта</button>
       <a class="btn ghost" id="siteLink" target="_blank" rel="noopener">🌐 Открыть сайт</a>
     </div>
     <div class="card" id="metr" hidden style="margin-top:10px"><pre class="metr"></pre></div>
@@ -209,7 +220,8 @@
 
   <!-- Отзывы -->
   <section class="tab" id="t-rev">
-    <h2 style="margin-top:4px">На проверке</h2>
+    <button class="btn" id="revAdd" style="width:100%;margin-top:4px">➕ Добавить отзыв</button>
+    <h2>На проверке</h2>
     <div class="list" id="pend"></div>
     <h2>Опубликованные</h2>
     <div class="list" id="revs"></div>

@@ -548,12 +548,15 @@ def main():
     catalog = {"items": items, "reviews": reviews}
     if state.get("bot_link"):
         catalog["bot"] = state["bot_link"]
+    _maint = (load_json(ROOT / "settings.json", {}) if (ROOT / "settings.json").exists() else {}).get("maint") or {}
+    if _maint.get("on"):
+        catalog["maint"] = {k: _maint.get(k) for k in ("mode", "text", "until")}
     _sub = (load_json(PROMOS, {}) if PROMOS.exists() else {}).get("sub") or {}
     if _sub.get("on"):
         catalog["gift"] = {"kind": _sub["kind"], "value": _sub["value"]}
     old_catalog = {"items": old_items, "reviews": old_reviews}
     _oc = load_json(CATALOG, {})
-    for _k in ("bot", "gift"):
+    for _k in ("bot", "gift", "maint"):
         if _oc.get(_k):
             old_catalog[_k] = _oc[_k]
     if json.dumps(catalog, sort_keys=True, ensure_ascii=False) != json.dumps(old_catalog, sort_keys=True, ensure_ascii=False):

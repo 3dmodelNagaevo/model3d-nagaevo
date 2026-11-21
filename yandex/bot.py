@@ -154,7 +154,7 @@ def run_sync():
 MENU_BUTTONS = {
     "📊 Статус": "/статус", "🔥 Топ": "/топ", "📈 Статистика": "/стата", "🔄 Обновить": "/обновить",
     "🙈 Скрыть": "/скрыть", "👁 Вернуть": "/показать", "💰 Цена": "/цена", "🖼 Обложка": "/обложка",
-    "🎟 Промокоды": "/промо", "🗄 Резервная копия": "/копия", "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон", "✏️ Изменить пост": "/изменить",
+    "🎟 Промокоды": "/промо", "🗄 Резервная копия": "/копия", "🚧 Тех. работы": "/техработы", "📸 Новый пост": "/пост", "❓ Помощь": "/помощь", "📝 Шаблон": "/шаблон", "✏️ Изменить пост": "/изменить",
     "💬 Отзыв": "/отзыв", "🗂 Отзывы": "/отзывы", "👥 Доступ": "/доступ", "📜 История": "/история", "↩️ Отменить": "/отменить", "✅ Продано": "/продано", "🧾 Продажи": "/продажи",
     # старые подписи кнопок (из прошлых сообщений)
     "🔥 Топ недели": "/топ", "🙈 Скрыть товар": "/скрыть", "👁 Вернуть товар": "/показать",
@@ -172,7 +172,7 @@ MENU_ROWS = [
     ["📸 Новый пост", "✏️ Изменить пост"],
     ["🎟 Промокоды", "📝 Шаблон"],
     ["👥 Доступ", "🗄 Резервная копия"],
-    ["❓ Помощь"],
+    ["🚧 Тех. работы", "❓ Помощь"],
 ]
 POST_TEMPLATE = """Название модели
 Пара слов о модели (можно удалить эту строку)
@@ -211,6 +211,8 @@ HELP = """🤖 Бот сайта. Кнопки — под этим сообще�
 🎟 Промокоды — создать, выложить в канал, автовыкладка по расписанию
 /код ЗИМА15 — проверить промокод из заказа и активировать, когда заказ выполнен
 🗄 Резервная копия — архив сайта, данных и кода прямо сейчас
+🚧 Тех. работы — баннер или закрыть сайт на время работ
+/права 2 — какие разделы доступны админу
 /доступ — кто из админов может пользоваться ботом (только для владельца)
 /шаблон — шаблон поста для канала
 /отзыв текст (+ фото) — добавить отзыв на сайт, /отзывы — список
@@ -1443,8 +1445,12 @@ def app_dash(uid):
                        "on" if a["id"] in cfg["owners"] else "off"}
               for k, a in enumerate(cfg.get("admins", []), 1)]
     hidden = set((ov or {}).get("hidden", []))
+    st, _ = gh_file("settings.json")
     return {
-        "me": uid, "chief": uid in cfg["chief"], "site": SITE_URL,
+        "me": uid, "chief": uid in cfg["chief"], "site": SITE_URL, "real": uid in cfg.get("real", ()),
+        "perms": sorted((cfg.get("perms") or {}).get(uid, set())), "permNames": PERMS,
+        "adminPerms": {str(k): sorted(v) for k, v in (cfg.get("perms") or {}).items()},
+        "maint": (st or {}).get("maint") or {}, "template": POST_TEMPLATE if "POST_TEMPLATE" in globals() else "",
         "items": [{k: i.get(k) for k in ("no", "title", "price", "category", "views", "views_week", "views_month",
                                          "sold", "photos", "photos_orig", "url", "ts", "hidden")}
                   | {"hidden": i.get("no") in hidden} for i in items],
@@ -1459,6 +1465,100 @@ def app_dash(uid):
         "admins": admins,
         "links": (ln or {}).get("links", [])[-300:] if isinstance(ln, dict) else [],
     }
+
+
+def max_upload_image(blob):
+    """Загрузить картинку в MAX → payload для вложения."""
+    import uuid
+    info = max_api("POST", "/uploads", {"type": "image"})
+    boundary = uuid.uuid4().hex
+    body = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"data\"; filename=\"photo.jpg\"\r\n"
+            f"Content-Type: image/jpeg\r\n\r\n").encode() + blob + f"\r\n--{boundary}--\r\n".encode()
+    req = urllib.request.Request(info["url"], data=body, method="POST", headers={
+        "Content-Type": f"multipart/form-data; boundary={boundary}", "Authorization": MAX_TOKEN, "User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=60, context=ctx()) as r:
+        res = json.loads(r.read().decode("utf-8", "replace") or "{}")
+    if res.get("token"):
+        return {"token": res["token"]}
+    if res.get("photos"):
+        return {"photos": res["photos"]}
+    return res
+
+
+def _b64_images(lst, limit=6):
+    out = []
+    for x in (lst or [])[:limit]:
+        try:
+            b = base64.b64decode(str(x).split(",", 1)[-1])
+            if 1000 < len(b) < 3_000_000:
+                out.append(b)
+        except Exception:
+            pass
+    return out
+
+
+def app_review_add(uid, req):
+    text = str(req.get("text") or "").strip()[:800]
+    if len(text) < 2:
+        return "Напишите текст отзыва."
+    name = str(req.get("name") or "").strip()[:40]
+    try:
+        no = int(req.get("no")) if str(req.get("no") or "").strip() else None
+        stars = max(0, min(5, int(req.get("stars") or 0)))
+    except Exception:
+        no, stars = None, 0
+    data, _ = gh_file("reviews.json")
+    data = data or {}
+    rid = max([r.get("id", 0) for r in data.get("reviews", []) + data.get("pending", [])] + [0]) + 1
+    raw = []
+    for k, blob in enumerate(_b64_images(req.get("photos"), 4)):
+        path = f"reviews/raw/{rid}_{k}.jpg"
+        try:
+            gh_put_bytes(path, blob, f"Приложение: фото отзыва {rid}")
+            raw.append(path)
+        except Exception as e:
+            print("app review photo:", e)
+    entry = {"id": rid, "ts": int(time.time() * 1000), "text": text, "raw": raw, "no": no}
+    if name:
+        entry["name"] = name
+    if stars:
+        entry["stars"] = stars
+    update_json("reviews.json", lambda d: d.setdefault("reviews", []).append(entry), f"Приложение: отзыв {rid}", {"reviews": []})
+    try:
+        run_sync()
+    except Exception:
+        pass
+    return f"💬 Отзыв №{rid} добавлен" + (f" с фото ({len(raw)})" if raw else "") + ". На сайте появится через 1–3 минуты."
+
+
+def app_post_new(uid, req):
+    text = str(req.get("text") or "").strip()[:3900]
+    blobs = _b64_images(req.get("photos"), 10)
+    if not text and not blobs:
+        return "Пустой пост — добавьте текст или фото."
+    atts = []
+    for b in blobs:
+        try:
+            atts.append({"type": "image", "payload": max_upload_image(b)})
+        except Exception as e:
+            print("app post photo:", e)
+    last = None
+    for attempt in range(5):
+        try:
+            max_api("POST", "/messages", {"chat_id": config()["channel"]}, {"text": text, **({"attachments": atts} if atts else {})})
+            last = None
+            break
+        except Exception as e:
+            last = e
+            if "not.ready" in str(e):
+                time.sleep(2)
+                continue
+            break
+    if last:
+        return f"❌ Пост не вышел: {last}"
+    lost = len(blobs) - len(atts)
+    return "📣 Пост опубликован в канале" + (f" ({len(atts)} фото)" if atts else "") + ". На сайте появится через 1–3 минуты." + \
+        (f" ⚠️ {lost} фото не загрузились." if lost else "")
 
 
 def site_app(event, headers):
@@ -1484,9 +1584,20 @@ def site_app(event, headers):
     try:
         if act == "dash":
             return out(200, ok=True, data=app_dash(uid))
+        cfg = config()
         if act == "metrika":
             return out(200, ok=True, text=metrika_text(int(req.get("days") or 7)))
+        if act == "review_add":
+            if not has_perm(uid, "reviews", cfg):
+                return out(403, error="Нет прав на отзывы")
+            return out(200, ok=True, texts=[app_review_add(uid, req)])
+        if act == "post_new":
+            if not has_perm(uid, "posts", cfg):
+                return out(403, error="Нет прав на посты")
+            return out(200, ok=True, texts=[app_post_new(uid, req)])
         if act == "metrika_data":
+            if not has_perm(uid, "stats", cfg):
+                return out(403, error="Нет прав на статистику")
             return out(200, ok=True, data=metrika_data(max(1, min(365, int(req.get("days") or 30))),
                                                        str(req.get("date1") or ""), str(req.get("date2") or ""),
                                                        bool(req.get("all"))))
@@ -1552,9 +1663,57 @@ def config():
         owners = chief | (allowed & ids)
     if not admins:
         chief |= full; owners |= full | allowed
+    perms = {}
+    raw = (access or {}).get("perms") or {}
+    for u in owners:
+        if u in chief:
+            perms[u] = set(PERMS)                      # владелец и полные права — всё
+        elif str(u) in raw:
+            perms[u] = set(raw[str(u)]) & set(PERMS)
+        else:
+            perms[u] = set(PERMS) - {"access"}         # доступ без настройки — всё, кроме выдачи прав
     _cache.update(ts=time.time(), owners=owners, chief=chief, real=real, full=full,
-                  admins=admins, allowed=allowed, channel=ch)
+                  admins=admins, allowed=allowed, channel=ch, perms=perms)
     return _cache
+
+
+# ---------------------------------------------------------------- права админов по разделам
+
+PERMS = {
+    "sales": "🧾 Продажи и заказы",
+    "items": "🧩 Товары: цены, скрыть, обложки",
+    "posts": "📸 Посты в канал",
+    "promo": "🎟 Промокоды",
+    "reviews": "💬 Отзывы",
+    "stats": "📈 Статистика и Метрика",
+    "site": "🛠 Сайт: обновить, тех. работы, копия",
+    "access": "👥 Доступ и права админов",
+}
+PERM_RULES = [
+    ("sales", r"^/?(продано|продажи|история|отменить|удалить[ _]продажу|сбросить[ _]продажи|ответ)\b"),
+    ("items", r"^/?(цена|скрыть|показать|обложка)\b"),
+    ("posts", r"^/?(пост|изменить)\b"),
+    ("promo", r"^/?(промо|код|проверить)\b"),
+    ("reviews", r"^/?(отзыв|отзывы|удалить[ _]отзыв|одобрить|опубликовать|отклонить|проверка|на проверке)\b"),
+    ("stats", r"^/?(стата|статистика|статус|топ|метрика)\b"),
+    ("site", r"^/?(обновить|копия|бэкап|backup|техработы|тех\.?работы)\b"),
+    ("access", r"^/?(доступ|разрешить|запретить|права|admins)\b"),
+]
+
+
+def perm_for(text):
+    low = (text or "").strip().lower()
+    if is_sales_list(low):
+        return "sales"
+    for p, rx in PERM_RULES:
+        if re.match(rx, low):
+            return p
+    return None
+
+
+def has_perm(uid, p, cfg=None):
+    cfg = cfg or config()
+    return p is None or p in (cfg.get("perms") or {}).get(uid, set(PERMS) if uid in cfg["chief"] else set())
 
 
 _asked = {}
@@ -1572,7 +1731,111 @@ def access_text(cfg):
     return ("👥 Админы канала и доступ к боту:\n" + "\n".join(lines) +
             "\n\nДать или забрать доступ — кнопками ниже.\n\n"
             "⭐ Полные права — всё как у владельца, включая выдачу доступа.\n"
+            "⚙️ Какие разделы доступны админу — /права (или кнопка «⚙️ Права» в приложении).\n"
             "Без доступа админ не может пользоваться ботом: команды, продажи, цены, отзывы.")
+
+
+MAINT_HELP = ("🚧 Технические работы на сайте\n\n"
+              "🟡 Баннер — сайт работает, сверху висит предупреждение (например, «обновляем каталог, цены могут меняться»).\n"
+              "🔴 Закрыть сайт — посетители видят экран «Технические работы» с вашим текстом и кнопками связи.\n"
+              "Вы и админы (телефоны, где открыто приложение управления) видите сайт как обычно.\n\n"
+              "Свой текст и время: /техработы закрыть до 18:00 Обновляем каталог\n"
+              "Включается на сайте за 1–3 минуты.")
+
+
+def maint_cmd(uid, text):
+    rest = re.sub(r"^/?тех\.?\s?работы\s*", "", text.strip(), flags=re.I)
+    m = re.match(r"^(баннер|закрыть|выкл\w*|стоп|off)?\s*(?:до\s+(\d{1,2}[:.]\d{2}(?:\s+\d{1,2}\.\d{1,2})?))?\s*(.*)$", rest, re.I | re.S)
+    mode = (m.group(1) or "").lower() if m else ""
+    if not mode:
+        d, _ = gh_file("settings.json")
+        cur = (d or {}).get("maint") or {}
+        st = ("🔴 Сайт закрыт для посетителей" if cur.get("mode") == "closed" else "🟡 Включён баннер") if cur.get("on") else "🟢 Сайт работает в обычном режиме"
+        extra = (f"\nТекст: «{cur.get('text')}»" if cur.get("on") and cur.get("text") else "") + (f"\nДо: {cur['until']}" if cur.get("on") and cur.get("until") else "")
+        return send(uid, f"{MAINT_HELP}\n\nСейчас: {st}{extra}", menu=False, buttons=[
+            [("🟡 Баннер", "/техработы баннер"), ("🔴 Закрыть сайт", "/техработы закрыть")],
+            [("🟢 Выключить", "/техработы выкл")]])
+    if mode in ("закрыть",) and "подтверждаю" not in rest.lower():
+        return send(uid, "⚠️ Закрыть сайт для посетителей? Они увидят только экран «Технические работы».", menu=False,
+                    buttons=[[("🔴 Да, закрыть", f"/техработы {rest} подтверждаю".replace("  ", " ")), ("❌ Отмена", "/отмена")]])
+    txt = re.sub(r"\s*подтверждаю\s*$", "", (m.group(3) or "").strip(), flags=re.I)
+    until = (m.group(2) or "").replace(".", ":", 1) if m.group(2) else ""
+    if mode.startswith("выкл") or mode in ("стоп", "off"):
+        val = {"on": False}
+    else:
+        val = {"on": True, "mode": "closed" if mode == "закрыть" else "banner", "text": txt[:300], "until": until,
+               "since": int(time.time())}
+    update_json("settings.json", lambda d: d.update(maint=val), "Бот: технические работы", {})
+    try:
+        run_sync()
+    except Exception as e:
+        print("maint sync:", e)
+    if not val["on"]:
+        return send(uid, "🟢 Технические работы выключены — сайт снова работает как обычно (через 1–3 минуты).")
+    return send(uid, ("🔴 Сайт закрыт для посетителей" if val["mode"] == "closed" else "🟡 На сайте включён баннер")
+                + (f" с текстом «{val['text']}»" if val["text"] else "") + (f" до {until}" if until else "")
+                + ". Заработает через 1–3 минуты.\nВыключить: /техработы выкл", buttons=[[("🟢 Выключить", "/техработы выкл")]])
+
+
+def perms_cmd(uid, text):
+    """/права 2 — показать и переключать права админа №2; /права 2 +sales -promo; /права 2 все|полные|нет."""
+    cfg = config()
+    if uid not in cfg["chief"]:
+        return send(uid, "Настраивать права может только владелец канала или админ с полными правами.")
+    m = re.match(r"^/?права\s*(\d+)?\s*(.*)$", text.strip(), re.I | re.S)
+    n = int(m.group(1)) if m and m.group(1) else 0
+    if not n or not 1 <= n <= len(cfg["admins"]):
+        return send(uid, access_text(cfg), menu=False, buttons=[[(f"⚙️ Права: {a['name'][:24]}", f"/права {k}")]
+                                                             for k, a in enumerate(cfg["admins"], 1)
+                                                             if not (a["owner"] and a["id"] in cfg.get("real", ()))])
+    target = cfg["admins"][n - 1]
+    tid = target["id"]
+    if target["owner"] and tid in cfg.get("real", ()):
+        return send(uid, "У владельца канала есть все права всегда.")
+    ops = (m.group(2) or "").lower().split()
+    if ops:
+        if any(o in ("полные", "full") for o in ops) and uid not in cfg.get("real", ()):
+            return send(uid, "Выдавать полные права может только владелец канала.")
+        if tid in cfg.get("full", ()) and uid not in cfg.get("real", ()):
+            return send(uid, "Менять права админа с полными правами может только владелец канала.")
+        def f(d):
+            perms = d.setdefault("perms", {})
+            cur = set(perms.get(str(tid), [p for p in PERMS if p != "access"]))
+            allowed = set(d.get("allowed", []))
+            full = set(d.get("full", []))
+            for o in ops:
+                if o in ("полные", "full"):
+                    full.add(tid); allowed.add(tid); cur = set(PERMS)
+                elif o in ("все", "всё", "all"):
+                    full.discard(tid); allowed.add(tid); cur = set(PERMS) - {"access"}
+                elif o in ("нет", "ничего", "none"):
+                    full.discard(tid); allowed.discard(tid); cur = set()
+                elif o[:1] in "+-" and o[1:] in PERMS:
+                    full.discard(tid)
+                    (cur.add if o[0] == "+" else cur.discard)(o[1:])
+                    allowed.add(tid)
+            perms[str(tid)] = sorted(cur)
+            if not cur:
+                allowed.discard(tid)
+            d["allowed"], d["full"] = sorted(allowed), sorted(full)
+        update_json("access.json", f, f"Бот: права админа {tid}", {"allowed": []})
+        _cache.clear()
+        cfg = config()
+    full = tid in cfg.get("full", ())
+    mine = (cfg.get("perms") or {}).get(tid, set())
+    lines = [f"⚙️ Права: {target['name']}" + (" — ⭐ полные права" if full else ("" if mine else " — 🚫 нет доступа")), ""]
+    lines += [("✅ " if p in mine else "▫️ ") + name for p, name in PERMS.items()]
+    lines.append("\nНажимайте кнопки, чтобы включить или выключить раздел.")
+    btns = []
+    keys = list(PERMS)
+    for i in range(0, len(keys), 2):
+        btns.append([((("✅ " if p in mine else "➕ ") + PERMS[p].split(" ", 1)[1][:18]), f"/права {n} {'-' if p in mine else '+'}{p}")
+                     for p in keys[i:i + 2]])
+    row = [("Всё, кроме прав", f"/права {n} все"), ("🚫 Ничего", f"/права {n} нет")]
+    if uid in cfg.get("real", ()):
+        row.insert(0, ("⭐ Полные", f"/права {n} полные"))
+    btns.append(row)
+    return send(uid, "\n".join(lines), menu=False, buttons=btns)
 
 
 def change_access(uid, text, allow):
@@ -1978,6 +2241,10 @@ def handle_owner(uid, text, images):
         text, done = ask_or_fill(uid, text)
         if done:
             return
+    need = "posts" if images and re.match(r"^/?пост", (text or "").lower()) else (
+        "reviews" if images and re.match(r"^/?отзыв", (text or "").lower()) else perm_for(text))
+    if need and not has_perm(uid, need):
+        return send(uid, f"🚫 У вас нет прав на раздел «{PERMS[need]}». Попросите владельца канала выдать их: «👥 Доступ».")
     low = text.lower()
     if low.startswith("/отзыв") and not low.startswith("/отзывы") or low.startswith("отзыв:") or "#отзыв" in low:
         return add_review(uid, text.replace("#отзыв", "").replace("#Отзыв", ""), images)
@@ -1994,13 +2261,17 @@ def handle_owner(uid, text, images):
             if a["owner"] and a["id"] in cfg.get("real", ()):
                 continue
             short = a["name"][:20]
-            btns.append([(f"🚫 Забрать: {short}", f"/запретить {k}")] if a["id"] in cfg["owners"]
+            btns.append([(f"⚙️ Права", f"/права {k}"), (f"🚫 Забрать: {short}", f"/запретить {k}")] if a["id"] in cfg["owners"]
                         else [(f"✅ Дать доступ: {short}", f"/разрешить {k}")])
         return send(uid, access_text(cfg), menu=False, buttons=btns)
     if low.startswith("/разрешить"):
         return change_access(uid, text, True)
     if low.startswith("/запретить"):
         return change_access(uid, text, False)
+    if re.match(r"^/?тех\.?\s?работы", low):
+        return maint_cmd(uid, text)
+    if re.match(r"^/?права\b", low):
+        return perms_cmd(uid, text)
     if low in ("/копия", "копия", "/бэкап", "/backup"):
         try:
             gh("POST", f"/repos/{REPO}/actions/workflows/backup.yml/dispatches",

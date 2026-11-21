@@ -325,6 +325,16 @@
   .order{display:flex;flex-direction:column;gap:8px;margin-top:4px}
   .order .btn{width:100%}
   .alt{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .maint-bar{background:var(--orange);color:#fff;font-weight:600;font-size:14px;line-height:1.4;padding:10px 16px;text-align:center}
+  .maint-bar.admin{background:#1B1F3B}
+  .maint{position:fixed;inset:0;z-index:80;background:var(--plate,#EEF0F4);display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}
+  .maint .box{max-width:460px;display:grid;gap:14px;justify-items:center}
+  .maint .gear{font-size:56px;line-height:1;animation:spin 6s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.maint .gear{animation:none}}
+  .maint h1{font-family:var(--display);font-size:clamp(22px,6vw,30px);margin:0}
+  .maint p{margin:0;color:var(--muted);font-size:16px}
+  .maint .cta{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
   .promo-in{display:flex;gap:8px;align-items:center;margin-top:-2px}
   .promo-in input{flex:1;min-width:0;font:inherit;font-size:16px;border:1px dashed #b9c0d6;border-radius:12px;padding:9px 12px;background:#fff;color:var(--ink);text-transform:uppercase}
   .promo-in input::placeholder{text-transform:none;color:#8a90a8}
@@ -1266,6 +1276,32 @@ function openFromHash(){
 }
 window.addEventListener("popstate", openFromHash);
 
+/* ---------- технические работы ---------- */
+function showMaint(m){
+  if (!m) return;
+  const until = m.until ? ` Планируем закончить к ${esc(m.until)}.` : "";
+  const text = esc(m.text || "");
+  const bar = document.createElement("div");
+  if (m.mode === "closed" && !isAdminDevice()) {
+    const o = document.createElement("div");
+    o.className = "maint"; o.setAttribute("role", "dialog"); o.setAttribute("aria-label", "Технические работы");
+    o.innerHTML = `<div class="box"><div class="gear" aria-hidden="true">⚙️</div><h1>Технические работы</h1>
+      <p>${text ? text + (/[.!?…]$/.test(text) ? "" : ".") : "Обновляем сайт — скоро всё заработает."}${until}</p>
+      <p>Заказать модель можно и сейчас — напишите нам:</p>
+      <div class="cta"><a class="btn btn-primary" href="${esc(C.channel)}" target="_blank" rel="noopener">Канал в MAX</a>
+        <a class="btn btn-ghost" href="${esc(C.max)}" target="_blank" rel="noopener">Написать в MAX</a>
+        ${C.phone ? `<a class="btn btn-ghost" href="tel:${esc(C.phone.replace(/[^+\d]/g, ""))}">Позвонить</a>` : ""}</div></div>`;
+    document.body.appendChild(o); document.body.style.overflow = "hidden";
+    goal("maint_view");
+    return;
+  }
+  bar.className = "maint-bar" + (m.mode === "closed" ? " admin" : "");
+  bar.innerHTML = m.mode === "closed"
+    ? "🔴 Сайт закрыт для посетителей (технические работы). Вы видите его, потому что это устройство админа."
+    : "🚧 " + (text ? text + (/[.!?…]$/.test(text) ? "" : ".") : "На сайте идут технические работы — возможны неточности.") + until;
+  document.body.insertBefore(bar, document.body.firstChild);
+}
+
 /* ---------- загрузка каталога ---------- */
 const norm = t => (t||"").toLowerCase().replace(/[^a-zа-яё0-9]/g, "");
 $("#grid").innerHTML = '<div class="empty" style="grid-column:1/-1">Загружаю каталог…</div>';
@@ -1275,6 +1311,7 @@ fetch("catalog.json?v=" + Date.now())
     const items = (Array.isArray(data) ? data : (data.items || [])).filter(i => !i.hidden);
     REVIEWS = data.reviews || [];
     setBotLinks(C.bot || data.bot, data.gift);
+    showMaint(data.maint);
     const fromMax = new Set(items.filter(i => i.source === "max").map(i => norm(i.title)));
     CATALOG = items.filter(i => i.source === "max" || !fromMax.has(norm(i.title))).map(i => ({ photos: [], ...i }));
     NEW_SET = new Set([...CATALOG].filter(m => m.ts && Date.now() - m.ts < NEW_MS)

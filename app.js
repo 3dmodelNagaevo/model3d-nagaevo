@@ -83,6 +83,153 @@ function render(){
   $("#appMain").hidden = false; $("#nav").hidden = false; $("#gate").hidden = true;
   $("#siteLink").href = D.site;
   renderHome(); renderItems(); renderSales(); renderPromos(); renderReviews(); renderMore();
+  applyPerms(); renderMaintCard();
+}
+
+/* ---------- права: скрываем разделы, на которые нет прав ---------- */
+const can = p => (D.perms || []).includes(p);
+function applyPerms(){
+  const tabPerm = { items: "items", sales: "sales", promo: "promo", rev: "reviews", metr: "stats" };
+  $$("nav button").forEach(b => { const p = tabPerm[b.dataset.t]; b.hidden = !!p && !can(p); });
+  $("#nav").style.gridTemplateColumns = `repeat(${$$("nav button").filter(b => !b.hidden).length},1fr)`;
+  $$("[data-perm]").forEach(el => el.hidden = !can(el.dataset.perm));
+  $("#revAdd").hidden = !can("reviews");
+}
+
+/* ---------- фото: сжимаем на телефоне перед отправкой ---------- */
+function shrink(file, max = 1280){
+  return new Promise((ok, bad) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      ok(c.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = () => bad(new Error("не удалось прочитать фото"));
+    img.src = url;
+  });
+}
+async function pickPhotos(input, box, limit){
+  const files = [...input.files].slice(0, limit);
+  const out = [];
+  for (const f of files) { try { out.push(await shrink(f)); } catch (e) { toast("❌ " + e.message); } }
+  box.innerHTML = out.map(d => `<img src="${d}" alt="">`).join("");
+  return out;
+}
+async function act(body, okReload = true){
+  try { const d = await api(body); toast((d.texts || []).join("\n") || "Готово"); if (okReload) setTimeout(load, 800); return d; }
+  catch (e) { toast("❌ " + e.message); }
+}
+
+/* ---------- новый пост ---------- */
+$("#newPost").onclick = () => {
+  let photos = [];
+  sheet(`<div class="top"><h3>📸 Новый пост в канал</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+    <div class="form">
+      <label>Текст поста<textarea id="npText" placeholder="Название, описание, размер, цвет, стоимость, #теги"></textarea></label>
+      <button class="btn ghost sm" id="npTpl">📝 Вставить шаблон</button>
+      <label>Фото (до 10)<input type="file" id="npPh" accept="image/*" multiple></label>
+      <div class="thumbs" id="npThumbs"></div>
+      <button class="btn" id="npGo">📣 Опубликовать в канал</button>
+      <p class="muted" style="font-size:13px;margin:0">Если в тексте есть «Стоимость:», пост появится на сайте как товар.</p>
+    </div>`);
+  $("#npTpl").onclick = () => { $("#npText").value = D.template || ""; };
+  $("#npPh").onchange = async e => { photos = await pickPhotos(e.target, $("#npThumbs"), 10); };
+  $("#npGo").onclick = () => {
+    const text = $("#npText").value.trim();
+    if (!text && !photos.length) return toast("Добавьте текст или фото");
+    confirmBox("Опубликовать пост?", "Пост сразу появится в канале — его увидят подписчики.", "📣 Да, опубликовать", "",
+      () => { closeSheet(); toast("Публикую…"); act({ action: "post_new", text, photos }); });
+  };
+};
+function confirmBox(title, text, yes, cls, then){
+  sheet(`<div class="top"><h3>${title}</h3><button class="x" onclick="__appCloseSheet()">×</button></div><p>${text}</p>
+    <div class="btns full"><button class="btn ${cls}" id="cbYes">${yes}</button><button class="btn ghost" id="cbNo">Отмена</button></div>`);
+  $("#cbYes").onclick = then;
+  $("#cbNo").onclick = closeSheet;
+}
+
+/* ---------- статус сайта ---------- */
+$("#statusBtn").onclick = async () => {
+  try { const d = await api({ action: "cmd", text: "/статус" });
+    sheet(`<div class="top"><h3>📊 Статус сайта</h3><button class="x" onclick="__appCloseSheet()">×</button></div><pre class="metr">${esc((d.texts || []).join("\n\n"))}</pre>`);
+  } catch (e) { toast("❌ " + e.message); }
+};
+
+/* ---------- технические работы ---------- */
+function renderMaintCard(){
+  const m = D.maint || {};
+  $("#maintCard").hidden = !m.on;
+  if (m.on) $("#maintCard").innerHTML = `<b>${m.mode === "closed" ? "🔴 Сайт закрыт для посетителей" : "🟡 На сайте висит баннер"}</b>
+    <div class="muted">${esc(m.text || "")}${m.until ? " · до " + esc(m.until) : ""}</div>
+    <div class="btns" style="margin-top:8px"><button class="btn sm" id="maintOff">🟢 Выключить тех. работы</button></div>`;
+  if ($("#maintOff")) $("#maintOff").onclick = () => cmd("/техработы выкл");
+}
+$("#maintBtn").onclick = () => {
+  const m = D.maint || {};
+  sheet(`<div class="top"><h3>🚧 Технические работы</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+    <div class="form">
+      <label class="chk"><input type="radio" name="mm" value="off" ${!m.on ? "checked" : ""}> 🟢 Сайт работает обычно</label>
+      <label class="chk"><input type="radio" name="mm" value="banner" ${m.on && m.mode !== "closed" ? "checked" : ""}> 🟡 Баннер сверху (сайт работает)</label>
+      <label class="chk"><input type="radio" name="mm" value="closed" ${m.on && m.mode === "closed" ? "checked" : ""}> 🔴 Закрыть сайт для посетителей</label>
+      <label>Текст для посетителей<input id="mmText" value="${esc(m.text || "")}" placeholder="Например: обновляем каталог"></label>
+      <label>Закончим к (необязательно)<input id="mmUntil" value="${esc(m.until || "")}" placeholder="18:00"></label>
+      <button class="btn" id="mmSave">Сохранить</button>
+      <p class="muted" style="font-size:13px;margin:0">Вы и админы видите сайт как обычно. Включается за 1–3 минуты.</p>
+    </div>`);
+  $("#mmSave").onclick = () => {
+    const mode = (document.querySelector('input[name="mm"]:checked') || {}).value || "off";
+    const until = $("#mmUntil").value.trim().replace(/[^\d:.]/g, "");
+    const text = $("#mmText").value.trim();
+    const c = mode === "off" ? "/техработы выкл" : `/техработы ${mode === "closed" ? "закрыть" : "баннер"}${until ? " до " + until : ""} ${text}`.trim() + (mode === "closed" ? " подтверждаю" : "");
+    if (mode === "closed") return confirmBox("Закрыть сайт?", "Посетители увидят только экран «Технические работы» и кнопки связи.", "🔴 Да, закрыть", "red", () => { closeSheet(); cmd(c); });
+    closeSheet(); cmd(c);
+  };
+};
+
+/* ---------- добавить отзыв ---------- */
+$("#revAdd").onclick = () => {
+  let photos = [], stars = 5;
+  sheet(`<div class="top"><h3>➕ Отзыв на сайт</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+    <div class="form">
+      <label>Имя покупателя<input id="raName" placeholder="Например, Анна"></label>
+      <label>Модель (необязательно)<select id="raNo"><option value="">— без модели —</option>${[...D.items].sort((a, b) => a.no - b.no).map(i => `<option value="${i.no}">№${i.no} ${esc(i.title)}</option>`).join("")}</select></label>
+      <div><label>Оценка</label><div class="starpick" id="raStars">${[1,2,3,4,5].map(n => `<button type="button" data-n="${n}" class="on">★</button>`).join("")}</div></div>
+      <label>Текст отзыва<textarea id="raText"></textarea></label>
+      <label>Фото (до 4)<input type="file" id="raPh" accept="image/*" multiple></label>
+      <div class="thumbs" id="raThumbs"></div>
+      <button class="btn" id="raGo">Добавить на сайт</button>
+    </div>`);
+  $$("#raStars button").forEach(b => b.onclick = () => { stars = +b.dataset.n; $$("#raStars button").forEach(x => x.classList.toggle("on", +x.dataset.n <= stars)); });
+  $("#raPh").onchange = async e => { photos = await pickPhotos(e.target, $("#raThumbs"), 4); };
+  $("#raGo").onclick = () => {
+    const text = $("#raText").value.trim(); if (text.length < 2) return toast("Напишите текст отзыва");
+    closeSheet(); toast("Сохраняю…");
+    act({ action: "review_add", text, name: $("#raName").value.trim(), no: $("#raNo").value, stars, photos });
+  };
+};
+
+/* ---------- права админа ---------- */
+function openPerms(a){
+  const mine = new Set((D.adminPerms || {})[String(a.id)] || []);
+  const names = D.permNames || {};
+  sheet(`<div class="top"><h3>⚙️ Права: ${esc(a.name)}</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+    <div class="form">
+      ${a.role === "full" ? `<div class="pill b">⭐ Сейчас полные права — всё как у владельца</div>` : ""}
+      ${Object.entries(names).map(([k, n]) => `<label class="chk"><input type="checkbox" value="${k}" ${mine.has(k) ? "checked" : ""}> ${esc(n)}</label>`).join("")}
+      <button class="btn" id="pmSave">Сохранить права</button>
+      <div class="btns full">${D.real ? `<button class="btn ghost" id="pmFull">⭐ Полные права</button>` : ""}<button class="btn red" id="pmNone">🚫 Убрать все права</button></div>
+    </div>`);
+  $("#pmSave").onclick = () => {
+    const sel = new Set($$('#sheet input[type=checkbox]:checked').map(i => i.value));
+    const ops = Object.keys(names).map(k => (sel.has(k) ? "+" : "-") + k).join(" ");
+    if (!sel.size) return toast("Отметьте хотя бы один раздел или нажмите «Убрать все права»");
+    closeSheet(); cmd(`/права ${a.k} ${ops}`);
+  };
+  if ($("#pmFull")) $("#pmFull").onclick = () => confirmBox("Дать полные права?", `«${esc(a.name)}» сможет всё, как владелец, включая выдачу прав другим.`, "⭐ Да, дать", "", () => { closeSheet(); cmd(`/права ${a.k} полные`); });
+  $("#pmNone").onclick = () => confirmBox("Убрать все права?", `«${esc(a.name)}» больше не сможет управлять ботом и открывать приложение.`, "🚫 Да, убрать", "red",
+    () => confirmBox("Точно убрать?", "Это второе подтверждение.", "🚫 Да, точно", "red", () => { closeSheet(); cmd(`/права ${a.k} нет`); }));
 }
 
 /* ---------- сводка ---------- */
@@ -169,7 +316,21 @@ function openItem(no){
       ${i.hidden ? `<button class="btn" data-cmd="/показать ${no}">👁 Вернуть на сайт</button>` : `<button class="btn red" data-cmd="/скрыть ${no}">🙈 Скрыть с сайта</button>`}
       <a class="btn ghost" href="${esc(D.site + "#m" + no)}" target="_blank" rel="noopener">🌐 На сайте</a>
       ${i.url ? `<a class="btn ghost" href="${esc(i.url)}" target="_blank" rel="noopener">📣 Пост</a>` : ""}
+      ${can("posts") ? `<button class="btn ghost" id="iEdit">✏️ Изменить пост</button>` : ""}
     </div>`);
+  if ($("#iEdit")) $("#iEdit").onclick = async () => {
+    try {
+      const d = await api({ action: "cmd", text: "/изменить " + no });
+      const full = (d.texts || []).find(t => t.startsWith("/изменить " + no));
+      if (!full) return toast((d.texts || []).join("\n") || "Не удалось получить текст поста");
+      const cur = full.split("\n").slice(1).join("\n");
+      sheet(`<div class="top"><h3>✏️ Пост №${no}</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
+        <div class="form"><textarea id="peText" style="min-height:240px">${esc(cur)}</textarea>
+        <button class="btn" id="peSave">Сохранить в канале</button>
+        <p class="muted" style="font-size:13px;margin:0">Фото останутся прежними. Бот может менять только посты, которые сам опубликовал.</p></div>`);
+      $("#peSave").onclick = () => { const t = $("#peText").value.trim(); if (!t) return toast("Пустой текст"); closeSheet(); cmd("/изменить " + no + "\n" + t); };
+    } catch (e) { toast("❌ " + e.message); }
+  };
   $("#iPriceSave").onclick = () => { const p = parseInt($("#iPrice").value, 10); if (!p) return toast("Введите цену числом"); cmd(`/цена ${no} ${p}`); };
   $("#iSold").onclick = () => { const q = parseInt($("#iQty").value, 10) || 1; cmd(`/продано ${no} ${q}`); };
   $$("#sheet [data-cmd]").forEach(b => b.addEventListener("click", () => setTimeout(closeSheet, 150)));
@@ -246,12 +407,15 @@ function renderMore(){
   $("#admins").innerHTML = D.admins.map(a => { const [t, c] = ROLE[a.role];
     const btn = !D.chief || a.role === "owner" ? "" : a.role === "off"
       ? `<button class="btn sm" data-cmd="/разрешить ${a.k}">Дать доступ</button>`
-      : `<button class="btn ghost sm" data-revoke="${a.k}" data-name="${esc(a.name)}" data-full="${a.role === "full" ? 1 : ""}">Забрать</button>`;
-    return `<div class="row" style="cursor:default"><div class="t"><b>${esc(a.name)}</b><small><span class="pill ${c}">${t}</span></small></div>${btn}</div>`; }).join("")
+      : `<button class="btn ghost sm" data-perms="${a.k}">⚙️ Права</button><button class="btn ghost sm" data-revoke="${a.k}" data-name="${esc(a.name)}" data-full="${a.role === "full" ? 1 : ""}">Забрать</button>`;
+    const pc = a.role === "on" ? ((D.adminPerms || {})[String(a.id)] || []).length : 0;
+    return `<div class="row" style="cursor:default;flex-wrap:wrap"><div class="t"><b>${esc(a.name)}</b><small><span class="pill ${c}">${t}</span>${pc ? ` · разделов: ${pc} из ${Object.keys(D.permNames || {}).length}` : ""}</small></div><div class="btns">${btn}</div></div>`; }).join("")
     || `<div class="empty">Список админов недоступен</div>`;
   renderLinks();
 }
 $("#admins").addEventListener("click", e => {      // забрать доступ — с подтверждением
+  const pb = e.target.closest("[data-perms]");
+  if (pb) return openPerms(D.admins.find(a => String(a.k) === pb.dataset.perms));
   const b = e.target.closest("[data-revoke]"); if (!b) return;
   const k = b.dataset.revoke, name = b.dataset.name;
   sheet(`<div class="top"><h3>Забрать доступ?</h3><button class="x" onclick="__appCloseSheet()">×</button></div>
