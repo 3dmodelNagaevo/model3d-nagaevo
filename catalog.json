@@ -1,5 +1,5 @@
 {
-  "updated": 1795538679,
+  "updated": 1795551920,
   "items": [
     {
       "mid": "mid.ffffb8167a965fcf01a1fd2f53c4437c",
@@ -13,7 +13,7 @@
       "material": "",
       "desc": "Забавный аксессуар для кота",
       "tags": "для_питомцев",
-      "views": 29,
+      "views": 30,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1fd2f53c4437c_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1fd2f53c4437c_1.jpg",
@@ -24,8 +24,8 @@
       ],
       "source": "max",
       "no": 50,
-      "views_week": 9,
-      "views_month": 29
+      "views_week": 10,
+      "views_month": 30
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1fa93248e14ff",
@@ -39,7 +39,7 @@
       "material": "",
       "desc": "Гаджет для ванной",
       "tags": "для_дома",
-      "views": 37,
+      "views": 38,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_0.jpg",
@@ -52,8 +52,8 @@
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_2.jpg"
       ],
-      "views_week": 9,
-      "views_month": 37
+      "views_week": 10,
+      "views_month": 38
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f9c74c373f85",
@@ -67,7 +67,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 25,
+      "views": 26,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f9c74c373f85_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1f9c74c373f85_1.jpg",
@@ -78,8 +78,8 @@
       ],
       "source": "max",
       "no": 48,
-      "views_week": 3,
-      "views_month": 25
+      "views_week": 4,
+      "views_month": 26
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f8143b3702a2",
@@ -93,7 +93,7 @@
       "material": "",
       "desc": "3x3-50\n5x5-150\n10x10-400",
       "tags": "",
-      "views": 27,
+      "views": 28,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f8143b3702a2_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1f8143b3702a2_1.jpg",
@@ -102,8 +102,8 @@
       ],
       "source": "max",
       "no": 47,
-      "views_week": 3,
-      "views_month": 27
+      "views_week": 4,
+      "views_month": 28
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f7f0039d6020",
@@ -117,7 +117,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 27,
+      "views": 28,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f7f0039d6020_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1f7f0039d6020_1.jpg",
@@ -127,8 +127,8 @@
       ],
       "source": "max",
       "no": 46,
-      "views_week": 4,
-      "views_month": 27
+      "views_week": 5,
+      "views_month": 28
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f7c59bca0534",
@@ -142,7 +142,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 24,
+      "views": 25,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f7c59bca0534_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1f7c59bca0534_1.jpg",
@@ -150,8 +150,8 @@
       ],
       "source": "max",
       "no": 45,
-      "views_week": 2,
-      "views_month": 24
+      "views_week": 3,
+      "views_month": 25
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f40b6473141e",
@@ -165,14 +165,14 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 34,
+      "views": 35,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f40b6473141e_0.jpg"
       ],
       "source": "max",
       "no": 44,
-      "views_week": 3,
-      "views_month": 34
+      "views_week": 4,
+      "views_month": 35
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f3445fed058e",
@@ -186,7 +186,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 33,
+      "views": 35,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f3445fed058e_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1f3445fed058e_0.jpg",
@@ -201,8 +201,8 @@
         "photos/mid_ffffb8167a965fcf01a1f3445fed058e_2.jpg",
         "photos/mid_ffffb8167a965fcf01a1f3445fed058e_3.jpg"
       ],
-      "views_week": 3,
-      "views_month": 33
+      "views_week": 5,
+      "views_month": 35
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f327f4fb2e2a",
@@ -216,7 +216,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 32,
+      "views": 34,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f327f4fb2e2a_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1f327f4fb2e2a_1.jpg",
@@ -225,8 +225,8 @@
       ],
       "source": "max",
       "no": 40,
-      "views_week": 2,
-      "views_month": 24
+      "views_week": 4,
+      "views_month": 26
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1ee23f13b0c61",
@@ -240,7 +240,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 40,
+      "views": 41,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1ee23f13b0c61_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1ee23f13b0c61_1.jpg",
@@ -249,8 +249,8 @@
       ],
       "source": "max",
       "no": 5,
-      "views_week": 2,
-      "views_month": 19
+      "views_week": 3,
+      "views_month": 20
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1ede0b6974f3b",
@@ -264,7 +264,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 41,
+      "views": 42,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1ede0b6974f3b_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1ede0b6974f3b_1.jpg",
@@ -272,8 +272,8 @@
       ],
       "source": "max",
       "no": 6,
-      "views_week": 2,
-      "views_month": 20
+      "views_week": 3,
+      "views_month": 21
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1eddff0e06f9a",
@@ -287,7 +287,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 34,
+      "views": 35,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1eddff0e06f9a_2.jpg",
         "photos/mid_ffffb8167a965fcf01a1eddff0e06f9a_0.jpg",
@@ -300,8 +300,8 @@
         "photos/mid_ffffb8167a965fcf01a1eddff0e06f9a_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1eddff0e06f9a_2.jpg"
       ],
-      "views_week": 2,
-      "views_month": 19
+      "views_week": 3,
+      "views_month": 20
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1e9dfcee634e6",
@@ -315,7 +315,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 36,
+      "views": 37,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1e9dfcee634e6_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1e9dfcee634e6_1.jpg",
@@ -323,8 +323,8 @@
       ],
       "source": "max",
       "no": 8,
-      "views_week": 1,
-      "views_month": 12
+      "views_week": 2,
+      "views_month": 13
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1e9dcd28322ef",
@@ -338,7 +338,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 33,
+      "views": 34,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1e9dcd28322ef_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1e9dcd28322ef_1.jpg",
@@ -346,8 +346,8 @@
       ],
       "source": "max",
       "no": 9,
-      "views_week": 1,
-      "views_month": 12
+      "views_week": 2,
+      "views_month": 13
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1de769cc51b61",
@@ -361,7 +361,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 48,
+      "views": 49,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1de769cc51b61_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1de769cc51b61_1.jpg",
@@ -370,8 +370,8 @@
       ],
       "source": "max",
       "no": 10,
-      "views_week": 1,
-      "views_month": 9
+      "views_week": 2,
+      "views_month": 10
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1de7167eb0610",
@@ -385,7 +385,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 44,
+      "views": 45,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1de7167eb0610_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1de7167eb0610_1.jpg",
@@ -393,8 +393,8 @@
       ],
       "source": "max",
       "no": 11,
-      "views_week": 1,
-      "views_month": 9
+      "views_week": 2,
+      "views_month": 10
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1d6cdde9424b4",
@@ -408,7 +408,7 @@
       "material": "",
       "desc": "26 плоских тактильных фигурок с выпуклым контуром: зубная щётка, гриб, лягушка, качели, слон, хомяк, кораблик и другие.\nРебёнок ощупывает рельеф, узнаёт предмет и называет его. Так тренируются звуки, речь, внимание и мелкая моторика.\nРазмер около 5 см, гладкие скруглённые края\nПодходит для логопеда, детского сада и занятий дома\nАртикуляционная гимнастика",
       "tags": "",
-      "views": 43,
+      "views": 44,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1d6cdde9424b4_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1d6cdde9424b4_1.jpg",
@@ -418,8 +418,8 @@
       ],
       "source": "max",
       "no": 42,
-      "views_week": 1,
-      "views_month": 43
+      "views_week": 2,
+      "views_month": 44
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1d6cdcfc43767",
@@ -433,7 +433,7 @@
       "material": "",
       "desc": "Те же 26 тактильных фигурок, только объёмные: бегемот, лошадка, дятел на пеньке, чашка с улыбкой, будильник, горка, гармошка и другие.\nФигурки удобно держать в руках и рассматривать со всех сторон. С ними можно играть в «Чудесный мешочек», составлять предложения и автоматизировать звуки.\nРазмер около 5 см, без острых деталей\nПрочный пластик, приятно трогать\nАртикуляционная гимнастика",
       "tags": "",
-      "views": 40,
+      "views": 41,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1d6cdcfc43767_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1d6cdcfc43767_1.jpg",
@@ -443,8 +443,8 @@
       ],
       "source": "max",
       "no": 43,
-      "views_week": 1,
-      "views_month": 40,
+      "views_week": 2,
+      "views_month": 41,
       "sold": 2,
       "sold_week": 2,
       "sold_month": 2
@@ -461,14 +461,14 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 37,
+      "views": 38,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1d628adb955c5_0.jpg"
       ],
       "source": "max",
       "no": 12,
-      "views_week": 1,
-      "views_month": 11
+      "views_week": 2,
+      "views_month": 12
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1d4208c993715",
@@ -482,7 +482,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 45,
+      "views": 46,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1d4208c993715_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1d4208c993715_1.jpg",
@@ -491,8 +491,8 @@
       ],
       "source": "max",
       "no": 13,
-      "views_week": 1,
-      "views_month": 10
+      "views_week": 2,
+      "views_month": 11
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1d417282a1817",
@@ -506,7 +506,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 42,
+      "views": 43,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1d417282a1817_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1d417282a1817_1.jpg",
@@ -515,8 +515,8 @@
       ],
       "source": "max",
       "no": 14,
-      "views_week": 1,
-      "views_month": 10
+      "views_week": 2,
+      "views_month": 11
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1d410f13914a8",
@@ -530,7 +530,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 43,
+      "views": 44,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1d410f13914a8_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1d410f13914a8_1.jpg",
@@ -538,8 +538,8 @@
       ],
       "source": "max",
       "no": 15,
-      "views_week": 1,
-      "views_month": 9
+      "views_week": 2,
+      "views_month": 10
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1ca2eeb040b15",
@@ -1076,15 +1076,15 @@
       "material": "PLA",
       "desc": "",
       "tags": "",
-      "views": 102,
+      "views": 103,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b36e304e0f20_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b36e304e0f20_1.jpg"
       ],
       "source": "max",
       "no": 38,
-      "views_week": 0,
-      "views_month": 4,
+      "views_week": 1,
+      "views_month": 5,
       "sold": 1,
       "sold_week": 1,
       "sold_month": 1
@@ -1101,15 +1101,15 @@
       "material": "PLA",
       "desc": "(Цвет согласовывать в ЛС)",
       "tags": "",
-      "views": 103,
+      "views": 104,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a0b33c282831bb_0.jpg",
         "photos/mid_ffffb8167a965fcf01a0b33c282831bb_1.jpg"
       ],
       "source": "max",
       "no": 39,
-      "views_week": 0,
-      "views_month": 6
+      "views_week": 1,
+      "views_month": 7
     },
     {
       "no": 3,
