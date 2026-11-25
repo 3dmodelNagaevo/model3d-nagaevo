@@ -1,5 +1,5 @@
 {
-  "updated": 1795588692,
+  "updated": 1795602407,
   "items": [
     {
       "mid": "mid.ffffb8167a965fcf01a1fd2f53c4437c",
@@ -13,7 +13,7 @@
       "material": "",
       "desc": "Забавный аксессуар для кота",
       "tags": "для_питомцев",
-      "views": 33,
+      "views": 34,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1fd2f53c4437c_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1fd2f53c4437c_1.jpg",
@@ -24,8 +24,8 @@
       ],
       "source": "max",
       "no": 50,
-      "views_week": 13,
-      "views_month": 33
+      "views_week": 14,
+      "views_month": 34
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1fa93248e14ff",
@@ -39,7 +39,7 @@
       "material": "",
       "desc": "Гаджет для ванной",
       "tags": "для_дома",
-      "views": 41,
+      "views": 42,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_0.jpg",
@@ -52,8 +52,8 @@
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_2.jpg"
       ],
-      "views_week": 13,
-      "views_month": 41
+      "views_week": 14,
+      "views_month": 42
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f9c74c373f85",
@@ -67,7 +67,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 27,
+      "views": 28,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f9c74c373f85_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1f9c74c373f85_1.jpg",
@@ -78,8 +78,8 @@
       ],
       "source": "max",
       "no": 48,
-      "views_week": 5,
-      "views_month": 27
+      "views_week": 6,
+      "views_month": 28
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f8143b3702a2",
@@ -93,7 +93,7 @@
       "material": "",
       "desc": "3x3-50\n5x5-150\n10x10-400",
       "tags": "",
-      "views": 29,
+      "views": 30,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f8143b3702a2_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1f8143b3702a2_1.jpg",
@@ -102,8 +102,8 @@
       ],
       "source": "max",
       "no": 47,
-      "views_week": 5,
-      "views_month": 29
+      "views_week": 6,
+      "views_month": 30
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f7f0039d6020",
@@ -117,7 +117,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 29,
+      "views": 30,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f7f0039d6020_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1f7f0039d6020_1.jpg",
@@ -127,8 +127,8 @@
       ],
       "source": "max",
       "no": 46,
-      "views_week": 6,
-      "views_month": 29
+      "views_week": 7,
+      "views_month": 30
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f7c59bca0534",
@@ -142,7 +142,7 @@
       "material": "",
       "desc": "",
       "tags": "",
-      "views": 26,
+      "views": 27,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1f7c59bca0534_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1f7c59bca0534_1.jpg",
@@ -150,8 +150,8 @@
       ],
       "source": "max",
       "no": 45,
-      "views_week": 4,
-      "views_month": 26
+      "views_week": 5,
+      "views_month": 27
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f40b6473141e",
