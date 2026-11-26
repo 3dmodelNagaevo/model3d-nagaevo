@@ -1,5 +1,5 @@
 {
-  "updated": 1795680390,
+  "updated": 1795692160,
   "items": [
     {
       "mid": "mid.ffffb8167a965fcf01a1fd2f53c4437c",
@@ -13,7 +13,7 @@
       "material": "",
       "desc": "Забавный аксессуар для кота",
       "tags": "для_питомцев",
-      "views": 41,
+      "views": 42,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1fd2f53c4437c_0.jpg",
         "photos/mid_ffffb8167a965fcf01a1fd2f53c4437c_1.jpg",
@@ -24,8 +24,8 @@
       ],
       "source": "max",
       "no": 50,
-      "views_week": 21,
-      "views_month": 41
+      "views_week": 22,
+      "views_month": 42
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1fa93248e14ff",
@@ -39,7 +39,7 @@
       "material": "",
       "desc": "Гаджет для ванной",
       "tags": "для_дома",
-      "views": 48,
+      "views": 49,
       "photos": [
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_0.jpg",
@@ -52,8 +52,8 @@
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_1.jpg",
         "photos/mid_ffffb8167a965fcf01a1fa93248e14ff_2.jpg"
       ],
-      "views_week": 20,
-      "views_month": 48
+      "views_week": 21,
+      "views_month": 49
     },
     {
       "mid": "mid.ffffb8167a965fcf01a1f9c74c373f85",
