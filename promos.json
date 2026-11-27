@@ -7,14 +7,16 @@
       "limit": 3,
       "days": 7,
       "used": 0,
-      "status": "active",
+      "status": "ended",
       "created": 1795192361,
       "by": 479018271,
       "start": 1795192372,
       "until": 1795797172,
       "mid": "mid.ffffb8167a965fcf01a1f9cdc3653f43",
       "kb": true,
-      "uses": []
+      "uses": [],
+      "ended": 1795797986,
+      "post_closed": true
     }
   ]
 }
